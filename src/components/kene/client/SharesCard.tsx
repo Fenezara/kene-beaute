@@ -75,26 +75,33 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
     load();
   }, [load]);
 
-  // Présélection par défaut de « Cabinet LA DERMO » dès la création / consultation du compte
+  // Présélection de l'institut uniquement si un paramètre d'URL ou d'invitation le spécifie, jamais en dur
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (data?.shares && user && !user.selectedTenantId) {
-      const dermo = data.shares.find(
-        (s) => s.name?.toLowerCase().includes("dermo") || s.name?.toLowerCase().includes("la dermo")
-      );
-      if (dermo) {
-        void apiPatch("/api/auth/profile", { userId: user.id, selectedTenantId: dermo.tenantId }).catch(() => null);
-        setUser({
-          ...user,
-          selectedTenantId: dermo.tenantId,
-          selectedTenant: {
-            id: dermo.tenantId,
-            name: dermo.name,
-            city: dermo.city,
-            phone: dermo.phone || (dermo as any).ownerPhone,
-            ownerPhone: (dermo as any).ownerPhone || dermo.phone,
-          },
-        });
-      }
+      try {
+        const p = new URLSearchParams(window.location.search);
+        const joinParam = p.get("join") || p.get("ref");
+        if (joinParam) {
+          const matched = data.shares.find(
+            (s) => s.tenantId === joinParam || s.name.toLowerCase().includes(joinParam.toLowerCase())
+          );
+          if (matched) {
+            void apiPatch("/api/auth/profile", { userId: user.id, selectedTenantId: matched.tenantId }).catch(() => null);
+            setUser({
+              ...user,
+              selectedTenantId: matched.tenantId,
+              selectedTenant: {
+                id: matched.tenantId,
+                name: matched.name,
+                city: matched.city,
+                phone: matched.phone || (matched as any).ownerPhone,
+                ownerPhone: (matched as any).ownerPhone || matched.phone,
+              },
+            });
+          }
+        }
+      } catch {}
     }
   }, [data?.shares, user, setUser]);
 

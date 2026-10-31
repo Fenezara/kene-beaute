@@ -1598,7 +1598,8 @@ export function ProEnterpriseShell() {
               : "p-3 sm:p-5 lg:p-6"
           )}
         >
-          {activeSection !== "assistant" && activeCategoryItems.length > 1 && (
+          {/* Navigation en sous-onglets (masquée si la barre latérale gauche est déjà dépliée pour éviter tout doublon visuel) */}
+          {activeSection !== "assistant" && activeCategoryItems.length > 1 && !sidebarExpanded && (
             <div className="hidden md:flex mb-3.5 shrink-0 k-obsidian-luxury px-3.5 py-2.5 sm:px-4 sm:py-3 flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <span className="text-[11px] font-black text-[#E5A93C] uppercase tracking-[0.16em] pr-1.5 shrink-0 flex items-center gap-1.5">

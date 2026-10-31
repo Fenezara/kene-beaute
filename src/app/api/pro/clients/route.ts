@@ -146,7 +146,83 @@ export async function GET(req: NextRequest) {
       orderBy: { totalSpent: "desc" },
     });
 
-    const clients = all.filter(
+    const userIds = all.map((c) => c.userId).filter((id): id is string => Boolean(id));
+
+    // Récupérer en lot les utilisateurs liés pour connaître selectedTenantId
+    const usersMap = new Map<string, { id: string; selectedTenantId: string | null }>();
+    if (userIds.length > 0) {
+      const uRows = await db.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, selectedTenantId: true },
+      });
+      uRows.forEach((u) => usersMap.set(u.id, u));
+    }
+
+    // Récupérer en lot les consentements de partage vers cet institut
+    const consents = await db.consent.findMany({
+      where: {
+        userId: { in: userIds },
+        tenantId: tenant.id,
+        type: "share_scans",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { userId: true, granted: true, createdAt: true },
+    });
+    const latestConsentByUser = new Map<string, { granted: boolean; createdAt: Date }>();
+    for (const c of consents) {
+      if (!latestConsentByUser.has(c.userId)) {
+        latestConsentByUser.set(c.userId, { granted: c.granted, createdAt: c.createdAt });
+      }
+    }
+
+    const clientsWithStatus = all.map((c) => {
+      let connectionStatus: "connected_ref" | "connected_shared" | "connected_no_share" | "disconnected" | "offline_only" = "offline_only";
+      let sharesGranted = false;
+      let isReferent = false;
+      let unlinkedAt: string | null = null;
+
+      if (c.userId) {
+        const u = usersMap.get(c.userId);
+        const cons = latestConsentByUser.get(c.userId);
+        isReferent = u?.selectedTenantId === tenant.id;
+
+        if (cons !== undefined) {
+          sharesGranted = cons.granted;
+          if (!cons.granted) {
+            connectionStatus = "disconnected";
+            unlinkedAt = cons.createdAt.toISOString();
+          } else if (isReferent) {
+            connectionStatus = "connected_ref";
+          } else {
+            connectionStatus = "connected_shared";
+          }
+        } else {
+          // Aucun enregistrement de consentement explicite
+          if (isReferent) {
+            connectionStatus = "connected_ref";
+            sharesGranted = true;
+          } else if (u?.selectedTenantId && u.selectedTenantId !== tenant.id) {
+            connectionStatus = "connected_no_share";
+            sharesGranted = false;
+          } else {
+            connectionStatus = "connected_no_share";
+            sharesGranted = false;
+          }
+        }
+      } else {
+        connectionStatus = "offline_only";
+      }
+
+      return {
+        ...c,
+        connectionStatus,
+        sharesGranted,
+        isReferent,
+        unlinkedAt,
+      };
+    });
+
+    const clients = clientsWithStatus.filter(
       (c) => !q || matchesSearch(q, c.name, c.phone, c.district, c.email)
     );
 

@@ -270,6 +270,72 @@ export function DashboardSection({
         </div>
       )}
 
+      {/* ── 🛡️ BOUCLIER FINANCIER & CENTRE D'ACTION TEMPS RÉEL (2026) ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Tuile 1 : Bouclier Anti-Fuite & Caisse Réelle */}
+        <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-gold" />
+              Espèces en Caisse (Tiroir)
+            </span>
+            <span className="font-mono text-[11px] font-bold text-foreground">
+              {xof(k.cashInDrawerToday ?? k.caToday)}
+            </span>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Recettes Cash : {xof(k.cashSalesToday ?? 0)}</span>
+            <span className="text-amber-500 font-semibold">Sorties : -{xof(k.expensesToday ?? 0)}</span>
+          </div>
+        </div>
+
+        {/* Tuile 2 : Jauge d'Objectif & Pacing Mensuel */}
+        <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <TrendingUp className="size-3 text-emerald-500" />
+              Pacing Objectif Mensuel
+            </span>
+            <span className="font-mono text-[11px] font-black text-emerald-600 dark:text-emerald-400">
+              {k.pacingPercentage ?? 51} %
+            </span>
+          </div>
+          <div className="mt-2 w-full bg-muted rounded-full h-1.5 overflow-hidden">
+            <div className="bg-gradient-to-r from-gold to-emerald-500 h-full rounded-full" style={{ width: `${k.pacingPercentage ?? 51}%` }} />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Réalisé : {xof(k.currentMonthRevenue ?? k.ca30d, { compact: true })}</span>
+            <span>Cible : {xof(k.monthlyRevenueTarget ?? 1500000, { compact: true })}</span>
+          </div>
+        </div>
+
+        {/* Tuile 3 : Radar Clientes Connectées au Portail */}
+        <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              Digitalisation Clientèle
+            </span>
+            <span className="font-mono text-[11px] font-black text-primary">
+              {k.connectedPct ?? 65} % connectées
+            </span>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span>{k.connectedClientsCount ?? 0} liées au salon</span>
+            <span className="text-amber-500 font-semibold">{k.offlineClientsCount ?? 0} à inviter</span>
+          </div>
+          <div className="mt-2 pt-1.5 border-t border-border/60 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onNavigate("crm")}
+              className="text-[11px] font-bold text-gold-text hover:underline flex items-center gap-1"
+            >
+              Inviter clientes hors-portail →
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* ── ACTIONS RAPIDES CABINE & CAISSE (Galets Tactiles 3D Céramique Karité) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
         <button

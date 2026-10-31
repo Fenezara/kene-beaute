@@ -174,6 +174,8 @@ export function CrmSection({
     }
   }
 
+  const [connectionFilter, setConnectionFilter] = useState<string | null>(null);
+
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
     (clients.data ?? []).forEach((c) => {
@@ -204,9 +206,14 @@ export function CrmSection({
       if (segment && c.rfmSegment !== segment) return false;
       if (selectedDistrict && c.district !== selectedDistrict) return false;
       if (birthdayMonthOnly && !isBirthdayThisMonth(c.birthDate)) return false;
+      if (connectionFilter) {
+        if (connectionFilter === "connected" && !(c.connectionStatus === "connected_ref" || c.connectionStatus === "connected_shared")) return false;
+        if (connectionFilter === "offline" && c.connectionStatus !== "offline_only") return false;
+        if (connectionFilter === "disconnected" && c.connectionStatus !== "disconnected") return false;
+      }
       return true;
     });
-  }, [clients.data, query, segment, selectedDistrict, birthdayMonthOnly]);
+  }, [clients.data, query, segment, selectedDistrict, birthdayMonthOnly, connectionFilter]);
   const all = clients.data ?? [];
   const totalClients = all.length;
   const totalSpent = all.reduce((s, c) => s + c.totalSpent, 0);
@@ -259,6 +266,52 @@ export function CrmSection({
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Filtres Statut Portail Client & Connexion */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5" role="group" aria-label="Filtrer par statut de connexion au portail">
+        <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 shrink-0 pl-1 mr-0.5">
+          Portail :
+        </span>
+        <button
+          onClick={() => setConnectionFilter(null)}
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer",
+            !connectionFilter ? "bg-primary text-primary-foreground font-bold shadow-2xs" : "bg-muted text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Tous les comptes ({all.length})
+        </button>
+        <button
+          onClick={() => setConnectionFilter(connectionFilter === "connected" ? null : "connected")}
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border cursor-pointer flex items-center gap-1",
+            connectionFilter === "connected" ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-bold" : "bg-card border-border text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span className="size-2 rounded-full bg-emerald-500" />
+          <span>🟢 Connectées ({all.filter((c) => c.connectionStatus === "connected_ref" || c.connectionStatus === "connected_shared").length})</span>
+        </button>
+        <button
+          onClick={() => setConnectionFilter(connectionFilter === "offline" ? null : "offline")}
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border cursor-pointer flex items-center gap-1",
+            connectionFilter === "offline" ? "bg-muted font-bold text-foreground border-border" : "bg-card border-border text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span className="size-2 rounded-full bg-muted-foreground/40" />
+          <span>⚪ Hors-App / À inviter ({all.filter((c) => c.connectionStatus === "offline_only").length})</span>
+        </button>
+        <button
+          onClick={() => setConnectionFilter(connectionFilter === "disconnected" ? null : "disconnected")}
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors border cursor-pointer flex items-center gap-1",
+            connectionFilter === "disconnected" ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/40 font-bold" : "bg-card border-border text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span className="size-2 rounded-full bg-rose-500" />
+          <span>🔴 Déconnectées ({all.filter((c) => c.connectionStatus === "disconnected").length})</span>
+        </button>
       </div>
 
       {/* Filtres segments */}
@@ -430,6 +483,31 @@ export function CrmSection({
                             {c.skinType && (
                               <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-gold/10 text-gold-text font-medium border border-gold/20 capitalize">
                                 Peau {c.skinType}
+                              </span>
+                            )}
+                            {c.connectionStatus === "connected_ref" && (
+                              <span className="text-[9.5px] px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30">
+                                🟢 Portail Lié
+                              </span>
+                            )}
+                            {c.connectionStatus === "connected_shared" && (
+                              <span className="text-[9.5px] px-1.5 py-0.2 rounded-md bg-sky-500/15 text-sky-700 dark:text-sky-300 font-bold border border-sky-500/30">
+                                🔵 Partage Actif
+                              </span>
+                            )}
+                            {c.connectionStatus === "connected_no_share" && (
+                              <span className="text-[9.5px] px-1.5 py-0.2 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 font-medium border border-amber-500/30">
+                                🟡 Sans partage
+                              </span>
+                            )}
+                            {c.connectionStatus === "disconnected" && (
+                              <span className="text-[9.5px] px-1.5 py-0.2 rounded-md bg-rose-500/15 text-rose-700 dark:text-rose-300 font-bold border border-rose-500/30">
+                                🔴 Déconnectée
+                              </span>
+                            )}
+                            {c.connectionStatus === "offline_only" && (
+                              <span className="text-[9.5px] px-1.5 py-0.2 rounded-md bg-muted text-muted-foreground font-medium border border-border">
+                                ⚪ Hors-App
                               </span>
                             )}
                           </div>
@@ -812,6 +890,66 @@ function ClientSheet({
             </SheetHeader>
 
             <div className="space-y-4 p-4">
+              {/* Carte Statut Connexion & Action 1-Clic WhatsApp */}
+              <div className="rounded-2xl border border-border bg-card p-3.5 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {c.connectionStatus === "connected_ref" && <span className="size-2.5 rounded-full bg-emerald-500 animate-pulse" />}
+                    {c.connectionStatus === "connected_shared" && <span className="size-2.5 rounded-full bg-sky-500" />}
+                    {c.connectionStatus === "connected_no_share" && <span className="size-2.5 rounded-full bg-amber-500" />}
+                    {c.connectionStatus === "disconnected" && <span className="size-2.5 rounded-full bg-rose-500" />}
+                    {(!c.connectionStatus || c.connectionStatus === "offline_only") && <span className="size-2.5 rounded-full bg-muted-foreground/40" />}
+                    <span className="font-heading text-xs font-bold text-foreground">
+                      {c.connectionStatus === "connected_ref" && "🟢 Portail Lié · Institut Référent"}
+                      {c.connectionStatus === "connected_shared" && "🔵 Portail Lié · Partage Actif"}
+                      {c.connectionStatus === "connected_no_share" && "🟡 Compte Actif · Partage Non Accordé"}
+                      {c.connectionStatus === "disconnected" && "🔴 Accès Révoqué par la cliente"}
+                      {(!c.connectionStatus || c.connectionStatus === "offline_only") && "⚪ Fiche Salon Exclusivement"}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {c.userId ? "Compte App Kènè" : "Non inscrite sur l'app"}
+                  </span>
+                </div>
+
+                {(!c.userId || c.connectionStatus === "offline_only") && (
+                  <div className="pt-2 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground">
+                      Cette cliente n&apos;a pas encore activé son espace mobile.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const inviteLink = `https://kene-beaute.com/?join=${tenantId}`;
+                        const msg = `Bonjour ${c.name} 🌸\nRetrouvez votre carnet de soins, votre diagnostic et vos ordonnances personnalisées préparés par notre équipe sur votre Portail Kènè :\n${inviteLink}\nVos 30 jours d'accès complet sont offerts ! ✨`;
+                        openWhatsApp(c.phone, msg);
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-gold text-[#18120C] text-xs font-bold hover:brightness-105 transition-all shadow-xs shrink-0 cursor-pointer"
+                    >
+                      <span>📲 Inviter sur le Portail (WhatsApp)</span>
+                    </button>
+                  </div>
+                )}
+
+                {c.connectionStatus === "disconnected" && (
+                  <div className="pt-2 border-t border-rose-500/20 text-xs text-rose-700 dark:text-rose-300 space-y-1">
+                    <p className="text-[11px]">
+                      🔒 La cliente a interrompu le partage de ses bilans faits à domicile. L&apos;historique cabine et comptable de l&apos;institut reste préservé.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const msg = `Bonjour ${c.name} 🌸\nPour vous offrir le meilleur accompagnement lors de vos prochains soins en cabine, nous serions ravis de pouvoir consulter à nouveau l'évolution de vos bilans de peau sur votre portail Kènè. À très bientôt ! 🌿`;
+                        openWhatsApp(c.phone, msg);
+                      }}
+                      className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                    >
+                      Solliciter une reconnexion par WhatsApp →
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Alerte Sécurité Maternité (Grossesse ou Allaitement) */}
               {c.pregnant && (
                 <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-pink-500/10 border border-pink-500/30 text-pink-800 dark:text-pink-300 text-xs">

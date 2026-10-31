@@ -58,6 +58,21 @@ export interface ProKpis {
   skinDiagnosesCount30d?: number;
   bookedMinutesToday?: number;
   totalCapacityMinutes?: number;
+  // Radar Portail Clientes
+  totalClientsCount?: number;
+  connectedClientsCount?: number;
+  connectedPct?: number;
+  disconnectedClientsCount?: number;
+  offlineClientsCount?: number;
+  // Bouclier Caisse & Rentabilité
+  cashInDrawerToday?: number;
+  cashSalesToday?: number;
+  mobileMoneyToday?: number;
+  monthlyRevenueTarget?: number;
+  monthlyFixedCosts?: number;
+  currentMonthRevenue?: number;
+  pacingPercentage?: number;
+  activeStaffCountToday?: number;
 }
 
 export interface TodayAppointment {
@@ -133,6 +148,8 @@ export interface ProAppointment {
 }
 
 // ─────────────── CRM ───────────────
+export type ClientConnectionStatus = "connected_ref" | "connected_shared" | "connected_no_share" | "disconnected" | "offline_only";
+
 export interface ProClient {
   id: string;
   userId?: string | null;
@@ -154,6 +171,10 @@ export interface ProClient {
   lastVisit?: string | null;
   rfmSegment: string;
   createdAt: string;
+  connectionStatus?: ClientConnectionStatus;
+  sharesGranted?: boolean;
+  isReferent?: boolean;
+  unlinkedAt?: string | null;
   _count?: { sales: number };
 }
 

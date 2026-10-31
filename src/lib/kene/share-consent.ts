@@ -34,25 +34,18 @@ export async function isScansShared(userId: string, tenantId: string): Promise<b
 
 /** Partage implicite (sans enregistrement de consentement) : lien cliente↔institut. */
 async function defaultScansShared(userId: string, tenantId: string): Promise<boolean> {
-  // Par défaut : si la cliente a rattaché son profil à cet institut ou a un rendez-vous chez cet institut,
-  // ou si une fiche cliente existe pour cet institut, le partage de soin est naturellement actif
+  // RÈGLE DE SOUVERAINETÉ 2026:
+  // Le partage par défaut n'est actif QUE si la cliente a explicitement sélectionné
+  // cet institut comme son institut de référence dans son profil.
+  // Une simple création de fiche CRM par une réceptionniste d'un autre salon ne suffit PAS
+  // à forcer l'accès aux scans personnels faits à domicile.
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { selectedTenantId: true },
   });
   if (user?.selectedTenantId === tenantId) return true;
 
-  const hasApptOrProfile = await db.appointment.findFirst({
-    where: { OR: [{ userId, tenantId }, { tenantId, clientProfile: { userId } }] },
-    select: { id: true },
-  });
-  if (hasApptOrProfile) return true;
-
-  const hasProfile = await db.clientProfile.findFirst({
-    where: { userId, tenantId },
-    select: { id: true },
-  });
-  return Boolean(hasProfile);
+  return false;
 }
 
 /**
@@ -106,15 +99,15 @@ export async function sharedScanUserIds(userIds: string[], tenantId: string): Pr
   }
 
   // Pour les utilisateurs sans entrée explicite dans Consent:
-  // Si le tenant est leur institut de référence ou s'ils ont une fiche, ils partagent par défaut
+  // Seul l'institut référent sélectionné par la cliente est considéré partagé par défaut
   const remaining = userIds.filter((id) => !seen.has(id));
   if (remaining.length > 0) {
-    const linked = await db.clientProfile.findMany({
-      where: { userId: { in: remaining }, tenantId },
-      select: { userId: true },
+    const usersWithTenant = await db.user.findMany({
+      where: { id: { in: remaining }, selectedTenantId: tenantId },
+      select: { id: true },
     });
-    for (const l of linked) {
-      if (l.userId) shared.add(l.userId);
+    for (const u of usersWithTenant) {
+      shared.add(u.id);
     }
   }
   return shared;

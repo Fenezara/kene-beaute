@@ -21,7 +21,7 @@ import { formatTime } from "@/lib/kene/format";
 import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon, NsorommaIcon, SankofaIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
-import { apiGet } from "@/lib/kene/api";
+import { apiGet, apiPatch } from "@/lib/kene/api";
 import { useKene, type ClientTab, type SessionUser, isSavedUser } from "@/store/kene";
 import { useChat } from "@/store/chat";
 import { replayDiagQueue } from "@/lib/kene/diag-queue";
@@ -176,15 +176,15 @@ export function ClientApp() {
     }
   }, [tab, setClientTab]);
 
-  // Capture et affiliation immédiate de l'institut scanné par QR Code (?ref=...)
+  // Capture et affiliation immédiate de l'institut scanné par QR Code (?ref=... ou ?join=...)
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const p = new URLSearchParams(window.location.search);
-      const refTenantId = p.get("ref");
+      const refTenantId = p.get("ref") || p.get("join");
       const salonParam = p.get("salon");
       if (refTenantId) {
-        apiGet<{ tenant?: { id: string; name: string; city: string; phone?: string | null } }>(
+        apiGet<{ tenant?: { id: string; name: string; city: string; phone?: string | null; slug?: string } }>(
           `/api/institutes/${encodeURIComponent(refTenantId)}`
         )
           .then((res) => {
@@ -202,9 +202,10 @@ export function ClientApp() {
                     phone: inst.phone,
                   },
                 });
+                void apiPatch("/api/auth/profile", { userId: curUser.id, selectedTenantId: inst.id }).catch(() => null);
               }
-              toast.success(`Institut partenaire rattaché : ${inst.name} ✨`, {
-                description: "Votre diagnostic de peau offert et votre ordonnance personnalisée sont prêts !",
+              toast.success(`Portail relié à ${inst.name} ✨`, {
+                description: "Votre salon partenaire a été configuré comme votre Institut Référent.",
                 duration: 6000,
               });
             } else if (salonParam) {

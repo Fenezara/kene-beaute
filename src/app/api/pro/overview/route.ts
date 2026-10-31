@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
       cashExpenses30d,
       skinDiagnosesCount30d,
     ] = await Promise.all([
-      db.sale.findMany({ where: { ...completed, createdAt: { gte: todayStart } }, select: { total: true } }),
+      db.sale.findMany({ where: { ...completed, createdAt: { gte: todayStart } }, select: { total: true, paymentMethod: true } }),
       db.sale.aggregate({ where: { ...completed, createdAt: { gte: since7 } }, _sum: { total: true } }),
       db.sale.aggregate({ where: { ...completed, createdAt: { gte: since30 } }, _sum: { total: true }, _count: true }),
       db.resource.count({ where: { tenantId: tenant.id, active: true } }),
@@ -376,6 +376,48 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Statistiques Radar Portail Clientes & Connexion
+    const totalClientsCount = await db.clientProfile.count({ where: { tenantId: tenant.id } });
+    const clientProfilesWithUser = await db.clientProfile.findMany({
+      where: { tenantId: tenant.id, userId: { not: null } },
+      select: { userId: true },
+    });
+    const cUserIds = clientProfilesWithUser.map((p) => p.userId!).filter(Boolean);
+    const connectedUsers = cUserIds.length > 0
+      ? await db.user.count({
+          where: {
+            id: { in: cUserIds },
+            OR: [
+              { selectedTenantId: tenant.id },
+              { consents: { some: { tenantId: tenant.id, type: "share_scans", granted: true } } },
+            ],
+          },
+        })
+      : 0;
+    const connectedPct = totalClientsCount > 0 ? Math.round((connectedUsers / totalClientsCount) * 100) : 0;
+    const offlineClientsCount = Math.max(0, totalClientsCount - cUserIds.length);
+    const disconnectedClientsCount = Math.max(0, cUserIds.length - connectedUsers);
+
+    // Bouclier Caisse & Rentabilité
+    const cashSalesToday = salesToday
+      .filter((s: any) => s.paymentMethod === "cash")
+      .reduce((sum: number, s: any) => sum + s.total, 0);
+    const mobileMoneyToday = salesToday
+      .filter((s: any) => s.paymentMethod && s.paymentMethod !== "cash")
+      .reduce((sum: number, s: any) => sum + s.total, 0);
+    const cashInDrawerToday = Math.max(0, cashSalesToday - (expensesToday || 0));
+
+    // Début du mois en cours pour projection & pacing
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthSalesAgg = await db.sale.aggregate({
+      where: { ...completed, createdAt: { gte: monthStart } },
+      _sum: { total: true },
+    });
+    const currentMonthRevenue = (monthSalesAgg._sum.total ?? 0) + orders30dTotal; // Approximation robuste du mois
+    const monthlyRevenueTarget = 1500000; // Seuil standard institut Kènè
+    const monthlyFixedCosts = 600000; // Charges fixes de référence
+    const pacingPercentage = monthlyRevenueTarget > 0 ? Math.min(100, Math.round((currentMonthRevenue / monthlyRevenueTarget) * 100)) : 0;
+
     return NextResponse.json({
       tenant: tenantWithLiveReviews,
       viewer,
@@ -405,6 +447,19 @@ export async function GET(req: NextRequest) {
         skinDiagnosesCount30d,
         bookedMinutesToday,
         totalCapacityMinutes,
+        totalClientsCount,
+        connectedClientsCount: connectedUsers,
+        connectedPct,
+        disconnectedClientsCount,
+        offlineClientsCount,
+        cashInDrawerToday,
+        cashSalesToday,
+        mobileMoneyToday,
+        monthlyRevenueTarget,
+        monthlyFixedCosts,
+        currentMonthRevenue,
+        pacingPercentage,
+        activeStaffCountToday: activeResources,
       },
       chart,
       paymentSplit,
