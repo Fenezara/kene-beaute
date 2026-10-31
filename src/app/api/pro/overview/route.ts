@@ -118,7 +118,12 @@ export async function GET(req: NextRequest) {
         select: {
           createdAt: true,
           payment: { select: { method: true } },
-          items: { select: { total: true, product: { select: { tenantId: true } } } },
+          items: {
+            select: {
+              total: true,
+              product: { select: { id: true, name: true, tenantId: true } },
+            },
+          },
         },
       }),
       db.product.findMany({ where: { tenantId: tenant.id } }),
