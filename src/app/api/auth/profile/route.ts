@@ -28,6 +28,7 @@ const Body = z.object({
   fitzpatrick: z.string().trim().optional().nullable(),
   allergies: z.string().trim().optional().nullable(),
   selectedTenantId: z.string().trim().optional().nullable(),
+  consentHealth: z.boolean().optional(),
   goals: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
   // — photo de profil: data URL (nouvelle photo) ou null (retrait).
   // La donnée lourde ne revient JAMAIS dans la réponse: seul `hasAvatar`
@@ -93,6 +94,12 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
   }
   if (goals !== undefined) update.goals = JSON.stringify(goals);
   if (avatarData !== undefined) update.avatarData = avatarData;
+  if (rest.consentHealth !== undefined) {
+    update.consentHealth = rest.consentHealth;
+    if (rest.consentHealth) {
+      update.consentTs = new Date();
+    }
+  }
 
   const updated = await db.user.update({ where: { id: userId }, data: update });
 

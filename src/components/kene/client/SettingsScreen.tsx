@@ -674,7 +674,7 @@ export function SettingsScreen() {
                 haptic(HAPTIC.light);
                 setUser({ ...user, consentHealth: next });
                 try {
-                  await apiPost("/api/profile", { consentHealth: next });
+                  await apiPost("/api/auth/profile", { userId: user.id, consentHealth: next });
                   toast.success(next ? "Consentement santé accordé" : "Consentement révoqué");
                 } catch {
                   toast.error("Erreur d'enregistrement du consentement");
