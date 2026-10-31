@@ -103,6 +103,7 @@ export function DashboardSection({
 
   const [viewMode, setViewMode] = useState<"operations" | "finance">("operations");
   const [chartRange, setChartRange] = useState<"7d" | "14d">("14d");
+  const [topCategory, setTopCategory] = useState<"services" | "products">("services");
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [allReviews, setAllReviews] = useState<ProReviewView[]>([]);
   const [reviewsSummary, setReviewsSummary] = useState<ProReviewSummary | null>(null);
@@ -378,9 +379,21 @@ export function DashboardSection({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-[#F5ECDD]/70 mt-1">
-                    {chartRange === "7d" ? "Chiffre d'affaires cumulé sur les 7 derniers jours" : "Chiffre d'affaires consolidé sur les 14 derniers jours"}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#F5ECDD]/80 mt-1.5 pt-1 border-t border-white/10">
+                    <span>
+                      {chartRange === "7d" ? "CA cumulé 7j" : "CA consolidé 14j"}
+                    </span>
+                    {typeof k.expensesToday === "number" && k.expensesToday > 0 && (
+                      <span className="text-amber-300">
+                        Sorties caisse aujourd&apos;hui : -{xof(k.expensesToday)}
+                      </span>
+                    )}
+                    {typeof k.skinDiagnosesCount30d === "number" && (
+                      <span className="text-emerald-300">
+                        {k.skinDiagnosesCount30d} diagnostics peau (30j)
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Commutateur 7j / 14j */}
@@ -411,7 +424,7 @@ export function DashboardSection({
               {/* AreaChart avec Halo Lumineux Solaire */}
               <div className="h-60 sm:h-64 w-full mt-4 z-10">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={displayChartData} margin={{ top: 10, right: 10, left: -14, bottom: 0 }}>
+                  <AreaChart data={displayChartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="goldAuraGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#F5D37E" stopOpacity={0.55} />
@@ -430,7 +443,7 @@ export function DashboardSection({
                       tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
                       tickLine={false}
                       axisLine={false}
-                      width={40}
+                      width={52}
                     />
                     <Tooltip
                       content={({ active, payload }) => {
@@ -475,7 +488,7 @@ export function DashboardSection({
                 icon={<Banknote className="size-4" />}
                 label="CA du jour"
                 value={xof(k.caToday)}
-                hint="Caisse & Boutique"
+                hint={k.expectedApptsToday ? `+${xof(k.expectedApptsToday, { compact: true })} attendus RDV` : "Caisse & Boutique"}
                 sparkline={sparklineCA.slice(-7)}
               />
               <KpiCard
@@ -483,7 +496,7 @@ export function DashboardSection({
                 label="RDV aujourd'hui"
                 value={String(k.appointmentsToday)}
                 monetary={false}
-                hint="En cabine & agenda"
+                hint={`${data.todayAppointments.filter((a) => a.status === "completed").length} terminé(s) · ${data.todayAppointments.filter((a) => a.status === "confirmed").length} à venir`}
                 sparkline={sparklineAppts.slice(-7)}
               />
               <KpiCard
@@ -499,7 +512,11 @@ export function DashboardSection({
                 label="Occupation"
                 value={`${Math.round(k.occupancyPct)} %`}
                 monetary={false}
-                hint={`${k.newClients30d} nvlles clientes / 30j`}
+                hint={
+                  k.bookedMinutesToday !== undefined && k.totalCapacityMinutes
+                    ? `${Math.round(k.bookedMinutesToday / 60)}h réservées / ${Math.round(k.totalCapacityMinutes / 60)}h dispo`
+                    : `${k.newClients30d} nvlles clientes / 30j`
+                }
               />
             </div>
           </div>
@@ -625,51 +642,112 @@ export function DashboardSection({
             </Card>
           </div>
 
-          {/* ── LIGNE 3 : TOP SOINS & AVIS CLIENTES & ALERTES STOCK ── */}
+          {/* ── LIGNE 3 : TOP VENTES (SOINS & PRODUITS) & AVIS & ALERTES ── */}
           <div className="grid lg:grid-cols-2 gap-4">
             <Card className="rounded-[22px] sm:rounded-[26px]">
               <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="font-heading text-base flex items-center gap-2">
-                  <Crown className="size-4 text-gold-text" />
-                  Top soins vendus
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">Volume & Récurrence</span>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="font-heading text-base flex items-center gap-2">
+                    <Crown className="size-4 text-gold-text" />
+                    Top Ventes (30j)
+                  </CardTitle>
+                </div>
+
+                {/* Commutateur Soins Cabine vs Produits Cosmétiques */}
+                <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setTopCategory("services")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer",
+                      topCategory === "services" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Soins ({data.topServices.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTopCategory("products")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer",
+                      topCategory === "products" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Produits ({data.topProducts?.length ?? 0})
+                  </button>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
-                {data.topServices.length === 0 ? (
-                  <EmptyState label="Pas encore de ventes" sub="Vos prestations les plus populaires s'afficheront ici" />
-                ) : (
-                  <ul className="divide-y divide-border/70">
-                    {(() => {
-                      const maxTotal = Math.max(...data.topServices.map((s) => s.total || 1));
-                      return data.topServices.map((s, i) => {
-                        const pct = Math.round((s.total / maxTotal) * 100);
-                        return (
-                          <li key={s.name} className="flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/20 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <span className={cn(
-                                "grid size-6 place-items-center rounded-lg font-mono text-[11px] font-bold shrink-0",
-                                i === 0 ? "bg-gold/25 text-gold-text border border-gold/40 shadow-xs" :
-                                i === 1 ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" :
-                                i === 2 ? "bg-terre/15 text-terre" :
-                                "bg-muted text-muted-foreground"
-                              )} aria-hidden="true">
-                                {i + 1}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold">{s.name}</p>
-                                <p className="text-xs text-muted-foreground">{s.count} prestation{s.count > 1 ? "s" : ""}</p>
+                {topCategory === "services" ? (
+                  data.topServices.length === 0 ? (
+                    <EmptyState label="Pas encore de soins vendus" sub="Vos prestations populaires s'afficheront ici" />
+                  ) : (
+                    <ul className="divide-y divide-border/70">
+                      {(() => {
+                        const maxTotal = Math.max(...data.topServices.map((s) => s.total || 1));
+                        return data.topServices.map((s, i) => {
+                          const pct = Math.round((s.total / maxTotal) * 100);
+                          return (
+                            <li key={s.name} className="flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/20 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <span className={cn(
+                                  "grid size-6 place-items-center rounded-lg font-mono text-[11px] font-bold shrink-0",
+                                  i === 0 ? "bg-gold/25 text-gold-text border border-gold/40 shadow-xs" :
+                                  i === 1 ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" :
+                                  i === 2 ? "bg-terre/15 text-terre" :
+                                  "bg-muted text-muted-foreground"
+                                )} aria-hidden="true">
+                                  {i + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold">{s.name}</p>
+                                  <p className="text-xs text-muted-foreground">{s.count} prestation{s.count > 1 ? "s" : ""}</p>
+                                </div>
+                                <Money value={s.total} className="text-sm font-bold" />
                               </div>
-                              <Money value={s.total} className="text-sm font-bold" />
-                            </div>
-                            <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden ml-9 max-w-[calc(100%-2.25rem)]">
-                              <div className="h-full rounded-full bg-gradient-to-r from-gold to-terre" style={{ width: `${pct}%` }} />
-                            </div>
-                          </li>
-                        );
-                      });
-                    })()}
-                  </ul>
+                              <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden ml-9 max-w-[calc(100%-2.25rem)]">
+                                <div className="h-full rounded-full bg-gradient-to-r from-gold to-terre" style={{ width: `${pct}%` }} />
+                              </div>
+                            </li>
+                          );
+                        });
+                      })()}
+                    </ul>
+                  )
+                ) : (
+                  !data.topProducts || data.topProducts.length === 0 ? (
+                    <EmptyState label="Pas encore de produits vendus" sub="Les ventes de crèmes, sérums et huiles apparaîtront ici" />
+                  ) : (
+                    <ul className="divide-y divide-border/70">
+                      {(() => {
+                        const maxTotal = Math.max(...(data.topProducts?.map((p) => p.total || 1) ?? [1]));
+                        return data.topProducts.map((p, i) => {
+                          const pct = Math.round((p.total / maxTotal) * 100);
+                          return (
+                            <li key={p.name} className="flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/20 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <span className={cn(
+                                  "grid size-6 place-items-center rounded-lg font-mono text-[11px] font-bold shrink-0",
+                                  i === 0 ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 shadow-xs" :
+                                  "bg-muted text-muted-foreground"
+                                )} aria-hidden="true">
+                                  {i + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold">{p.name}</p>
+                                  <p className="text-xs text-muted-foreground">{p.count} unité{p.count > 1 ? "s" : ""} vendue{p.count > 1 ? "s" : ""}</p>
+                                </div>
+                                <Money value={p.total} className="text-sm font-bold text-emerald-700 dark:text-emerald-400" />
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden ml-9 max-w-[calc(100%-2.25rem)]">
+                                <div className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500" style={{ width: `${pct}%` }} />
+                              </div>
+                            </li>
+                          );
+                        });
+                      })()}
+                    </ul>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -723,7 +801,9 @@ export function DashboardSection({
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 text-gold px-2 py-0.5 text-xs font-bold font-mono">
                     <Star size={11} className="fill-gold" />
-                    {(data.tenant?.rating ?? 5.0).toFixed(1)} / 5
+                    {data.recentReviews && data.recentReviews.length > 0
+                      ? `${(data.tenant?.rating ?? 5.0).toFixed(1)} / 5`
+                      : "En attente"}
                   </span>
                   {data.recentReviews && data.recentReviews.length > 0 && (
                     <Button
@@ -741,14 +821,12 @@ export function DashboardSection({
             <CardContent className="p-0">
               {!data.recentReviews || data.recentReviews.length === 0 ? (
                 <div className="px-4 py-4 space-y-2.5">
-                  <div className="flex items-center gap-1 text-gold" role="img" aria-label="5 étoiles d'excellence">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="size-4 fill-gold text-gold" />
-                    ))}
-                    <span className="ml-2 text-xs font-bold text-foreground">Excellence Clinique 5.0</span>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Star className="size-4 text-gold/60" />
+                    <span className="text-xs font-bold text-foreground">Collecte d&apos;avis activée</span>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Vos clientes invitées peuvent noter leur expérience cabine directement après chaque rendez-vous.
+                    Après chaque soin en cabine, vos clientes reçoivent une invitation à évaluer leur praticienne. Leurs retours s&apos;afficheront ici en direct.
                   </p>
                 </div>
               ) : (

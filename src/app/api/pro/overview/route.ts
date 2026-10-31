@@ -66,6 +66,8 @@ export async function GET(req: NextRequest) {
       recentReviews,
       reviewStats,
       pendingOrders,
+      cashExpenses30d,
+      skinDiagnosesCount30d,
     ] = await Promise.all([
       db.sale.findMany({ where: { ...completed, createdAt: { gte: todayStart } }, select: { total: true } }),
       db.sale.aggregate({ where: { ...completed, createdAt: { gte: since7 } }, _sum: { total: true } }),
@@ -84,7 +86,18 @@ export async function GET(req: NextRequest) {
         select: {
           total: true,
           paymentMethod: true,
-          items: { select: { kind: true, total: true, serviceId: true, service: { select: { name: true } } } },
+          items: {
+            select: {
+              kind: true,
+              total: true,
+              serviceId: true,
+              productId: true,
+              label: true,
+              qty: true,
+              service: { select: { name: true } },
+              product: { select: { name: true } },
+            },
+          },
         },
       }),
       db.appointment.findMany({
@@ -144,6 +157,23 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { createdAt: "desc" },
         take: 10,
+      }),
+      // Sorties de caisse (Journal CA cash_expense) du jour et sur 30j
+      db.journalEntry.findMany({
+        where: {
+          tenantId: tenant.id,
+          journalCode: "CA",
+          sourceType: "cash_expense",
+          date: { gte: since30 },
+        },
+        select: {
+          date: true,
+          lines: { where: { debit: { gt: 0 } }, select: { debit: true } },
+        },
+      }),
+      // Diagnostics peau réalisés sur 30j
+      db.proDiagnosis.count({
+        where: { tenantId: tenant.id, createdAt: { gte: since30 } },
       }),
     ]);
 
@@ -219,18 +249,62 @@ export async function GET(req: NextRequest) {
     for (const o of ordersWithOwnTotal) splitMap.set(o.method, (splitMap.get(o.method) ?? 0) + o.ownTotal);
     const paymentSplit = [...splitMap.entries()].map(([method, total]) => ({ method, total })).sort((a, b) => b.total - a.total);
 
-    // Top 5 prestations par CA 30 j
+    // Dépenses de caisse (Journal CA)
+    const expensesToday = cashExpenses30d
+      .filter((e) => new Date(e.date) >= todayStart)
+      .reduce((sum, e) => sum + e.lines.reduce((s, l) => s + l.debit, 0), 0);
+    const expenses30d = cashExpenses30d.reduce(
+      (sum, e) => sum + e.lines.reduce((s, l) => s + l.debit, 0),
+      0
+    );
+
+    // CA attendu des RDV du jour restants (confirmés ou en cours)
+    const expectedApptsToday = todayAppts
+      .filter((a) => a.status === "confirmed" || a.status === "pending")
+      .reduce((sum, a) => sum + (a.price || 0), 0);
+
+    // Top 5 soins & Top 5 produits vendus sur 30j
     const svcMap = new Map<string, { name: string; count: number; total: number }>();
+    const prodMap = new Map<string, { name: string; count: number; total: number }>();
+    let totalServicesRevenue30d = 0;
+    let totalProductsRevenue30d = 0;
+
     for (const s of sales30d) {
       for (const item of s.items) {
-        if (item.kind !== "service" || !item.serviceId) continue;
-        const row = svcMap.get(item.serviceId) ?? { name: item.service?.name ?? "Prestation", count: 0, total: 0 };
-        row.count += 1;
-        row.total += item.total;
-        svcMap.set(item.serviceId, row);
+        if (item.kind === "service") {
+          const key = item.serviceId || item.label;
+          const row = svcMap.get(key) ?? { name: item.service?.name ?? item.label, count: 0, total: 0 };
+          row.count += item.qty || 1;
+          row.total += item.total;
+          totalServicesRevenue30d += item.total;
+          svcMap.set(key, row);
+        } else if (item.kind === "product") {
+          const key = item.productId || item.label;
+          const row = prodMap.get(key) ?? { name: item.product?.name ?? item.label, count: 0, total: 0 };
+          row.count += item.qty || 1;
+          row.total += item.total;
+          totalProductsRevenue30d += item.total;
+          prodMap.set(key, row);
+        }
       }
     }
+
+    // Ajouter les commandes boutique dans les produits
+    for (const o of paidOrders30d) {
+      for (const item of o.items) {
+        if (item.product?.tenantId === tenant.id) {
+          const key = item.product.id || "boutique";
+          const row = prodMap.get(key) ?? { name: item.product.name ?? "Produit Kènè", count: 0, total: 0 };
+          row.count += 1;
+          row.total += item.total;
+          totalProductsRevenue30d += item.total;
+          prodMap.set(key, row);
+        }
+      }
+    }
+
     const topServices = [...svcMap.values()].sort((a, b) => b.total - a.total).slice(0, 5);
+    const topProducts = [...prodMap.values()].sort((a, b) => b.total - a.total).slice(0, 5);
 
     // Alertes stock: produits sous le seuil (comparaison colonne à colonne en JS)
     const stockAlerts = products
@@ -318,10 +392,19 @@ export async function GET(req: NextRequest) {
         occupancyPct,
         pendingOrdersCount,
         pendingOrdersTotal,
+        expensesToday,
+        expenses30d,
+        expectedApptsToday,
+        totalServicesRevenue30d,
+        totalProductsRevenue30d,
+        skinDiagnosesCount30d,
+        bookedMinutesToday,
+        totalCapacityMinutes,
       },
       chart,
       paymentSplit,
       topServices,
+      topProducts,
       pendingOrders: pendingOrdersFormatted,
       todayAppointments: todayAppts.map((a) => ({
         id: a.id,

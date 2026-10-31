@@ -50,6 +50,14 @@ export interface ProKpis {
   occupancyPct: number;
   pendingOrdersCount?: number;
   pendingOrdersTotal?: number;
+  expensesToday?: number;
+  expenses30d?: number;
+  expectedApptsToday?: number;
+  totalServicesRevenue30d?: number;
+  totalProductsRevenue30d?: number;
+  skinDiagnosesCount30d?: number;
+  bookedMinutesToday?: number;
+  totalCapacityMinutes?: number;
 }
 
 export interface TodayAppointment {
@@ -82,6 +90,7 @@ export interface ProOverview {
   chart: { date: string; total: number; count?: number; apptsCount?: number }[];
   paymentSplit: { method: string; total: number }[];
   topServices: { name: string; count: number; total: number }[];
+  topProducts?: { name: string; count: number; total: number }[];
   todayAppointments: TodayAppointment[];
   stockAlerts: StockAlertItem[];
   recentReviews?: ProReviewView[];

@@ -1598,8 +1598,8 @@ export function ProEnterpriseShell() {
               : "p-3 sm:p-5 lg:p-6"
           )}
         >
-          {activeSection !== "assistant" && (
-            <div className="hidden md:flex mb-4 shrink-0 k-obsidian-luxury px-4 py-3 sm:px-5 sm:py-3.5 flex-wrap items-center justify-between gap-3">
+          {activeSection !== "assistant" && activeCategoryItems.length > 1 && (
+            <div className="hidden md:flex mb-3.5 shrink-0 k-obsidian-luxury px-3.5 py-2.5 sm:px-4 sm:py-3 flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <span className="text-[11px] font-black text-[#E5A93C] uppercase tracking-[0.16em] pr-1.5 shrink-0 flex items-center gap-1.5">
                   <span className="text-sm">{activeCategoryDef.emoji}</span>
@@ -1614,7 +1614,7 @@ export function ProEnterpriseShell() {
                       type="button"
                       onClick={() => openSection(item.id)}
                       className={cn(
-                        "h-8.5 px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer border",
+                        "h-8 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer border",
                         isItemActive
                           ? "k-btn-gold text-[#18120C] border-transparent shadow-sm"
                           : "bg-white/10 text-[#F5ECDD]/90 border-white/15 hover:text-[#FFF9EC] hover:bg-white/18"
