@@ -210,3 +210,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return serverError("pro/appointments/[id]", err);
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const guard = guardProRole(req, "pro:appointments:[id]:delete");
+    if (guard) return guard;
+
+    const { id } = await params;
+    const appointment = await db.appointment.findUnique({ where: { id } });
+    if (!appointment) return jsonError("Rendez-vous introuvable", 404);
+
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
+    if (!tenant || appointment.tenantId !== tenant.id) {
+      return jsonError("Rendez-vous introuvable", 404);
+    }
+
+    await db.appointment.delete({ where: { id } });
+
+    pushTenantFeed(appointment.tenantId);
+    if (appointment.userId) pushFeed(appointment.userId);
+
+    return NextResponse.json({ ok: true, deleted: true });
+  } catch (err) {
+    return serverError("pro/appointments:[id]:delete", err);
+  }
+}

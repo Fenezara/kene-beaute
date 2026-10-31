@@ -75,7 +75,10 @@ const CreateBody = z.object({
   clientName: z.string().trim().min(1),
   clientPhone: z.string().trim().min(5),
   clientProfileId: z.string().optional(),
-  serviceId: z.string().min(1),
+  serviceId: z.string().optional(),
+  customServiceName: z.string().optional(),
+  customPrice: z.number().optional(),
+  customDurationMin: z.number().optional(),
   resourceId: z.string().min(1),
   startAt: z.string().min(10),
   notes: z.string().optional(),
@@ -90,15 +93,45 @@ export async function POST(req: NextRequest) {
 
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, clientName, clientPhone, clientProfileId, serviceId, resourceId, notes } = parsed.data;
+    const { tenantId, clientName, clientPhone, clientProfileId, serviceId, customServiceName, customPrice, customDurationMin, resourceId, notes } = parsed.data;
     const start = new Date(parsed.data.startAt);
     if (Number.isNaN(start.getTime())) return jsonError("Date de début invalide", 400);
 
     const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const service = await db.service.findFirst({ where: { id: serviceId, tenantId, active: true } });
-    if (!service) return jsonError("Service introuvable", 404);
+    // Résolution du soin : depuis le catalogue OU création d'un soin saisi manuellement
+    let service = serviceId
+      ? await db.service.findFirst({ where: { id: serviceId, tenantId, active: true } })
+      : null;
+
+    if (!service && customServiceName?.trim()) {
+      const cleanName = customServiceName.trim();
+      const dur = customDurationMin && customDurationMin > 0 ? customDurationMin : 60;
+      const pr = customPrice !== undefined && customPrice >= 0 ? customPrice : 15000;
+
+      // Chercher si un soin identique existe déjà pour cet institut
+      service = await db.service.findFirst({
+        where: { tenantId, name: { equals: cleanName } },
+      });
+
+      if (!service) {
+        service = await db.service.create({
+          data: {
+            tenantId,
+            name: cleanName,
+            category: "soin",
+            durationMin: dur,
+            price: pr,
+            commissionPct: 10,
+            active: true,
+          },
+        });
+      }
+    }
+
+    if (!service) return jsonError("Veuillez sélectionner ou saisir un soin", 400);
+
     const resource = await db.resource.findFirst({ where: { id: resourceId, tenantId, active: true } });
     if (!resource) return jsonError("Praticienne introuvable", 404);
 
@@ -173,7 +206,7 @@ export async function POST(req: NextRequest) {
         userId: resolvedUserId,
         clientName: effectiveClientName,
         clientPhone: normPhone,
-        serviceId,
+        serviceId: service.id,
         resourceId,
         startAt: start,
         durationMin: service.durationMin,

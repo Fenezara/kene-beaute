@@ -16,6 +16,8 @@ import {
   Users,
   CalendarClock,
   Calendar as CalendarIcon,
+  Trash2,
+  PenLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { apiGet, apiPost, apiPatch } from "@/lib/kene/api";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/kene/api";
 import { addDays, startOfWeek, formatDate, formatTime, xof } from "@/lib/kene/format";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { useApi } from "./useApi";
@@ -48,6 +50,24 @@ const ROW_H = 34;
 const ROWS = ((CLOSE - OPEN) * 60) / 30;
 
 const DAY_NAMES = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+
+/** Nettoie le nom de la praticienne pour n'afficher UNIQUEMENT que son nom / prénom */
+function cleanPractitionerName(raw?: string | null): string {
+  if (!raw) return "";
+  return raw
+    .replace(/\s*[-—–]\s*(esthéticienne|estheticienne|dermo[- ]?conseillère|dermo[- ]?conseillere|praticienne|coiffeuse|masseuse|soignante|prestataire|manager|caissière|caissiere|employée|employee).*$/i, "")
+    .replace(/\s*\((esthéticienne|estheticienne|dermo[- ]?conseillère|dermo[- ]?conseillere|praticienne|coiffeuse|masseuse|soignante).*?\)/i, "")
+    .trim();
+}
+
+/** Formatage direct HH:mm sans dépendre des variations de locale de formatTime */
+function toTimeHHmm(d: string | Date): string {
+  const dateObj = new Date(d);
+  if (isNaN(dateObj.getTime())) return "10:00";
+  const h = String(dateObj.getHours()).padStart(2, "0");
+  const m = String(dateObj.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
 
 function sameDay(a: string | Date, b: Date): boolean {
   return new Date(a).toDateString() === b.toDateString();
@@ -155,14 +175,36 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
     [tenantId, refreshKey]
   );
 
+  const resourcesApi = useApi<{ resources: { id: string; name: string; role?: string; color: string }[] }>(
+    () =>
+      tenantId
+        ? apiGet<{ resources: any[] }>(`/api/pro/resources?tenantId=${tenantId}`)
+        : Promise.resolve({ resources: [] }),
+    [tenantId, refreshKey]
+  );
+
   const resources = useMemo(() => {
+    const listFromApi = resourcesApi.data?.resources ?? [];
+    if (listFromApi.length > 0) {
+      return listFromApi.map((r) => ({
+        value: r.id,
+        name: cleanPractitionerName(r.name),
+        color: r.color || "#C8951E",
+      }));
+    }
     const map = new Map<string, { value: string; name: string; color: string }>();
     for (const a of [...(list.data ?? []), ...(resourcePool.data ?? [])]) {
       const value = a.resourceId ?? a.resource.id ?? a.resource.name;
-      if (!map.has(value)) map.set(value, { value, name: a.resource.name, color: a.resource.color });
+      if (!map.has(value)) {
+        map.set(value, {
+          value,
+          name: cleanPractitionerName(a.resource.name),
+          color: a.resource.color,
+        });
+      }
     }
     return [...map.values()];
-  }, [list.data, resourcePool.data]);
+  }, [resourcesApi.data, list.data, resourcePool.data]);
 
   const step = (dir: 1 | -1) => {
     if (view === "semaine") {
@@ -194,6 +236,16 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
 
   async function act(appt: ProAppointment, action: string, extra?: Record<string, unknown>) {
     try {
+      if (action === "delete") {
+        await apiDelete(`/api/pro/appointments/${appt.id}?tenantId=${tenantId}`);
+        toast.success("Rendez-vous définitivement supprimé");
+        list.setData((prev) => (prev ? prev.filter((a) => a.id !== appt.id) : prev));
+        pendingList.setData((prev) => (prev ? prev.filter((a) => a.id !== appt.id) : prev));
+        setSelected(null);
+        await Promise.all([list.refetch(), resourcePool.refetch(), pendingList.refetch()]);
+        return;
+      }
+
       const res = await apiPatch<{ appointment: ProAppointment; sale?: unknown }>(`/api/pro/appointments/${appt.id}`, {
         action,
         ...(extra ?? {}),
@@ -201,9 +253,24 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
       if (action === "complete") {
         toast.success("Vente encaissée", { description: "Sale créée + écriture comptable automatique (CA / SYSCOHADA)." });
       } else if (action === "cancel") {
-        toast.info("Rendez-vous annulé", { description: "Politique de remboursement appliquée selon le délai." });
+        toast.info("Rendez-vous annulé", { description: "Créneau libéré dans l'agenda." });
+        list.setData((prev) => (prev ? prev.filter((a) => a.id !== appt.id) : prev));
+        pendingList.setData((prev) => (prev ? prev.filter((a) => a.id !== appt.id) : prev));
+      } else if (action === "reschedule") {
+        toast.success("RDV déplacé avec succès");
+        const newStart = extra?.startAt as string;
+        const newResId = (extra?.resourceId as string) || appt.resourceId;
+        list.setData((prev) =>
+          prev
+            ? prev.map((a) =>
+                a.id === appt.id
+                  ? { ...a, startAt: newStart, resourceId: newResId, status: "confirmed" }
+                  : a
+              )
+            : prev
+        );
       } else {
-        toast.success(`RDV ${action === "confirm" ? "confirmé" : action === "no_show" ? "marqué no-show" : "déplacé"}`);
+        toast.success(`RDV ${action === "confirm" ? "confirmé" : action === "no_show" ? "marqué no-show" : "mis à jour"}`);
       }
       setSelected(null);
       await Promise.all([list.refetch(), resourcePool.refetch(), pendingList.refetch()]);
@@ -475,7 +542,7 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
                   ))}
                 </div>
                 {shownDays.map((d, di) => {
-                  const dayAppts = (list.data ?? []).filter((a) => sameDay(a.startAt, d));
+                  const dayAppts = (list.data ?? []).filter((a) => sameDay(a.startAt, d) && a.status !== "cancelled");
                   return (
                     <div key={di} className={cn("relative border-l border-border/60", isToday(d) && "bg-gold/[0.04]")}>
                       {/* lignes 30 min */}
@@ -488,16 +555,12 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
                         const startMin = start.getHours() * 60 + start.getMinutes();
                         const top = Math.max(0, ((startMin - OPEN_MIN) / 30) * ROW_H + 1);
                         const height = Math.max(ROW_H - 4, (a.durationMin / 30) * ROW_H - 4);
-                        const cancelled = a.status === "cancelled" || a.status === "no_show";
                         return (
                           <button
                             key={a.id}
                             onClick={() => setSelected(a)}
                             aria-label={`${formatTime(a.startAt)} — ${a.clientName} — ${a.service.name}`}
-                            className={cn(
-                              "absolute left-0.5 right-0.5 z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left shadow-sm transition-transform hover:scale-[1.02] hover:z-20 focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-ring",
-                              cancelled && "opacity-45 saturate-50"
-                            )}
+                            className="absolute left-0.5 right-0.5 z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left shadow-sm transition-transform hover:scale-[1.02] hover:z-20 focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-ring"
                             style={{
                               top,
                               height,
@@ -581,7 +644,7 @@ function ApptDetailDialog({
   const [resched, setResched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [date, setDate] = useState(toLocalISODate(new Date(appt.startAt)));
-  const [time, setTime] = useState(formatTime(appt.startAt));
+  const [time, setTime] = useState(toTimeHHmm(appt.startAt));
   const [resourceId, setResourceId] = useState(appt.resourceId ?? appt.resource.id ?? appt.resource.name);
 
   async function run(action: string, extra?: Record<string, unknown>) {
@@ -589,7 +652,7 @@ function ApptDetailDialog({
     try {
       await onAction(appt, action, extra);
     } catch {
- /* toast déjà émis */
+      /* toast déjà émis */
     } finally {
       setBusy(false);
     }
@@ -616,7 +679,7 @@ function ApptDetailDialog({
             <span className="text-muted-foreground">Praticienne</span>
             <span className="flex items-center gap-1.5 font-medium">
               <span className="size-2.5 rounded-full" style={{ background: appt.resource.color }} aria-hidden="true" />
-              {appt.resource.name}
+              {cleanPractitionerName(appt.resource.name)}
             </span>
           </div>
           <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2">
@@ -643,7 +706,7 @@ function ApptDetailDialog({
               onClick={() => {
                 const appUrl = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
                 const passUrl = `${appUrl}/api/appointments/pass?id=${encodeURIComponent(appt.id)}`;
-                const msg = `Bonjour ${appt.clientName} ! 💆‍♀️\n\nVotre rendez-vous pour votre soin *${appt.service.name}* est prévu le *${formatDate(appt.startAt)}* à *${formatTime(appt.startAt)}*.\n\nPraticienne : ${appt.resource.name}\nVotre Pass d'accès : ${passUrl}\n\nEn cas d'empêchement, merci de nous prévenir au plus tôt. Prenez soin de vous ! 🌿`;
+                const msg = `Bonjour ${appt.clientName} ! 💆‍♀️\n\nVotre rendez-vous pour votre soin *${appt.service.name}* est prévu le *${formatDate(appt.startAt)}* à *${formatTime(appt.startAt)}*.\n\nPraticienne : ${cleanPractitionerName(appt.resource.name)}\nVotre Pass d'accès : ${passUrl}\n\nEn cas d'empêchement, merci de nous prévenir au plus tôt. Prenez soin de vous ! 🌿`;
                 openWhatsApp(appt.clientPhone, msg);
               }}
               className="w-full h-10 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 font-bold text-xs flex items-center justify-center gap-2"
@@ -689,6 +752,18 @@ function ApptDetailDialog({
                 </Button>
               </>
             )}
+            <Button
+              disabled={busy}
+              variant="outline"
+              className="gap-1.5 col-span-2 text-destructive border-destructive/40 hover:bg-destructive/10"
+              onClick={() => {
+                if (window.confirm("Êtes-vous sûr de vouloir supprimer définitivement ce rendez-vous de l'agenda ?")) {
+                  void run("delete");
+                }
+              }}
+            >
+              <Trash2 className="size-4" aria-hidden="true" /> Supprimer définitivement
+            </Button>
           </div>
         ) : (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 space-y-3 rounded-xl border border-gold/40 bg-gold/5 p-3">
@@ -717,11 +792,12 @@ function ApptDetailDialog({
                 <SelectContent>
                   {resources.map((r) => {
                     const lInfo = checkResourceLeave(r, date, leaves);
+                    const cleanName = cleanPractitionerName(r.name);
                     return (
                       <SelectItem key={r.value} value={r.value} disabled={lInfo.onLeave}>
                         <span className="inline-flex items-center gap-2">
-                          <span className="size-2.5 rounded-full" style={{ background: r.color }} aria-hidden="true" />
-                          <span className={lInfo.onLeave ? "line-through opacity-60" : ""}>{r.name}</span>
+                          <span className="size-2.5 rounded-full shrink-0" style={{ background: r.color }} aria-hidden="true" />
+                          <span className={lInfo.onLeave ? "line-through opacity-60" : ""}>{cleanName}</span>
                           {lInfo.onLeave && (
                             <span className="rounded bg-bissap/15 px-1.5 py-0.5 text-[10px] font-semibold text-bissap">
                               {lInfo.reason}
@@ -738,9 +814,10 @@ function ApptDetailDialog({
               const resObj = resources.find((r) => r.value === resourceId) ?? { value: resourceId, name: "" };
               const lInfo = checkResourceLeave(resObj, date, leaves);
               if (!lInfo.onLeave) return null;
+              const cleanName = cleanPractitionerName(resObj.name);
               return (
                 <p className="rounded-md bg-bissap/10 px-2.5 py-1.5 text-xs font-medium text-bissap">
-                  ⚠️ {resObj.name || "Praticienne"} est indisponible ({lInfo.reason.toLowerCase()}) à cette date.
+                  ⚠️ {cleanName || "Praticienne"} est indisponible ({lInfo.reason.toLowerCase()}) à cette date.
                 </p>
               );
             })()}
@@ -794,7 +871,11 @@ function CreateApptDialog({
   const [clientId, setClientId] = useState("");
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [serviceMode, setServiceMode] = useState<"catalog" | "manual">("catalog");
   const [serviceId, setServiceId] = useState("");
+  const [manualServiceName, setManualServiceName] = useState("");
+  const [manualPrice, setManualPrice] = useState("15000");
+  const [manualDurationMin, setManualDurationMin] = useState("60");
   const [resourceId, setResourceId] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState("10:00");
@@ -808,14 +889,23 @@ function CreateApptDialog({
   );
 
   async function submit() {
-    if (!serviceId || !resourceId || !date || !time) {
-      toast.error("Complétez service, praticienne, date et heure");
+    if (serviceMode === "catalog" && !serviceId) {
+      toast.error("Veuillez sélectionner un soin ou passer en saisie libre");
+      return;
+    }
+    if (serviceMode === "manual" && !manualServiceName.trim()) {
+      toast.error("Veuillez saisir le nom du soin");
+      return;
+    }
+    if (!resourceId || !date || !time) {
+      toast.error("Complétez praticienne, date et heure");
       return;
     }
     const chosenRes = resources.find((r) => r.value === resourceId) ?? { value: resourceId, name: "" };
     const leaveCheck = checkResourceLeave(chosenRes, date, leaves);
     if (leaveCheck.onLeave) {
-      toast.error(`Impossible : ${chosenRes.name || "la praticienne"} est ${leaveCheck.reason.toLowerCase()} à cette date`);
+      const cleanName = cleanPractitionerName(chosenRes.name);
+      toast.error(`Impossible : ${cleanName || "la praticienne"} est ${leaveCheck.reason.toLowerCase()} à cette date`);
       return;
     }
     if (mode === "existing" && !clientId) {
@@ -833,7 +923,10 @@ function CreateApptDialog({
         clientName: mode === "existing" ? client?.name : newName.trim(),
         clientPhone: mode === "existing" ? client?.phone : newPhone.trim(),
         clientProfileId: mode === "existing" ? clientId : undefined,
-        serviceId,
+        serviceId: serviceMode === "catalog" ? serviceId : undefined,
+        customServiceName: serviceMode === "manual" ? manualServiceName.trim() : undefined,
+        customPrice: serviceMode === "manual" ? (parseInt(manualPrice, 10) || 0) : undefined,
+        customDurationMin: serviceMode === "manual" ? (parseInt(manualDurationMin, 10) || 60) : undefined,
         resourceId,
         startAt: new Date(`${date}T${time}:00`).toISOString(),
         notes: notes.trim() || undefined,
@@ -842,6 +935,7 @@ function CreateApptDialog({
       setNewName("");
       setNewPhone("");
       setServiceId("");
+      setManualServiceName("");
       setNotes("");
       await onCreated();
     } catch (e) {
@@ -929,31 +1023,86 @@ function CreateApptDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Soin</Label>
-              <SearchableSelect
-                options={services.map((s) => ({
-                  value: s.id,
-                  label: s.name,
-                  subLabel: xof(s.price),
-                }))}
-                value={serviceId}
-                onValueChange={setServiceId}
-                placeholder="Choisir un soin…"
-                searchPlaceholder="Saisir pour chercher un soin…"
-                emptyMessage="Aucun soin correspondant"
-                ariaLabel="Soin"
-              />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Soin</Label>
+                <button
+                  type="button"
+                  onClick={() => setServiceMode(serviceMode === "catalog" ? "manual" : "catalog")}
+                  className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <PenLine className="size-3" />
+                  {serviceMode === "catalog" ? "Saisie manuelle" : "Choisir au catalogue"}
+                </button>
+              </div>
+
+              {serviceMode === "catalog" ? (
+                <SearchableSelect
+                  options={services.map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                    subLabel: xof(s.price),
+                  }))}
+                  value={serviceId}
+                  onValueChange={setServiceId}
+                  placeholder="Choisir un soin…"
+                  searchPlaceholder="Saisir pour chercher un soin…"
+                  emptyMessage="Aucun soin correspondant"
+                  ariaLabel="Soin"
+                />
+              ) : (
+                <div className="space-y-2 rounded-xl border border-border/80 bg-muted/20 p-2.5">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Nom du soin (saisie libre)</Label>
+                    <Input
+                      value={manualServiceName}
+                      onChange={(e) => setManualServiceName(e.target.value)}
+                      placeholder="Ex: Soin purifiant sur-mesure"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Tarif (FCFA)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={500}
+                        value={manualPrice}
+                        onChange={(e) => setManualPrice(e.target.value)}
+                        placeholder="15000"
+                        className="text-xs h-8 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Durée</Label>
+                      <Select value={manualDurationMin} onValueChange={setManualDurationMin}>
+                        <SelectTrigger className="text-xs h-8 font-mono"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30">30 min</SelectItem>
+                          <SelectItem value="45">45 min</SelectItem>
+                          <SelectItem value="60">60 min (1h)</SelectItem>
+                          <SelectItem value="75">75 min</SelectItem>
+                          <SelectItem value="90">90 min (1h30)</SelectItem>
+                          <SelectItem value="120">120 min (2h)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="space-y-1">
+
+            <div className="space-y-1.5">
               <Label className="text-xs">Praticienne</Label>
               <SearchableSelect
                 options={resources.map((r) => {
                   const lInfo = checkResourceLeave(r, date, leaves);
+                  const cleanName = cleanPractitionerName(r.name);
                   return {
                     value: r.value,
-                    label: r.name,
+                    label: cleanName,
                     subLabel: lInfo.onLeave ? lInfo.reason : undefined,
                     disabled: lInfo.onLeave,
                     icon: (
@@ -979,9 +1128,10 @@ function CreateApptDialog({
             const chosenRes = resources.find((r) => r.value === resourceId) ?? { value: resourceId, name: "" };
             const lInfo = checkResourceLeave(chosenRes, date, leaves);
             if (!lInfo.onLeave) return null;
+            const cleanName = cleanPractitionerName(chosenRes.name);
             return (
               <p className="rounded-md bg-bissap/10 px-2.5 py-1.5 text-xs font-medium text-bissap">
-                ⚠️ {chosenRes.name || "Praticienne"} est indisponible ({lInfo.reason.toLowerCase()}) à cette date.
+                ⚠️ {cleanName || "Praticienne"} est indisponible ({lInfo.reason.toLowerCase()}) à cette date.
               </p>
             );
           })()}
