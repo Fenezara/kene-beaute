@@ -81,6 +81,34 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const setClientTab = useKene((s) => s.setClientTab);
 
   const [consentSaving, setConsentSaving] = useState(false);
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
+  const pendingScanRef = useRef<(() => void) | null>(null);
+
+  const handleGrantConsent = async () => {
+    haptic(HAPTIC.light);
+    setUser({ ...user, consentHealth: true });
+    setConsentSaving(true);
+    try {
+      await apiPost("/api/auth/consent", { userId: user.id, types: ["health_data"] });
+      toast.success("Consentement données santé accordé");
+    } catch {
+      // Re-tentative via profile si endpoint consent indisponible
+      try {
+        await apiPost("/api/auth/profile", { userId: user.id, consentHealth: true });
+        toast.success("Consentement données santé accordé");
+      } catch {
+        toast.error("Impossible d'enregistrer le consentement");
+      }
+    } finally {
+      setConsentSaving(false);
+      setConsentModalOpen(false);
+      if (pendingScanRef.current) {
+        const proceed = pendingScanRef.current;
+        pendingScanRef.current = null;
+        proceed();
+      }
+    }
+  };
 
   const handleToggleConsent = async (val: boolean) => {
     haptic(HAPTIC.light);
@@ -481,9 +509,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 
   async function launch() {
     if (!user.consentHealth) {
-      toast.error("Consentement données santé requis", {
-        description: "Veuillez cocher la case d'accord sur le traitement des données de peau avant de lancer l'analyse.",
-      });
+      pendingScanRef.current = () => void launch();
+      setConsentModalOpen(true);
       return;
     }
     const allImages = slots.map((s) => slotImages[s.id]).filter(Boolean) as string[];
@@ -611,6 +638,75 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     }
   }
 
+  const consentModalNode = (
+    <AlertDialog open={consentModalOpen} onOpenChange={setConsentModalOpen}>
+      <AlertDialogContent className="rounded-3xl max-w-md p-6 bg-card border border-border shadow-2xl">
+        <AlertDialogHeader className="text-left space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="grid size-11 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+              <ShieldCheck size={24} />
+            </span>
+            <div>
+              <AlertDialogTitle className="font-heading font-black text-base sm:text-lg text-foreground">
+                Consentement données de peau
+              </AlertDialogTitle>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                Protection &amp; Confidentialité stricte
+              </span>
+            </div>
+          </div>
+          <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed pt-1">
+            Pour réaliser l&apos;analyse IA de votre peau et établir votre bilan cutané sur-mesure, Kènè a besoin de votre accord pour traiter la photo capturée.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="my-2 p-3.5 rounded-2xl bg-muted/40 border border-border/70 space-y-2 text-xs">
+          <div className="flex items-start gap-2">
+            <span className="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
+            <p className="text-[11.5px] text-foreground">
+              <strong>Chiffrement de bout en bout :</strong> vos photos ne sont jamais partagées ni cédées à des tiers.
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
+            <p className="text-[11.5px] text-foreground">
+              <strong>Enregistré une seule fois :</strong> ce choix sera automatiquement activé dans vos <em>Paramètres</em> et ne vous sera plus redemandé.
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
+            <p className="text-[11.5px] text-foreground">
+              <strong>Révocable à tout moment :</strong> modifiable en 1 clic dans l&apos;onglet <em>Paramètres &gt; Confidentialité</em>.
+            </p>
+          </div>
+        </div>
+
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+          <AlertDialogCancel
+            disabled={consentSaving}
+            onClick={() => {
+              pendingScanRef.current = null;
+            }}
+            className="rounded-xl text-xs h-11"
+          >
+            Refuser pour l&apos;instant
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={consentSaving}
+            onClick={(e) => {
+              e.preventDefault();
+              void handleGrantConsent();
+            }}
+            className="k-btn-gold rounded-xl text-xs h-11 font-bold inline-flex items-center justify-center gap-1.5"
+          >
+            {consentSaving ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={16} />}
+            <span>J&apos;accepte et je scanne</span>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   /* ─────────── Étape 0 — Page 1 : Choix de la zone à scanner (Caméra Reine) ─────────── */
   if (step === 0) {
     const OTHER_ZONES = [
@@ -622,20 +718,25 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     ];
 
     const launchScan = (targetZone: BodyZone, opts?: { openCamera?: boolean }) => {
+      const proceed = () => {
+        setZone(targetZone);
+        setSlotImages({});
+        setImage("");
+        setStep(1);
+        if (opts?.openCamera) {
+          setLiveCamOpen(true);
+        }
+        haptic(HAPTIC.medium);
+      };
+
       if (!user.consentHealth) {
-        toast.error("Consentement données santé requis", {
-          description: "Veuillez cocher la case d'accord sur le traitement de vos données cutanées pour démarrer.",
-        });
+        pendingScanRef.current = proceed;
+        setConsentModalOpen(true);
+        haptic(HAPTIC.tap);
         return;
       }
-      setZone(targetZone);
-      setSlotImages({});
-      setImage("");
-      setStep(1);
-      if (opts?.openCamera) {
-        setLiveCamOpen(true);
-      }
-      haptic(HAPTIC.medium);
+
+      proceed();
     };
 
     return (
@@ -649,18 +750,23 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) {
+              const proceedWithFile = () => {
+                setZone("visage");
+                setSlotImages({});
+                setImage("");
+                setStep(1);
+                void onFile(f);
+              };
+
               if (!user.consentHealth) {
-                toast.error("Consentement données santé requis", {
-                  description: "Veuillez cocher la case d'accord sur le traitement de vos données cutanées avant d'importer une photo.",
-                });
+                pendingScanRef.current = proceedWithFile;
+                setConsentModalOpen(true);
+                haptic(HAPTIC.tap);
                 e.target.value = "";
                 return;
               }
-              setZone("visage");
-              setSlotImages({});
-              setImage("");
-              setStep(1);
-              void onFile(f);
+
+              proceedWithFile();
             }
             e.target.value = "";
           }}
@@ -755,38 +861,6 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                 <span className="text-[9.5px] text-muted-foreground mt-0.5">Hydratation &amp; Éclat</span>
               </div>
             </div>
-          </div>
-
-          {/* Consentement données de santé (Obligatoire avant le scan, mémorisé et révocable) */}
-          <div className="mb-3.5 p-3 rounded-2xl bg-background/80 border border-primary/25 shadow-xs transition-colors">
-            <label className="flex items-start gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={Boolean(user.consentHealth)}
-                disabled={consentSaving}
-                onChange={(e) => handleToggleConsent(e.target.checked)}
-                className="mt-0.5 size-4.5 rounded-md border-border text-primary focus:ring-primary/40 transition-colors accent-[#80132B] cursor-pointer shrink-0"
-              />
-              <div className="min-w-0 flex-1 text-left">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-foreground">
-                    Consentement données santé
-                  </span>
-                  {user.consentHealth ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[9.5px] font-black uppercase tracking-wider">
-                      <ShieldCheck size={10} /> Accordé
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[9.5px] font-bold">
-                      Requis
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                  J&apos;autorise l&apos;analyse sécurisée de mes photos et données de peau pour mon bilan cutané sur-mesure (chiffrement strict, jamais cédées à des tiers).
-                </p>
-              </div>
-            </label>
           </div>
 
           {/* 👑 BOUTON D'ACTION PRINCIPAL : VRAI BOUTON TACTILE CENTRÉ (HAUTE CONVERSION) */}
@@ -912,6 +986,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           <History size={14} className="text-primary" />
           <span>Consulter mon historique de bilans ({user.name.split(" ")[0]})</span>
         </button>
+
+        {consentModalNode}
       </div>
     );
   }
@@ -1266,42 +1342,10 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </div>
         ) : null}
 
-        {/* Consentement données santé avant analyse */}
-        <div className="mt-4 p-3 rounded-2xl bg-card border border-border/80 shadow-xs">
-          <label className="flex items-start gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={Boolean(user.consentHealth)}
-              disabled={consentSaving}
-              onChange={(e) => handleToggleConsent(e.target.checked)}
-              className="mt-0.5 size-4.5 rounded-md border-border text-primary focus:ring-primary/40 transition-colors accent-[#80132B] cursor-pointer shrink-0"
-            />
-            <div className="min-w-0 flex-1 text-left">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-bold text-foreground">
-                  Consentement données santé
-                </span>
-                {user.consentHealth ? (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[9.5px] font-black uppercase tracking-wider">
-                    <ShieldCheck size={10} /> Accordé
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[9.5px] font-bold">
-                    Requis pour analyser
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                J&apos;autorise l&apos;analyse de mes photos par l&apos;IA Kènè pour établir mon ordonnance beauté (strictement confidentiel).
-              </p>
-            </div>
-          </label>
-        </div>
-
         {/* Bouton de lancement de l'analyse */}
         <PrimaryCTA
           onClick={launch}
-          disabled={totalCaptured === 0 || !user.consentHealth}
+          disabled={totalCaptured === 0}
           className="mt-4 h-14 w-full rounded-[20px] font-heading font-black text-base shadow-lg"
         >
           <NeaOnnimIcon size={22} />
@@ -1357,6 +1401,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         >
           <ArrowLeft size={14} /> Revenir à l&apos;étape 1 (Changer de zone)
         </button>
+
+        {consentModalNode}
       </div>
     );
   }
