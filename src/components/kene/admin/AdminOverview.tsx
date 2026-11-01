@@ -167,7 +167,7 @@ export function AdminOverview({
       <AdminMaintenanceControl />
 
       {/* KPIs — Monétisation et volume réel du réseau unifié (Style Bento Afro-Luxe) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard icon={<Users className="size-4" />} label="Utilisatrices" value={String(data.users)} monetary={false} hint={scope === "real" ? "Comptes réels" : "Tous les comptes"} />
         <KpiCard icon={<HeartHandshake className="size-4" />} label="Parrainages" value={String(data.referrals)} monetary={false} hint="Fil du Parrainage" />
         <KpiCard icon={<Building2 className="size-4" />} label="Instituts" value={String(data.tenants)} monetary={false} hint={scope === "real" ? "Salons actifs réels" : "Tous"} />

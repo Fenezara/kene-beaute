@@ -124,7 +124,7 @@ export function AdminApp() {
           className="flex-1 min-h-0 w-full overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 pb-32 space-y-5">
+          <div className="mx-auto max-w-7xl 2xl:max-w-[1560px] px-3 sm:px-6 lg:px-8 py-6 pb-32 space-y-6">
             <ConsoleHeader />
 
             {/* Onglets — Capsule Verre Ambré & Or Solaire (44 px+), icône + libellé, scroll horizontal mobile */}
