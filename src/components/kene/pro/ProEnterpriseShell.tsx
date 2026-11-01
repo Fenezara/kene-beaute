@@ -1375,27 +1375,51 @@ export function ProEnterpriseShell() {
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
         <aside
           className={cn(
-            "hidden md:flex flex-col shrink-0 bg-gradient-to-b from-[#1A130D] via-[#150F0A] to-[#110B07] text-[#F5ECDD] h-full overflow-y-auto overscroll-contain pretty-scroll border-r border-[#D49A24]/30 shadow-xl transition-all duration-300",
-            sidebarExpanded ? "w-[252px]" : "w-[68px]"
+            "hidden md:flex flex-col shrink-0 text-[#F5ECDD] h-full overflow-y-auto overscroll-contain pretty-scroll transition-all duration-300 z-10",
+            sidebarExpanded
+              ? "w-[264px] bg-gradient-to-b from-[#1C140E]/95 via-[#160E09]/95 to-[#100A06]/98 backdrop-blur-2xl border-r border-[#D49A24]/30 shadow-2xl"
+              : "w-[72px] m-2 my-auto h-[92%] rounded-[32px] k-liquid-glass border border-[#D49A24]/40 shadow-2xl"
           )}
         >
-          {sidebarExpanded && (
-            <div className="px-3.5 pt-3.5 pb-1.5 flex items-center justify-between border-b border-white/10 mx-2 mb-1">
+          {sidebarExpanded ? (
+            <div className="px-3.5 pt-3.5 pb-2 flex items-center justify-between border-b border-white/10 mx-2 mb-1">
               <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#E5A93C]">
                 5 Pôles Métiers
               </span>
-              <span className="text-[10px] text-[#F5ECDD]/65 font-semibold">
-                {activeCategoryDef.shortLabel}
-              </span>
+              <button
+                type="button"
+                onClick={() => setSidebarExpanded(false)}
+                className="size-6 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#F5ECDD]/70 hover:text-white transition-all cursor-pointer border border-white/10"
+                title="Rétracter en Capsule Dock"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </div>
+          ) : (
+            <div className="pt-3 pb-1 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setSidebarExpanded(true)}
+                className="size-8 rounded-full bg-[#D49A24]/20 hover:bg-[#D49A24]/30 flex items-center justify-center text-[#E5A93C] transition-all cursor-pointer border border-[#D49A24]/40 shadow-xs"
+                title="Déployer les 5 Pôles Métiers"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           )}
 
           {/* Identification Employée / Collaboratrice dans le menu latéral */}
           {sidebarExpanded && isEmployee && (
-            <div className="mx-2.5 mt-1.5 mb-2 p-2.5 rounded-xl bg-[#D49A24]/15 border border-[#D49A24]/35 flex items-center gap-2 shadow-2xs">
-              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[#FFF9EC] text-xs font-black shrink-0 shadow-xs">
-                {chipInitials}
-              </span>
+            <div className="mx-2.5 mt-1.5 mb-2 p-2.5 rounded-2xl bg-gradient-to-r from-[#D49A24]/20 to-[#9E2045]/15 border border-[#D49A24]/40 flex items-center gap-2.5 shadow-sm">
+              <div className="relative">
+                <span className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[#FFF9EC] text-xs font-black shrink-0 shadow-xs">
+                  {chipInitials}
+                </span>
+                <span className={cn(
+                  "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-[#1C140E]",
+                  staffAttendance?.checkIn && !staffAttendance?.checkOut ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                )} />
+              </div>
               <div className="min-w-0 flex-1 text-left leading-tight">
                 <p className="text-xs font-bold text-[#FFF9EC] truncate">{chipName}</p>
                 <p className="text-[10px] text-[#E5A93C] font-semibold truncate">{chipRole}</p>
@@ -1403,7 +1427,7 @@ export function ProEnterpriseShell() {
             </div>
           )}
 
-          <nav aria-label="Navigation App Pro" className="flex-1 px-2.5 py-2 space-y-2">
+          <nav aria-label="Navigation App Pro" className="flex-1 px-2 py-2 space-y-2">
             {availableCategories.map((cat) => {
               const catItems = nav.filter((item) => item.category === cat.id);
               if (catItems.length === 0) return null;
@@ -1422,15 +1446,18 @@ export function ProEnterpriseShell() {
                     }}
                     title={`${cat.label} (${catItems.map((i) => i.label).join(" · ")})`}
                     className={cn(
-                      "relative w-full flex flex-col items-center justify-center rounded-2xl p-2.5 text-xs transition-all cursor-pointer border",
+                      "relative w-full flex flex-col items-center justify-center rounded-2xl py-2 px-1 text-xs transition-all cursor-pointer border",
                       isCatActive
-                        ? "k-btn-gold text-[#18120C] font-black border-transparent shadow-sm"
+                        ? "k-glass-pill-active text-[#FFF9EC] border-[#E5A93C]/60 shadow-md scale-105"
                         : "bg-white/5 text-[#F5ECDD]/70 border-white/10 hover:text-[#FFF9EC] hover:bg-white/10"
                     )}
                   >
                     <span className="text-base">{cat.emoji}</span>
+                    <span className="text-[8.5px] font-bold text-[#F5ECDD]/80 truncate mt-0.5 max-w-[56px] text-center">
+                      {cat.shortLabel.split(" ")[0]}
+                    </span>
                     {catBadgeCount > 0 && (
-                      <span className="absolute top-1 right-1 grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9px] font-bold text-white">
+                      <span className="absolute top-1 right-1 grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9px] font-bold text-white shadow-xs">
                         {catBadgeCount}
                       </span>
                     )}
@@ -1444,8 +1471,8 @@ export function ProEnterpriseShell() {
                   className={cn(
                     "rounded-2xl border transition-all overflow-hidden",
                     isCatActive
-                      ? "border-[#D49A24]/55 bg-gradient-to-b from-[#D49A24]/20 via-[#9E2045]/10 to-white/5 shadow-md"
-                      : "border-white/10 bg-white/[0.03] hover:border-[#D49A24]/30 hover:bg-white/[0.06]"
+                      ? "border-[#D49A24]/45 bg-gradient-to-b from-[#D49A24]/15 via-white/[0.04] to-transparent shadow-md"
+                      : "border-white/10 bg-white/[0.02] hover:border-[#D49A24]/25 hover:bg-white/[0.05]"
                   )}
                 >
                   <button
@@ -1457,7 +1484,7 @@ export function ProEnterpriseShell() {
                       }
                     }}
                     className={cn(
-                      "w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors cursor-pointer",
+                      "w-full flex items-center justify-between gap-2 px-3 py-2 text-left transition-colors cursor-pointer",
                       isCatActive ? "text-[#FFF9EC] font-black" : "text-[#F5ECDD]/80 hover:text-[#FFF9EC] font-bold"
                     )}
                   >
@@ -1482,35 +1509,47 @@ export function ProEnterpriseShell() {
                   </button>
 
                   {isCatActive && (
-                    <div className="px-2 pb-2 pt-1 space-y-1 border-t border-white/10">
-                      {catItems.map((item) => {
+                    <div className="pl-4 pr-2 pb-2.5 pt-1 space-y-1 relative border-t border-white/10">
+                      {/* Arborescence en branches courbes ╰─ style Apple/Liquid Glass */}
+                      <div className="absolute left-6 top-2 bottom-3 w-px bg-gradient-to-b from-[#D49A24]/40 via-white/15 to-transparent pointer-events-none" />
+                      {catItems.map((item, idx) => {
                         const active = activeSection === item.id;
                         const badge = navBadges[item.id];
+                        const isLast = idx === catItems.length - 1;
                         return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => openSection(item.id)}
-                            aria-current={active ? "page" : undefined}
-                            title={`${item.label} — ${item.hint}`}
-                            className={cn(
-                              "relative w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs transition-all cursor-pointer",
-                              active
-                                ? "k-btn-gold text-[#18120C] font-black shadow-xs"
-                                : "text-[#F5ECDD]/80 hover:bg-white/10 hover:text-[#FFF9EC] font-semibold"
-                            )}
-                          >
-                            <item.icon className="size-4 shrink-0" />
-                            <span className="min-w-0 truncate text-left">{item.label}</span>
-                            {badge ? (
-                              <span
-                                role="status"
-                                className="ml-auto grid h-4.5 min-w-4.5 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white"
-                              >
-                                {badge}
-                              </span>
-                            ) : null}
-                          </button>
+                          <div key={item.id} className="relative flex items-center">
+                            {/* Branche courbe ╰─ */}
+                            <span className={cn(
+                              "w-3.5 h-3 border-l-2 border-b-2 rounded-bl-lg shrink-0 mr-1.5 transition-colors pointer-events-none",
+                              active ? "border-[#E5A93C]" : "border-white/20"
+                            )} />
+                            <button
+                              type="button"
+                              onClick={() => openSection(item.id)}
+                              aria-current={active ? "page" : undefined}
+                              title={`${item.label} — ${item.hint}`}
+                              className={cn(
+                                "relative flex-1 flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs transition-all cursor-pointer min-w-0",
+                                active
+                                  ? "k-glass-pill-active text-[#FFF9EC] font-bold shadow-xs"
+                                  : "text-[#F5ECDD]/80 hover:bg-white/10 hover:text-[#FFF9EC] font-medium"
+                              )}
+                            >
+                              <item.icon className={cn("size-3.5 shrink-0", active ? "text-[#E5A93C]" : "text-[#F5ECDD]/70")} />
+                              <span className="min-w-0 truncate text-left">{item.label}</span>
+                              {active && (
+                                <span className="size-1.5 rounded-full bg-[#E5A93C] shadow-[0_0_6px_#E5A93C] ml-auto shrink-0" />
+                              )}
+                              {badge ? (
+                                <span
+                                  role="status"
+                                  className="ml-auto grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9px] font-semibold text-white"
+                                >
+                                  {badge}
+                                </span>
+                              ) : null}
+                            </button>
+                          </div>
                         );
                       })}
                     </div>

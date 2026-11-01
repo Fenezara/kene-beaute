@@ -127,25 +127,31 @@ export function AdminApp() {
           <div className="mx-auto max-w-7xl 2xl:max-w-[1560px] px-3 sm:px-6 lg:px-8 py-6 pb-32 space-y-6">
             <ConsoleHeader />
 
-            {/* Onglets — Capsule Verre Ambré & Or Solaire (44 px+), icône + libellé, scroll horizontal mobile */}
+            {/* Onglets — Capsule Verre Liquide & Or 24K Spéculaire (44 px+), transition fluide */}
             <nav aria-label="Sections de la console" className="sticky top-2 z-20 -mx-1 overflow-x-auto pretty-scroll px-1 pb-1 touch-pan-x">
-              <div className="flex min-w-max gap-1.5 rounded-[22px] k-solar-glass p-1.5">
-              {TABS.map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => handleTabChange(key)}
-                  aria-current={tab === key ? "page" : undefined}
-                  className={cn(
-                    "flex min-h-11 items-center gap-2 rounded-[16px] px-4 text-sm font-semibold transition-all",
-                    tab === key
-                      ? "k-btn-gold text-[#18120C] font-extrabold shadow-xs"
-                      : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
-                  )}
-                >
-                  <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  {label}
-                </button>
-              ))}
+              <div className="flex min-w-max gap-1.5 rounded-[24px] k-liquid-glass p-1.5 shadow-lg border border-[#D49A24]/30">
+              {TABS.map(({ key, label, icon: Icon }) => {
+                const isActive = tab === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleTabChange(key)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "relative flex min-h-11 items-center gap-2 rounded-[18px] px-4 text-sm font-semibold transition-all cursor-pointer",
+                      isActive
+                        ? "k-glass-pill-active text-[#FFF9EC] font-bold shadow-md"
+                        : "text-[#F5ECDD]/70 hover:bg-white/5 hover:text-[#FFF9EC]",
+                    )}
+                  >
+                    <Icon className={cn("size-4 shrink-0 transition-transform", isActive ? "text-[#E5A93C] scale-110" : "text-muted-foreground")} aria-hidden="true" />
+                    <span>{label}</span>
+                    {isActive && (
+                      <span className="size-1.5 rounded-full bg-[#E5A93C] shadow-[0_0_8px_#E5A93C]" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </nav>
 

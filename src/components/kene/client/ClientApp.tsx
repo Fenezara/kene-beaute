@@ -511,7 +511,7 @@ export function ClientApp() {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto pretty-scroll px-2 lg:px-3 py-4 flex flex-col gap-1.5">
+        <nav className="flex-1 overflow-y-auto pretty-scroll px-2 lg:px-3 py-4 flex flex-col gap-2">
           {NAV_DESKTOP.map((n) => {
             const active = tab === n.tab;
             const Icon = n.icon;
@@ -541,19 +541,19 @@ export function ClientApp() {
                 aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}`}
                 title={t(n.labelKey)}
                 className={cn(
-                  "relative flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3.5 h-14 lg:h-12 px-1 lg:px-3.5 rounded-2xl transition-all focus-visible:outline-2 focus-visible:outline-primary",
+                  "relative flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3.5 h-14 lg:h-12 px-1 lg:px-3.5 rounded-2xl transition-all focus-visible:outline-2 focus-visible:outline-primary cursor-pointer",
                   active
-                    ? "k-btn-gold text-[#18120C] font-bold shadow-sm"
+                    ? "k-glass-pill-active text-[#FFF9EC] font-bold shadow-sm"
                     : "text-[#F5ECDD]/75 hover:bg-white/8 hover:text-[#FFF9EC]",
                 )}
               >
                 <span className="relative shrink-0">
-                  <Icon className={cn("size-[22px]", active && "font-bold")} />
+                  <Icon className={cn("size-[22px]", active ? "text-[#E5A93C] font-bold" : "text-[#F5ECDD]/80")} />
                   {n.tab === "chat" && chatUnread && (
                     <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#E04E75] ring-2 ring-[#1A130D]" aria-hidden="true" />
                   )}
                 </span>
-                <span className={cn("text-[9.5px] lg:text-[14px] xl:text-[15px] truncate max-w-full leading-none", active ? "font-extrabold" : "font-medium")}>
+                <span className={cn("text-[9.5px] lg:text-[14px] xl:text-[15px] truncate max-w-full leading-none", active ? "font-extrabold text-[#FFF9EC]" : "font-medium")}>
                   {n.tab === "accueil" ? (
                     <>
                       <span className="lg:hidden">Dermo</span>
