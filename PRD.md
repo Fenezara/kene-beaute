@@ -85,7 +85,21 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
   - Journal automatique des opérations (Ventes, Achats, Banque, Paie, Opérations Diverses).
   - Grand livre, Balance générale à 6 classes et Liasse fiscale complète générée en 1 clic (Bilan, Compte de résultat, TVA à reverser).
 
-* **Mises à jour Octobre 2026** :
+* **Mises à jour Octobre - Novembre 2026** :
+  - **Pack Dashboard Excellence 2026** :
+    - *Centre d'action en temps réel* (Action Center) : alertes prioritaires d'ouverture de caisse, rendez-vous non confirmés, stocks critiques et ruptures.
+    - *Bouclier de caisse (Cash Shield)* : détection d'écarts de clôture et rapprochement automatisé des encaissements Mobile Money / Espèces.
+    - *Indicateur d'allure de chiffre d'affaires (Revenue Pacing)* : comparaison dynamique du rythme d'activité avec le mois précédent et prévisions mensuelles.
+    - *Radar de digitalisation clientèle (Client Digitalization Radar)* : taux d'adoption du pass cabine QR, ordonnances électroniques et portails connectés.
+  - **Architecture de Connexion Portails Client ↔ Entreprise (Affiliation & Partage)** :
+    - Modélisation à 5 statuts explicites dans le CRM : *Connecté / Actif*, *En attente*, *Invité (lien envoyé)*, *Détaché*, *Jamais lié*.
+    - Neutralité multi-tenant de `SharesCard.tsx` (suppression de tout biais codé en dur en faveur d'un salon spécifique).
+    - Auto-affiliation par QR Code ou lien d'invitation direct pour synchroniser instantanément la cliente à son salon.
+  - **Sécurisation Anti-Fraude & Géolocalisation Haute Précision du Pointage RH** :
+    - Pointage d'arrivée physique soumis à validation géographique (tolérance élargie à 1 000 m pour absorber les imprécisions indoor/antennes mobiles d'Abidjan) ou scan du QR Code du jour affiché sur la caisse du salon.
+    - Résolution algorithmique des adresses géographiques avec priorité stricte aux quartiers spécifiques (ex: *Plateau-Dokui* priorisé sur *Plateau Centre-Ville*).
+    - Bouton *« 📍 Capturer ma position ici »* intégré dans les paramètres de l'institut pour ancrer les coordonnées GPS réelles de l'établissement au mètre près.
+    - Désambiguïsation d'affichage : distinction claire entre le statut contractuel RH (*« Contrat actif »*) et le statut de présence quotidienne dynamique (*« Non pointée »*, *« Présente (HH:MM) »*, *« Journée finie »*).
   - **Partage de données maîtrisé & Règle temporelle** : la cliente choisit les instituts avec lesquels elle partage ses bilans cutanés. En cas de révocation ultérieure, les bilans déjà réalisés pendant la période de consentement restent archivés pour l'institut, tandis que les futurs scans lui sont masqués.
   - **Dossiers Cutanés Haute Fidélité** : distinction nette entre *Bilans Cabine Institut* (examen clinique praticienne) et *Auto-scans Cliente* (IA VLM smartphone) avec frise unifiée et calcul comparatif d'écart de score (`scoreDelta`).
   - **Cloisonnement strict Gérante vs Collaboratrices** : isolation hermétique des prérogatives (`resolveUserProContext`). Les employées n'ont accès qu'à leurs modules assignés ; le tableau de bord financier, les salaires, primes et numéros CNPS de l'équipe, ainsi que les paramètres d'administration du salon sont strictement réservés à la fondatrice/gérante (`ownerPhone`).

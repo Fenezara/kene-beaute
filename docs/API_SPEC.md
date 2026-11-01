@@ -223,8 +223,10 @@ Désactivation / Annulation d'une commande par la cliente finale.
 
 | Méthode & Route | Description Métier | Spécificités & Sécurité |
 | :--- | :--- | :--- |
-| `GET /api/pro/overview` | Dashboard gérante (KPIs du jour, CA, RDV, stock bas) | Rafraîchissement direct via WebSockets |
-| `PATCH /api/pro/tenants` | Mise à jour du WhatsApp public (`phone`) et de l'adresse du salon | N'affecte pas `User.phone` (numéro privé de la gérante, unique) |
+| `GET /api/pro/overview` | Dashboard gérante (KPIs du jour, CA, RDV, stock bas, centre d'action, cash shield, revenue pacing) | Rafraîchissement direct via WebSockets |
+| `POST /api/pro/employees/attendance` | Pointage entrée/sortie avec contrôle anti-fraude géolocalisé (GPS 1000m) ou QR token de caisse | Rejet 403 explicite si hors périmètre, mise à jour instantanée du statut |
+| `GET /api/pro/employees/attendance` | Récupération du statut de présence du jour pour la collaboratrice connectée ou le salon | Renvoie les heures d'arrivée/départ, durée cumulée et statut dynamique |
+| `PATCH /api/pro/tenants` | Mise à jour du WhatsApp public (`phone`), de l'adresse et des coordonnées GPS du salon | N'affecte pas `User.phone` (numéro privé de la gérante, unique) |
 | `POST /api/subscriptions/renew` | Renouvellement d'abonnement | Pro Complexe : 30 000 → 20 000 FCFA (plancher au mois 6) |
 | `GET /api/pro/pos/sales` | Caisse enregistreuse tactile | Tickets de caisse conformes SYSCOHADA |
 | `POST /api/pro/caisse/expense` | Sorties de caisse courantes (achats locaux, taxi) | Justificatif et classe comptable 6 |
