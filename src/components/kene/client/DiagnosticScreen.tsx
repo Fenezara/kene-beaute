@@ -842,262 +842,224 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </button>
         </div>
 
-        {/* 🌟 1. STUDIO HÉRO BIOMÉTRIQUE : LE MIROIR SPECTRAL KÈNÈ™ (VISAGE — 85%+ DES ANALYSES) */}
-        <div className="relative overflow-hidden rounded-[28px] border border-[#D49A24]/50 bg-gradient-to-br from-card via-[#FAF4E8] dark:via-[#1B140E] to-card p-4 sm:p-6 shadow-[0_20px_50px_-16px_rgba(24,18,12,0.16)] mb-4">
-          <div className="absolute -top-16 -right-16 size-48 rounded-full bg-[#D49A24]/18 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-14 -left-14 size-44 rounded-full bg-primary/12 blur-3xl pointer-events-none" />
+        {/* 🌟 1. STUDIO HÉRO BIOMÉTRIQUE : L'ARCHE SPECTRALE KÈNÈ™ (HAUTE DÉFINITION & LUXE AFRO-DERMATOLOGIQUE) */}
+        <div className="relative overflow-hidden rounded-[32px] border border-[#D49A24]/40 bg-gradient-to-b from-card via-[#FAF4E8]/60 dark:via-[#1A120B]/80 to-card p-4 sm:p-6 shadow-[0_20px_50px_-16px_rgba(24,18,12,0.18)] mb-4">
+          <div className="absolute -top-16 -right-16 size-56 rounded-full bg-[#D49A24]/15 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-14 -left-14 size-52 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
 
           {/* En-tête Studio : Badge Signature + Guide Vocal */}
-          <div className="relative flex items-center justify-between gap-2 mb-3.5 sm:mb-4">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#18120C]/90 dark:bg-white/10 border border-[#D49A24]/45 text-[#F5D37E] font-extrabold text-[10px] sm:text-[10.5px] uppercase tracking-[0.12em] shadow-xs">
+          <div className="relative flex items-center justify-between gap-2 mb-3 sm:mb-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#18120C]/90 dark:bg-white/10 border border-[#D49A24]/45 text-[#F5D37E] font-extrabold text-[10px] sm:text-[10.5px] uppercase tracking-[0.14em] shadow-xs">
               <span className="relative flex size-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full size-2 bg-emerald-400" />
               </span>
-              <span>Miroir Spectral IA · Visage</span>
+              <span>Arche Spectrale IA · Diagnostic Visage</span>
             </span>
             <AudioGuideButton
-              text="Bienvenue sur le Miroir Spectral Kènè. Touche le miroir ou le déclencheur doré pour scanner ton visage. En 10 secondes, notre intelligence dermatologique et notre Dermo-Conseillère Déborah révèlent ta cartographie cutanée et ta routine sur-mesure."
+              text="Bienvenue sur le Miroir Spectral Kènè. Touche l'arche ou le déclencheur doré pour scanner ton visage. En 10 secondes, notre intelligence dermatologique et notre Dermo-Conseillère Déborah révèlent ta cartographie cutanée et ta routine sur-mesure."
               label="Écouter"
               compact
             />
           </div>
 
-          {/* Grille asymétrique : Colonne Éditoriale & Déclencheur (gauche md+) + Miroir Biométrique Vivant (haut mobile / droite md+) */}
-          <div className="relative grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 items-center">
-            {/* ── COLONNE MIROIR BIOMÉTRIQUE INTERACTIF (Affiché en premier visuel sur mobile après le titre, et à droite sur tablette/PC) ── */}
-            <div className="md:col-span-5 md:order-2">
-              {/* Titre mobile uniquement au-dessus du miroir pour un accrochage immédiat */}
-              <div className="md:hidden mb-3">
-                <h2 className="font-heading font-black text-lg sm:text-xl text-foreground leading-tight tracking-tight">
-                  Révèle la vraie nature de ta peau en 10 secondes
-                </h2>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  IA calibrée peaux mélanodermes · Validée par notre Dermo-Conseillère Déborah.
-                </p>
-              </div>
+          {/* Titre & Accroche unifiée */}
+          <div className="mb-4 text-center sm:text-left">
+            <h2 className="font-heading font-black text-xl sm:text-2xl md:text-3xl text-foreground leading-[1.15] tracking-tight">
+              Révèle la vraie nature de ta peau en 10 secondes
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed max-w-2xl">
+              Analyse biométrique spécialisée peaux mélanodermes (8 spectres d&apos;analyse) suivie de votre rituel dermo-botanique validé par Déborah.
+            </p>
+          </div>
 
-              {/* Portail Interactif « Miroir Spectral » — cliquable comme un vrai miroir intelligent */}
+          {/* Composition Centrale : Arche Visuelle Ovale & Capteurs Spectraux */}
+          <div className="relative mx-auto max-w-md my-2">
+            <button
+              type="button"
+              onClick={() => launchScan("visage", { openCamera: true })}
+              aria-label="Toucher le miroir spectral pour lancer le scan du visage"
+              className="group/mirror relative w-full h-[260px] sm:h-[300px] rounded-[36px] p-[2.5px] bg-gradient-to-b from-[#F5D37E] via-[#C8951E]/60 to-[#9E2045]/60 shadow-[0_20px_45px_-12px_rgba(24,18,12,0.4)] cursor-pointer active:scale-[0.985] transition-transform duration-300 text-left block overflow-hidden"
+            >
+              <div className="relative w-full h-full rounded-[33px] overflow-hidden bg-[#120D09]">
+                {/* Photo visage portrait complet haute résolution — cadrage naturel avec front, joues et menton */}
+                <img
+                  src="/hero/hero-client.webp"
+                  alt="Aperçu du diagnostic de peau Kènè"
+                  className="w-full h-full object-cover object-[center_28%] opacity-90 group-hover/mirror:scale-105 transition-transform duration-700 ease-out"
+                />
+
+                {/* Voile dégradé de profondeur & halo studio */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#100B07]/90 via-transparent to-[#100B07]/45 pointer-events-none" />
+
+                {/* Cadre de visée biométrique SVG avec ovale élégant */}
+                <svg
+                  viewBox="0 0 240 280"
+                  fill="none"
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full p-4 pointer-events-none opacity-85"
+                >
+                  <path d="M22 42 V26 Q22 18 30 18 H46" stroke="#F5D37E" strokeWidth="2.2" strokeLinecap="round" />
+                  <path d="M194 18 H210 Q218 18 218 26 V42" stroke="#F5D37E" strokeWidth="2.2" strokeLinecap="round" />
+                  <path d="M22 238 V254 Q22 262 30 262 H46" stroke="#F5D37E" strokeWidth="2.2" strokeLinecap="round" />
+                  <path d="M194 262 H210 Q218 262 218 254 V238" stroke="#F5D37E" strokeWidth="2.2" strokeLinecap="round" />
+                  <ellipse
+                    cx="120"
+                    cy="138"
+                    rx="68"
+                    ry="92"
+                    stroke="#F5D37E"
+                    strokeOpacity="0.35"
+                    strokeWidth="1.2"
+                    strokeDasharray="4 4"
+                  />
+                </svg>
+
+                {/* Faisceau laser spectral Or 24K en balayage vertical doux */}
+                <motion.div
+                  aria-hidden="true"
+                  initial={{ top: "12%" }}
+                  animate={{ top: ["12%", "82%", "12%"] }}
+                  transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute inset-x-6 pointer-events-none z-10"
+                >
+                  <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#FFE59E] to-transparent shadow-[0_0_16px_2.5px_rgba(245,211,126,0.95)]" />
+                  <div className="h-8 w-full bg-gradient-to-b from-[#D49A24]/20 to-transparent" />
+                </motion.div>
+
+                {/* Micro-puces de télémétrie Liquid Glass sur les zones cutanées */}
+                <div className="absolute top-3 inset-x-3 flex items-center justify-between gap-1.5 pointer-events-none z-20">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#140E0A]/80 backdrop-blur-md border border-amber-400/40 text-[10px] font-bold text-[#FFF9EC] shadow-sm">
+                    <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
+                    Taches &amp; HPI
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#140E0A]/80 backdrop-blur-md border border-[#F26B8A]/45 text-[10px] font-bold text-[#FFF9EC] shadow-sm">
+                    <span className="size-2 rounded-full bg-[#F26B8A] animate-pulse" />
+                    Pores &amp; Sébum
+                  </span>
+                </div>
+
+                <div className="absolute bottom-3 inset-x-3 flex items-center justify-between gap-2 z-20">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#140E0A]/80 backdrop-blur-md border border-emerald-400/40 text-[10px] font-bold text-[#FFF9EC] shadow-sm">
+                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Hydratation &amp; Éclat
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#D49A24] to-[#E5A93C] text-[#18120C] text-[10.5px] font-black tracking-tight shadow-md group-hover/mirror:brightness-110 transition-all">
+                    <Sparkles size={12} strokeWidth={2.5} />
+                    <span>Lancer le scan</span>
+                  </span>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* 💎 COCKPIT OPTIQUE UNIFIÉ : DÉCLENCHEUR MAJEUR + PILULES DE SÉLECTION RAPIDE */}
+          <div className="mx-auto max-w-md space-y-2.5 mt-3">
+            {/* Grand Déclencheur Sculptural Ébène & Or 24K */}
+            <button
+              type="button"
+              onClick={() => launchScan("visage", { openCamera: true })}
+              className="group relative w-full rounded-[26px] p-[2px] bg-gradient-to-r from-[#E5A93C] via-[#FFF2CC] to-[#B87B14] shadow-[0_16px_36px_-8px_rgba(24,17,12,0.42),0_4px_18px_-2px_rgba(212,154,36,0.38)] hover:shadow-[0_20px_42px_-6px_rgba(212,154,36,0.52)] active:scale-[0.985] transition-all duration-250 cursor-pointer text-left"
+            >
+              <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-r from-[#17110B] via-[#231810] to-[#17110B] px-3.5 py-3 sm:px-4 sm:py-3.5 flex items-center justify-between gap-3">
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FFF6DC]/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none"
+                />
+
+                {/* Obturateur Caméra Bijou 3D Or 24K */}
+                <div className="relative shrink-0 grid size-12 sm:size-13 place-items-center">
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full bg-[#E5A93C]/35 animate-ping [animation-duration:2.8s]"
+                  />
+                  <span className="relative grid size-12 sm:size-13 place-items-center rounded-full k-btn-gold ring-2 ring-[#FFF9EC]/50 shadow-lg group-hover:scale-105 transition-transform duration-200">
+                    <ScanFace size={24} className="text-[#18120C] stroke-[2.3]" />
+                  </span>
+                </div>
+
+                {/* Promesse */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-heading font-black text-base sm:text-lg text-[#FFF9EC] leading-tight tracking-tight">
+                      Scanner mon visage
+                    </span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#E5A93C]/20 border border-[#E5A93C]/50 text-[#F5D37E] text-[9.5px] font-black uppercase tracking-wider">
+                      Gratuit
+                    </span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-[#F5ECDD]/80 font-medium mt-0.5 truncate">
+                    Caméra en direct · Bilan en 10s &amp; routine sur-mesure
+                  </p>
+                </div>
+
+                {/* Flèche d'impulsion */}
+                <span className="shrink-0 grid size-9 sm:size-10 place-items-center rounded-full bg-white/10 border border-[#E5A93C]/40 text-[#F5D37E] group-hover:bg-[#E5A93C] group-hover:text-[#18120C] transition-all duration-200">
+                  <ChevronRight size={19} className="group-hover:translate-x-0.5 transition-transform" />
+                </span>
+              </div>
+            </button>
+
+            {/* Barre de sélection à 3 modes : Photo Express · Vidéo 360° · Galerie */}
+            <div className="flex items-center justify-between gap-1.5 p-1 rounded-2xl bg-card/90 border border-border/80 shadow-2xs">
               <button
                 type="button"
-                onClick={() => launchScan("visage", { openCamera: true })}
-                aria-label="Toucher le miroir biométrique pour démarrer le scan du visage"
-                className="group/mirror relative w-full h-[215px] sm:h-[245px] md:h-[315px] rounded-[24px] p-[2px] bg-gradient-to-b from-[#F5D37E] via-[#C8951E]/60 to-[#80132B]/70 shadow-[0_16px_36px_-10px_rgba(24,18,12,0.38)] cursor-pointer active:scale-[0.985] transition-transform duration-200 text-left block overflow-hidden"
+                onClick={() => launchScan("visage", { openCamera: true, cameraMode: "photo" })}
+                className="flex-1 py-2 px-2 rounded-xl text-[11px] sm:text-xs font-bold text-foreground hover:text-primary flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer hover:bg-muted/60"
               >
-                <div className="relative w-full h-full rounded-[22px] overflow-hidden bg-[#120D09]">
-                  {/* Portrait haute définition avec zoom doux au survol */}
-                  <img
-                    src="/skin/guide-visage-1.webp"
-                    alt="Aperçu du scan biométrique visage Kènè"
-                    className="w-full h-full object-cover object-[center_22%] opacity-92 group-hover/mirror:scale-105 transition-transform duration-700 ease-out"
-                  />
-
-                  {/* Vignette studio de contraste pour lisibilité parfaite des capteurs */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#100B07]/90 via-[#100B07]/15 to-[#100B07]/55 pointer-events-none" />
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_38%,rgba(16,11,7,0.58)_100%)] pointer-events-none" />
-
-                  {/* Réticule biométrique SVG (angles Face-ID + maillage ovale discret) */}
-                  <svg
-                    viewBox="0 0 200 220"
-                    fill="none"
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full p-3.5 pointer-events-none opacity-85"
-                  >
-                    {/* Coins d'or de visée optique */}
-                    <path d="M18 34 V20 Q18 14 24 14 H38" stroke="#F5D37E" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M162 14 H176 Q182 14 182 20 V34" stroke="#F5D37E" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M18 186 V200 Q18 206 24 206 H38" stroke="#F5D37E" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M162 206 H176 Q182 206 182 200 V186" stroke="#F5D37E" strokeWidth="2" strokeLinecap="round" />
-                    {/* Guide ovale biométrique subtil */}
-                    <ellipse
-                      cx="100"
-                      cy="108"
-                      rx="52"
-                      ry="68"
-                      stroke="#F5D37E"
-                      strokeOpacity="0.32"
-                      strokeWidth="1"
-                      strokeDasharray="3 4"
-                    />
-                  </svg>
-
-                  {/* Faisceau laser spectral Or 24K en balayage continu */}
-                  <motion.div
-                    aria-hidden="true"
-                    initial={{ top: "10%" }}
-                    animate={{ top: ["10%", "84%", "10%"] }}
-                    transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute inset-x-4 pointer-events-none z-10"
-                  >
-                    <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#FFE59E] to-transparent shadow-[0_0_14px_2px_rgba(245,211,126,0.9)]" />
-                    <div className="h-7 w-full bg-gradient-to-b from-[#D49A24]/25 to-transparent" />
-                  </motion.div>
-
-                  {/* Points chauds dermatologiques animés sur le visage */}
-                  <span
-                    aria-hidden="true"
-                    className="absolute top-[46%] left-[33%] size-2.5 rounded-full bg-amber-400 ring-4 ring-amber-400/30 animate-pulse pointer-events-none"
-                  />
-                  <span
-                    aria-hidden="true"
-                    className="absolute top-[33%] left-[50%] -translate-x-1/2 size-2.5 rounded-full bg-[#F26B8A] ring-4 ring-[#F26B8A]/30 animate-pulse pointer-events-none"
-                  />
-                  <span
-                    aria-hidden="true"
-                    className="absolute top-[52%] right-[31%] size-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-400/30 animate-pulse pointer-events-none"
-                  />
-
-                  {/* Puces télémétriques flottantes en haut du miroir */}
-                  <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between gap-1.5 pointer-events-none z-20">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#140E0A]/75 backdrop-blur-md border border-amber-400/35 text-[9.5px] font-bold text-[#FFF9EC]">
-                      <span className="size-1.5 rounded-full bg-amber-400" />
-                      Taches &amp; HPI
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#140E0A]/75 backdrop-blur-md border border-[#F26B8A]/40 text-[9.5px] font-bold text-[#FFF9EC]">
-                      <span className="size-1.5 rounded-full bg-[#F26B8A]" />
-                      Pores &amp; Sébum
-                    </span>
-                  </div>
-
-                  {/* Bandeau bas du miroir : 3e capteur + invitation tactile directe */}
-                  <div className="absolute bottom-2.5 inset-x-2.5 flex items-center justify-between gap-2 z-20">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#140E0A]/75 backdrop-blur-md border border-emerald-400/35 text-[9.5px] font-bold text-[#FFF9EC]">
-                      <span className="size-1.5 rounded-full bg-emerald-400" />
-                      Hydratation &amp; Éclat
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#E5A93C] text-[#18120C] text-[10px] font-black tracking-tight shadow-md group-hover/mirror:bg-[#F5D37E] transition-colors">
-                      <Camera size={11} strokeWidth={2.5} />
-                      <span>Activer le miroir</span>
-                    </span>
-                  </div>
-                </div>
+                <Camera size={13} className="text-[#D49A24] shrink-0" />
+                <span>Photo express</span>
+              </button>
+              <div className="w-px h-4 bg-border/60" />
+              <button
+                type="button"
+                onClick={() => launchScan("visage", { openCamera: true, cameraMode: "video" })}
+                className="flex-1 py-2 px-2 rounded-xl text-[11px] sm:text-xs font-bold text-primary hover:text-primary-foreground flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer hover:bg-primary/15"
+              >
+                <Video size={13} className="text-primary shrink-0" />
+                <span>Vidéo 360°</span>
+              </button>
+              <div className="w-px h-4 bg-border/60" />
+              <button
+                type="button"
+                onClick={() => landingFileRef.current?.click()}
+                className="flex-1 py-2 px-2 rounded-xl text-[11px] sm:text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer hover:bg-muted/60"
+              >
+                <ImagePlus size={13} className="shrink-0" />
+                <span>Galerie</span>
               </button>
             </div>
+          </div>
 
-            {/* ── COLONNE ÉDITORIALE & DÉCLENCHEUR OPTIQUE (Gauche sur PC/Tablette, Bas sur Mobile) ── */}
-            <div className="md:col-span-7 md:order-1 flex flex-col justify-between">
-              {/* Titre & Sous-titre version Tablette / Desktop */}
-              <div className="hidden md:block mb-4">
-                <h2 className="font-heading font-black text-2xl lg:text-[26px] text-foreground leading-[1.15] tracking-tight">
-                  Révèle la vraie nature de ta peau en 10 secondes
-                </h2>
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-xl">
-                  Analyse biométrique spécialisée peaux mélanodermes (8 spectres cutanés), suivie de ton ordonnance botanique validée par notre Dermo-Conseillère Déborah.
-                </p>
-              </div>
+          {/* Ruban d'Expertise Continue (Épuré, Aéré, Sans Lourdeur) */}
+          <div className="mt-4 pt-3 border-t border-border/50 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-foreground/85">
+              <Sparkles size={12} className="text-[#D49A24]" />
+              8 spectres cutanés analysés
+            </span>
+            <span className="text-border">•</span>
+            <span className="inline-flex items-center gap-1.5 font-semibold text-foreground/85">
+              <Leaf size={12} className="text-primary" />
+              Actifs botaniques purs
+            </span>
+            <span className="text-border">•</span>
+            <span className="inline-flex items-center gap-1.5 font-semibold text-foreground/85">
+              <BadgeCheck size={12} className="text-emerald-600 dark:text-emerald-400" />
+              Validé par Déborah
+            </span>
+          </div>
 
-              {/* 💎 DÉCLENCHEUR OPTIQUE ÉBÈNE & OR 24K — Sculptural, magnétique, hors du commun */}
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => launchScan("visage", { openCamera: true })}
-                  className="group relative w-full rounded-[26px] p-[2px] bg-gradient-to-r from-[#E5A93C] via-[#FFF2CC] to-[#B87B14] shadow-[0_16px_36px_-8px_rgba(24,17,12,0.42),0_4px_18px_-2px_rgba(212,154,36,0.38)] hover:shadow-[0_20px_42px_-6px_rgba(212,154,36,0.52)] active:scale-[0.98] transition-all duration-250 cursor-pointer text-left"
-                >
-                  <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-r from-[#17110B] via-[#231810] to-[#17110B] px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-3">
-                    {/* Reflet spéculaire soyeux au survol */}
-                    <div
-                      aria-hidden="true"
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FFF6DC]/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none"
-                    />
-
-                    {/* 1. Obturateur Caméra Bijou 3D Or 24K */}
-                    <div className="relative shrink-0 grid size-12 sm:size-13 place-items-center">
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-0 rounded-full bg-[#E5A93C]/35 animate-ping [animation-duration:2.8s]"
-                      />
-                      <span className="relative grid size-12 sm:size-13 place-items-center rounded-full k-btn-gold ring-2 ring-[#FFF9EC]/50 shadow-lg group-hover:scale-105 transition-transform duration-200">
-                        <ScanFace size={24} className="text-[#18120C] stroke-[2.3]" />
-                      </span>
-                    </div>
-
-                    {/* 2. Promesse & Réassurance instantanée */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-heading font-black text-[15px] sm:text-[17px] text-[#FFF9EC] leading-tight tracking-tight">
-                          Démarrer mon scan visage
-                        </span>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#E5A93C]/20 border border-[#E5A93C]/50 text-[#F5D37E] text-[9.5px] font-black uppercase tracking-wider">
-                          Gratuit
-                        </span>
-                      </div>
-                      <p className="text-[11px] sm:text-xs text-[#F5ECDD]/80 font-medium mt-0.5 truncate">
-                        Caméra en direct · Résultat en 10s &amp; routine sur-mesure
-                      </p>
-                    </div>
-
-                    {/* 3. Flèche magnétique d'impulsion */}
-                    <span className="shrink-0 grid size-9 sm:size-10 place-items-center rounded-full bg-white/10 border border-[#E5A93C]/40 text-[#F5D37E] group-hover:bg-[#E5A93C] group-hover:text-[#18120C] transition-all duration-200">
-                      <ChevronRight size={19} className="group-hover:translate-x-0.5 transition-transform" />
-                    </span>
-                  </div>
-                </button>
-
-                {/* Actions secondaires tactiles : Scan Vidéo 360° (5s) OU Galerie Photo/Vidéo */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() => launchScan("visage", { openCamera: true, cameraMode: "video" })}
-                    className="inline-flex items-center justify-center gap-1.5 text-xs font-extrabold text-primary hover:text-primary-foreground py-2 px-3.5 rounded-full bg-primary/10 hover:bg-primary border border-primary/35 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
-                  >
-                    <Video size={14} className="shrink-0" />
-                    <span>Scan Vidéo 360° (5s)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => landingFileRef.current?.click()}
-                    className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-foreground/85 hover:text-foreground py-2 px-3.5 rounded-full bg-card/90 hover:bg-muted/70 border border-border/80 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
-                  >
-                    <ImagePlus size={14} className="text-gold-text shrink-0" />
-                    <span>Galerie (Photo ou Vidéo)</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 3 Piliers débloqués après le scan (Format Bento horizontal épuré) */}
-              <div className="mt-4 grid grid-cols-3 gap-1.5 sm:gap-2">
-                <div className="p-2 sm:p-2.5 rounded-2xl bg-card/85 border border-gold/30 flex flex-col justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-gold-text flex items-center gap-1">
-                    <Sparkles size={11} className="shrink-0" />
-                    8 Spectres
-                  </span>
-                  <span className="text-[10.5px] sm:text-[11px] font-semibold text-foreground leading-snug mt-0.5">
-                    Cartographie IA précise
-                  </span>
-                </div>
-                <div className="p-2 sm:p-2.5 rounded-2xl bg-card/85 border border-primary/25 flex flex-col justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-primary flex items-center gap-1">
-                    <Leaf size={11} className="shrink-0" />
-                    Botanique
-                  </span>
-                  <span className="text-[10.5px] sm:text-[11px] font-semibold text-foreground leading-snug mt-0.5">
-                    3 actifs ciblés purs
-                  </span>
-                </div>
-                <div className="p-2 sm:p-2.5 rounded-2xl bg-card/85 border border-emerald-500/25 flex flex-col justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                    <BadgeCheck size={11} className="shrink-0" />
-                    Ordonnance
-                  </span>
-                  <span className="text-[10.5px] sm:text-[11px] font-semibold text-foreground leading-snug mt-0.5">
-                    Validée par Déborah
-                  </span>
-                </div>
-              </div>
-
-              {/* Réassurance discrète & 100% vraie */}
-              <div className="mt-3.5 pt-2.5 border-t border-border/50 flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-1 text-[10.5px] text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
-                  <span>Photo chiffrée · Dossier 100% confidentiel</span>
-                </span>
-                <span className="inline-block size-1 rounded-full bg-border" />
-                <span className="flex items-center gap-1">
-                  <Zap size={12} className="text-gold-text shrink-0" />
-                  <span>Zéro hydroquinone ni corticoïdes</span>
-                </span>
-              </div>
-            </div>
+          {/* Réassurance discrète & 100% vraie */}
+          <div className="mt-2.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10.5px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
+              <span>Photo chiffrée · Dossier 100% confidentiel</span>
+            </span>
+            <span className="inline-block size-1 rounded-full bg-border" />
+            <span className="flex items-center gap-1">
+              <Zap size={12} className="text-gold-text shrink-0" />
+              <span>Zéro hydroquinone ni corticoïdes</span>
+            </span>
           </div>
         </div>
 
