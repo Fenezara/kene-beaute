@@ -10,11 +10,13 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle, Camera, ChevronLeft, ChevronRight, FileDown, Filter, ImagePlus, Info,
   Loader2, OctagonAlert, PenLine, Printer, Search, Share2, ShieldAlert, ShieldCheck,
-  SlidersHorizontal, ScanFace, Trash2, UserPlus, Users,
+  SlidersHorizontal, ScanFace, Trash2, UserPlus, Users, Video,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { ProductInciScannerModal } from "./ProductInciScannerModal";
+import { LiveCameraModal } from "@/components/kene/client/LiveCameraModal";
+import { extractVideoKeyframes, isVideoFile } from "@/lib/kene/video-frames";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1418,6 +1420,8 @@ function PhotoStep({
   onSubmit: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [liveCamOpen, setLiveCamOpen] = useState(false);
+  const [liveCamMode, setLiveCamMode] = useState<"photo" | "video">("video");
   const slots = useMemo(() => ZONE_PHOTO_SLOTS[zone] ?? [{ id: "main", label: "Vue principale", hint: "Cadrez la zone", required: true }], [zone]);
   const [activeSlotId, setActiveSlotId] = useState<string>(() => slots[0]?.id ?? "face");
   const activeSlot = slots.find((s) => s.id === activeSlotId) ?? slots[0];
@@ -1428,6 +1432,25 @@ function PhotoStep({
     if (!file) return;
     setBusy(true);
     try {
+      if (isVideoFile(file)) {
+        const toastId = toast.loading("Extraction des angles HD de la vidéo cabine…");
+        try {
+          const { frames } = await extractVideoKeyframes(file, Math.min(slots.length, 3));
+          const nextPhotos = { ...photos };
+          frames.forEach((dataUrl, idx) => {
+            const slotId = slots[idx]?.id ?? `video_${idx}`;
+            nextPhotos[slotId] = dataUrl;
+          });
+          onPhotos(nextPhotos);
+          if (frames[0]) onPhoto(frames[0]);
+          if (slots[0]) setActiveSlotId(slots[0].id);
+          toast.success(`Vidéo cabine prête : ${frames.length} angle${frames.length > 1 ? "s" : ""} extrait${frames.length > 1 ? "s" : ""}`, { id: toastId });
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Vidéo illisible", { id: toastId });
+        }
+        return;
+      }
+
       const dataUrl = await resizeImage(file);
       const nextPhotos = { ...photos, [activeSlotId]: dataUrl };
       onPhotos(nextPhotos);
@@ -1442,7 +1465,7 @@ function PhotoStep({
         toast.success(`Photo « ${activeSlot.label} » prête pour l'analyse`);
       }
     } catch {
-      toast.error("Photo illisible — réessayez");
+      toast.error("Média illisible — réessayez");
     } finally {
       setBusy(false);
     }
@@ -1534,34 +1557,102 @@ function PhotoStep({
           </p>
         </div>
       ) : (
-        <label className="relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-gold/40 bg-muted/20 py-8 cursor-pointer hover:border-gold transition-colors">
-          {busy ? (
-            <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
-          ) : (
-            <div className="relative grid place-items-center size-12 rounded-full bg-gold/15 text-gold-text">
-              <ImagePlus className="size-6" aria-hidden="true" />
-            </div>
-          )}
-          <div className="text-center space-y-1 px-4">
-            <span className="text-sm font-bold block text-foreground">
-              {busy ? "Compression en cours…" : `Prendre / importer « ${activeSlot.label} »`}
-            </span>
-            <span className="text-xs text-muted-foreground block">
-              {activeSlot.hint}
-            </span>
+        <div className="space-y-2.5">
+          {/* Capture Caméra Live ou Balayage Vidéo 360° en Cabine */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setLiveCamMode("video");
+                setLiveCamOpen(true);
+              }}
+              className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-[#D49A24]/60 bg-gradient-to-br from-[#17110B] via-[#231810] to-[#17110B] text-[#FFF9EC] py-5 px-4 cursor-pointer hover:border-[#F5D37E] transition-all shadow-md"
+            >
+              <span className="grid place-items-center size-11 rounded-full k-btn-gold text-[#18120C] shadow">
+                <Video className="size-5" aria-hidden="true" />
+              </span>
+              <div className="text-center">
+                <span className="text-xs sm:text-sm font-black block text-[#FFF9EC]">
+                  Scan Vidéo Cabine 360° (5s)
+                </span>
+                <span className="text-[11px] text-[#F5D37E] block mt-0.5">
+                  Extrait automatiquement tous les angles
+                </span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setLiveCamMode("photo");
+                setLiveCamOpen(true);
+              }}
+              className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-gold/45 bg-gold/5 hover:bg-gold/10 py-5 px-4 cursor-pointer transition-all"
+            >
+              <span className="grid place-items-center size-11 rounded-full bg-gold/20 text-gold-text">
+                <Camera className="size-5" aria-hidden="true" />
+              </span>
+              <div className="text-center">
+                <span className="text-xs sm:text-sm font-bold block text-foreground">
+                  Photo Cabine « {activeSlot.label} »
+                </span>
+                <span className="text-[11px] text-muted-foreground block mt-0.5">
+                  {activeSlot.hint}
+                </span>
+              </div>
+            </button>
           </div>
-          <input
-            type="file"
-            accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif,image/jpg"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void pick(file);
-              e.target.value = "";
-            }}
-            aria-label={`Photo « ${activeSlot.label} »`}
-          />
-        </label>
+
+          <label className="relative flex items-center justify-center gap-2.5 rounded-2xl border border-dashed border-gold/40 bg-muted/20 py-3.5 px-4 cursor-pointer hover:border-gold transition-colors">
+            {busy ? (
+              <Loader2 className="size-5 animate-spin text-primary" aria-hidden="true" />
+            ) : (
+              <ImagePlus className="size-5 text-gold-text shrink-0" aria-hidden="true" />
+            )}
+            <span className="text-xs font-bold text-foreground">
+              {busy ? "Extraction / compression en cours…" : "Importer une photo ou vidéo depuis l'appareil"}
+            </span>
+            <input
+              type="file"
+              accept="image/*,video/*,video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,image/heic,image/heif,image/jpg"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void pick(file);
+                e.target.value = "";
+              }}
+              aria-label={`Photo ou vidéo « ${activeSlot.label} »`}
+            />
+          </label>
+        </div>
+      )}
+
+      {liveCamOpen && (
+        <LiveCameraModal
+          zoneLabel={`${zoneLabel} — ${activeSlot.label}`}
+          slots={slots}
+          activeSlotId={activeSlotId}
+          initialMode={liveCamMode}
+          onSlotChange={(id) => setActiveSlotId(id)}
+          onCapture={(dataUrl, slotId) => {
+            const targetId = slotId || activeSlotId;
+            const nextPhotos = { ...photos, [targetId]: dataUrl };
+            onPhotos(nextPhotos);
+            if (targetId === slots[0]?.id) onPhoto(dataUrl);
+          }}
+          onCaptureMultiple={(captures) => {
+            const nextPhotos = { ...photos };
+            captures.forEach((c, idx) => {
+              const targetId = c.slotId || slots[idx]?.id || `video_${idx}`;
+              nextPhotos[targetId] = c.dataUrl;
+            });
+            onPhotos(nextPhotos);
+            if (captures[0]?.dataUrl) onPhoto(captures[0].dataUrl);
+          }}
+          onClose={() => setLiveCamOpen(false)}
+        />
       )}
 
       {/* Boutons d'action */}

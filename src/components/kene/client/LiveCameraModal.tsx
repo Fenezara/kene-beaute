@@ -1,9 +1,9 @@
 "use client";
-// Kènè — Mode Selfie Caméra Live avec guide facial ovale & contrôle d'éclairage
-// Permet un cadrage optimal et instantané pour l'analyse cutanée VLM.
+// Kènè — Mode Caméra Live Biométrique (Photo Instantanée + Balayage Vidéo 360° 5s)
+// Guide facial ovale réactif à l'éclairage + capture vidéo guidée multi-angles pour l'analyse VLM.
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Camera, FlipHorizontal, Lightbulb, Loader2, RotateCcw, SwitchCamera, X } from "lucide-react";
+import { Camera, Lightbulb, Loader2, RotateCcw, Square, SwitchCamera, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
@@ -13,32 +13,50 @@ import {
   saveHardwarePermGranted,
 } from "@/lib/kene/hardware-perm";
 import { resizeImage } from "@/lib/kene/api";
+import { extractVideoKeyframes, isVideoFile } from "@/lib/kene/video-frames";
 import type { ZonePhotoSlot } from "@/lib/kene/types";
 
 interface LiveCameraModalProps {
   zoneLabel: string;
   onCapture: (dataUrl: string, slotId?: string) => void;
+  onCaptureMultiple?: (captures: { dataUrl: string; slotId?: string }[]) => void;
   onClose: () => void;
   slots?: ZonePhotoSlot[];
   activeSlotId?: string;
   onSlotChange?: (slotId: string) => void;
+  initialMode?: "photo" | "video";
 }
+
+const VIDEO_SWEEP_DURATION_MS = 5000;
 
 export function LiveCameraModal({
   zoneLabel,
   onCapture,
+  onCaptureMultiple,
   onClose,
   slots,
   activeSlotId,
   onSlotChange,
+  initialMode = "photo",
 }: LiveCameraModalProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const nativeInputRef = useRef<HTMLInputElement | null>(null);
+  const nativeVideoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [mode, setMode] = useState<"photo" | "video">(initialMode);
+  const [recording, setRecording] = useState(false);
+  const [recordProgress, setRecordProgress] = useState(0); // 0..100
+  const [recordStepIdx, setRecordStepIdx] = useState(0); // 0, 1, 2
+  const [processingNativeVideo, setProcessingNativeVideo] = useState(false);
+
+  const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recFramesRef = useRef<{ dataUrl: string; slotId?: string }[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const [currentSlotId, setCurrentSlotId] = useState<string>(
-    activeSlotId || (slots?.[0]?.id ?? "main")
+    activeSlotId || (slots?.[0]?.id ?? "main"),
   );
   const currentSlot = slots?.find((s) => s.id === currentSlotId) ?? (slots?.[0] || null);
   const currentSlotIndex = slots && currentSlot ? slots.findIndex((s) => s.id === currentSlot.id) : 0;
@@ -50,6 +68,29 @@ export function LiveCameraModal({
   const [lighting, setLighting] = useState<"optimal" | "faible" | "forte" | "contre_jour">("optimal");
   const [lightScore, setLightScore] = useState<number>(88);
   const [flashing, setFlashing] = useState(false);
+
+  function stopCameraHardware() {
+    if (recTimerRef.current) {
+      clearInterval(recTimerRef.current);
+      recTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+    mediaRecorderRef.current = null;
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      } catch {}
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    stopPersistentCameraStream();
+  }
 
   // Initialisation du flux caméra persistant (Zéro re-prompt système)
   useEffect(() => {
@@ -83,7 +124,7 @@ export function LiveCameraModal({
         if (isPermDenied) {
           toast.error("Accès caméra bloqué — Débloque via le cadenas 🔒 de ton navigateur");
         } else {
-          toast.error("Caméra indisponible — Utilise l'appareil photo du téléphone");
+          toast.error("Caméra indisponible — Utilise l'appareil photo ou vidéo du téléphone");
         }
       }
     }
@@ -92,14 +133,7 @@ export function LiveCameraModal({
 
     return () => {
       active = false;
-      // Libération propre du capteur matériel Android / iOS pour éviter tout verrouillage physique
-      if (streamRef.current) {
-        try {
-          streamRef.current.getTracks().forEach((t) => t.stop());
-        } catch {}
-        streamRef.current = null;
-      }
-      stopPersistentCameraStream();
+      stopCameraHardware();
     };
   }, [facingMode]);
 
@@ -108,12 +142,30 @@ export function LiveCameraModal({
     if (!file) return;
     try {
       haptic(HAPTIC.success);
+      if (isVideoFile(file)) {
+        setProcessingNativeVideo(true);
+        const targetCount = slots && slots.length > 1 ? Math.min(slots.length, 3) : 3;
+        const { frames } = await extractVideoKeyframes(file, targetCount);
+        const mapped = frames.map((dataUrl, i) => ({
+          dataUrl,
+          slotId: slots?.[i]?.id ?? (i === 0 ? currentSlotId : undefined),
+        }));
+        if (onCaptureMultiple) {
+          onCaptureMultiple(mapped);
+        } else {
+          mapped.forEach((m) => onCapture(m.dataUrl, m.slotId));
+        }
+        toast.success(`Vidéo analysée : ${mapped.length} angles extraits en haute netteté !`);
+        onClose();
+        return;
+      }
       const dataUrl = await resizeImage(file);
-      onCapture(dataUrl);
+      onCapture(dataUrl, currentSlotId);
       onClose();
-    } catch {
-      toast.error("Photo non reconnue. Réessaie.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fichier non reconnu. Réessaie.");
     } finally {
+      setProcessingNativeVideo(false);
       e.target.value = "";
     }
   }
@@ -148,7 +200,6 @@ export function LiveCameraModal({
             const idx = (y * size + x) * 4;
             const lum = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
 
-            // Zone centrale ovale correspondant au visage
             const dx = (x - size / 2) / 16;
             const dy = (y - size / 2) / 22;
             if (dx * dx + dy * dy <= 1) {
@@ -167,7 +218,6 @@ export function LiveCameraModal({
         let calculatedScore = 100 - Math.min(60, Math.abs(avgCenter - 130) * 0.7);
 
         if (avgBg - avgCenter > 50 && avgCenter < 110) {
-          // Contre-jour violent
           setLighting("contre_jour");
           calculatedScore = Math.max(30, calculatedScore - 35);
         } else if (avgCenter < 65) {
@@ -191,40 +241,43 @@ export function LiveCameraModal({
   }, [ready]);
 
   function flipCamera() {
+    if (recording) return;
     haptic(HAPTIC.light);
     setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
   }
 
-  function takeSnapshot() {
+  /** Capture instantanée d'une frame carrée 820px depuis le flux vidéo actif */
+  function grabVideoFrame(): string | null {
     const video = videoRef.current;
-    if (!video || video.videoWidth === 0) return;
-
-    haptic(HAPTIC.success);
-    setFlashing(true);
+    if (!video || video.videoWidth === 0) return null;
 
     const canvas = document.createElement("canvas");
-    // Résolution équilibrée pour analyse VLM (~820px)
     const targetSize = 820;
     canvas.width = targetSize;
     canvas.height = targetSize;
 
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
 
-    // Découpe carrée centrée
     const minDim = Math.min(video.videoWidth, video.videoHeight);
     const startX = (video.videoWidth - minDim) / 2;
     const startY = (video.videoHeight - minDim) / 2;
 
-    // Miroir horizontal si caméra selfie
     if (facingMode === "user") {
       ctx.translate(targetSize, 0);
       ctx.scale(-1, 1);
     }
 
     ctx.drawImage(video, startX, startY, minDim, minDim, 0, 0, targetSize, targetSize);
+    return canvas.toDataURL("image/jpeg", 0.88);
+  }
 
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+  function takeSnapshot() {
+    const dataUrl = grabVideoFrame();
+    if (!dataUrl) return;
+
+    haptic(HAPTIC.success);
+    setFlashing(true);
     setCapturedCount((c) => c + 1);
 
     // Multi-angles continu : on garde le flux actif pour le slot suivant sans redemander la caméra !
@@ -243,17 +296,7 @@ export function LiveCameraModal({
       }
     }
 
-    // Coupure immédiate du capteur physique dès la capture finale
-    if (streamRef.current) {
-      try {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      } catch {}
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    stopPersistentCameraStream();
+    stopCameraHardware();
 
     setTimeout(() => {
       onCapture(dataUrl, currentSlotId);
@@ -261,19 +304,117 @@ export function LiveCameraModal({
     }, 100);
   }
 
-  function handleClose() {
-    if (streamRef.current) {
+  /** Démarre ou finalise le balayage vidéo guidé de 5 secondes (3 angles extraits automatiquement) */
+  function finishVideoSweep() {
+    if (recTimerRef.current) {
+      clearInterval(recTimerRef.current);
+      recTimerRef.current = null;
+    }
+
+    // S'assurer qu'au moins une frame finale est capturée si arrêt anticipé
+    if (recFramesRef.current.length === 0) {
+      const fallbackFrame = grabVideoFrame();
+      if (fallbackFrame) {
+        recFramesRef.current.push({ dataUrl: fallbackFrame, slotId: slots?.[0]?.id ?? currentSlotId });
+      }
+    }
+
+    const captured = [...recFramesRef.current];
+    setRecording(false);
+    setFlashing(true);
+    haptic(HAPTIC.success);
+
+    stopCameraHardware();
+
+    setTimeout(() => {
+      if (onCaptureMultiple) {
+        onCaptureMultiple(captured);
+      } else {
+        captured.forEach((c) => onCapture(c.dataUrl, c.slotId));
+      }
+      toast.success(`Scan vidéo 360° terminé (${captured.length} angle${captured.length > 1 ? "s" : ""} HD capturé${captured.length > 1 ? "s" : ""}) !`);
+      onClose();
+    }, 140);
+  }
+
+  function toggleVideoSweep() {
+    if (recording) {
+      // Autoriser l'arrêt manuel après au moins 1.2s
+      if (recordProgress >= 24) {
+        finishVideoSweep();
+      }
+      return;
+    }
+
+    if (!videoRef.current || videoRef.current.videoWidth === 0) return;
+
+    haptic(HAPTIC.medium);
+    recFramesRef.current = [];
+    setRecordProgress(0);
+    setRecordStepIdx(0);
+    setRecording(true);
+
+    // Activation optionnelle de MediaRecorder pour flux vidéo matériel natif
+    if (streamRef.current && typeof MediaRecorder !== "undefined") {
       try {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      } catch {}
-      streamRef.current = null;
+        const mr = new MediaRecorder(streamRef.current);
+        mr.start();
+        mediaRecorderRef.current = mr;
+      } catch {
+        // Certaines WebViews iOS n'exposent pas MediaRecorder sans codec explicite : l'échantillonnage Canvas prend le relais
+      }
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    stopPersistentCameraStream();
+
+    const totalTargets = slots && slots.length > 1 ? Math.min(slots.length, 3) : 3;
+    const capturePercents = totalTargets === 1 ? [50] : totalTargets === 2 ? [30, 78] : [22, 56, 88];
+    const capturedFlags = capturePercents.map(() => false);
+
+    const t0 = Date.now();
+    recTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - t0;
+      const pct = Math.min(100, Math.round((elapsed / VIDEO_SWEEP_DURATION_MS) * 100));
+      setRecordProgress(pct);
+
+      const step = pct < 35 ? 0 : pct < 70 ? Math.min(1, totalTargets - 1) : Math.min(2, totalTargets - 1);
+      setRecordStepIdx(step);
+
+      capturePercents.forEach((threshold, idx) => {
+        if (!capturedFlags[idx] && pct >= threshold) {
+          capturedFlags[idx] = true;
+          const frame = grabVideoFrame();
+          if (frame) {
+            const targetSlotId = slots?.[idx]?.id ?? (idx === 0 ? currentSlotId : undefined);
+            recFramesRef.current.push({ dataUrl: frame, slotId: targetSlotId });
+            haptic(HAPTIC.light);
+          }
+        }
+      });
+
+      if (elapsed >= VIDEO_SWEEP_DURATION_MS) {
+        finishVideoSweep();
+      }
+    }, 80);
+  }
+
+  function handleClose() {
+    stopCameraHardware();
     onClose();
   }
+
+  // Instructions dynamiques pendant le balayage vidéo 5s
+  const videoStepPrompt = (() => {
+    if (slots && slots.length >= 3) {
+      const s = slots[recordStepIdx] ?? slots[0];
+      return `Étape ${recordStepIdx + 1}/3 · ${s.label} — ${s.hint}`;
+    }
+    if (recordStepIdx === 0) return "1/3 · Regarde bien en face dans l'ovale";
+    if (recordStepIdx === 1) return "2/3 · Tourne doucement la tête vers la gauche ↰";
+    return "3/3 · Tourne doucement la tête vers la droite ↱";
+  })();
+
+  const remainingSec = Math.max(1, Math.ceil(((100 - recordProgress) / 100) * (VIDEO_SWEEP_DURATION_MS / 1000)));
+  const ringCircumference = 2 * Math.PI * 38;
+  const ringDashOffset = ringCircumference * (1 - recordProgress / 100);
 
   if (typeof document === "undefined") return null;
 
@@ -299,20 +440,34 @@ export function LiveCameraModal({
         </button>
 
         <div className="text-center">
-          <p className="font-heading font-black text-sm tracking-wide">
-            {slots && slots.length > 1
-              ? `Angle ${currentSlotIndex + 1}/${slots.length} : ${currentSlot?.label || zoneLabel}`
-              : "Scanner de Peau Kènè"}
-          </p>
-          <p className="text-[11px] text-white/70">
-            {currentSlot?.hint || `Zone : ${zoneLabel}`}
-          </p>
+          {recording ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#9E2045]/90 border border-[#FF85A6]/40 text-white text-xs font-black tracking-wider shadow-lg">
+              <span className="size-2 rounded-full bg-white animate-ping" />
+              <span>REC · 00:0{remainingSec}</span>
+            </div>
+          ) : (
+            <>
+              <p className="font-heading font-black text-sm tracking-wide">
+                {mode === "video"
+                  ? "Scan Vidéo 360° Kènè (5s)"
+                  : slots && slots.length > 1
+                  ? `Angle ${currentSlotIndex + 1}/${slots.length} : ${currentSlot?.label || zoneLabel}`
+                  : "Scanner de Peau Kènè"}
+              </p>
+              <p className="text-[11px] text-white/70">
+                {mode === "video"
+                  ? "Balayage multi-angles continu en 5 secondes"
+                  : currentSlot?.hint || `Zone : ${zoneLabel}`}
+              </p>
+            </>
+          )}
         </div>
 
         <button
           type="button"
           onClick={flipCamera}
-          className="h-11 w-11 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white"
+          disabled={recording}
+          className="h-11 w-11 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 active:scale-95 transition-all text-white"
           aria-label="Retourner la caméra"
         >
           <SwitchCamera size={20} />
@@ -324,34 +479,51 @@ export function LiveCameraModal({
         {error ? (
           <div className="p-5 text-center max-w-sm mx-auto flex flex-col items-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center">
-              <Camera size={30} />
+              {mode === "video" ? <Video size={30} /> : <Camera size={30} />}
             </div>
 
             <div>
-              <p className="text-base font-bold text-white mb-1">Caméra non disponible</p>
+              <p className="text-base font-bold text-white mb-1">Caméra en direct bloquée</p>
               <p className="text-xs text-white/70">{error}</p>
             </div>
 
-            {/* Guide pas-à-pas pour débloquer l'autorisation dans le navigateur */}
             <div className="w-full text-left bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2 text-xs">
               <p className="font-semibold text-white/90 flex items-center gap-1.5">
-                <span>🔒</span> Pour débloquer l&apos;accès caméra :
+                <span>🔒</span> Tu peux utiliser directement ton appareil mobile :
               </p>
-              <ol className="list-decimal list-inside text-white/75 space-y-1 text-[11px] leading-relaxed">
-                <li>Touche le <strong>cadenas 🔒</strong> ou l&apos;icône réglages à gauche de l&apos;adresse du site</li>
-                <li>Sélectionne <strong>« Autorisations »</strong> ou <strong>« Paramètres du site »</strong></li>
-                <li>Active <strong>« Appareil photo »</strong> puis rafraîchis la page</li>
-              </ol>
+              <p className="text-white/75 text-[11px] leading-relaxed">
+                Filme une courte vidéo de 5 secondes ou prends une photo avec la caméra native de ton téléphone.
+              </p>
             </div>
 
-            {/* Action immédiate : capture native sans blocage WebRTC */}
+            {/* Actions immédiates : vidéo native ou photo native sans blocage WebRTC */}
             <div className="w-full flex flex-col gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => nativeInputRef.current?.click()}
-                className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-primary/20"
+                disabled={processingNativeVideo}
+                onClick={() => nativeVideoInputRef.current?.click()}
+                className="w-full h-12 rounded-2xl k-btn-gold text-[#18120C] font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg"
               >
-                <Camera size={16} /> Prendre la photo avec l&apos;appareil photo
+                {processingNativeVideo ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Extraction des angles vidéo…</span>
+                  </>
+                ) : (
+                  <>
+                    <Video size={16} />
+                    <span>Filmer une vidéo 5s (Caméra téléphone)</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                disabled={processingNativeVideo}
+                onClick={() => nativeInputRef.current?.click()}
+                className="w-full h-11 rounded-2xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md"
+              >
+                <Camera size={16} /> Prendre une photo simple
               </button>
 
               <div className="flex gap-2">
@@ -379,7 +551,7 @@ export function LiveCameraModal({
                 </button>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="flex-1 h-11 rounded-2xl bg-white/5 hover:bg-white/10 text-white/80 font-medium text-xs flex items-center justify-center active:scale-95"
                 >
                   Fermer
@@ -391,6 +563,14 @@ export function LiveCameraModal({
               ref={nativeInputRef}
               type="file"
               accept="image/*"
+              capture={facingMode === "user" ? "user" : "environment"}
+              className="sr-only"
+              onChange={handleNativeCapture}
+            />
+            <input
+              ref={nativeVideoInputRef}
+              type="file"
+              accept="video/*"
               capture={facingMode === "user" ? "user" : "environment"}
               className="sr-only"
               onChange={handleNativeCapture}
@@ -415,24 +595,25 @@ export function LiveCameraModal({
               </div>
             )}
 
-            {/* Guide facial ovale (Masque SVG élégant avec anneau réactif à la lumière) */}
+            {/* Guide facial ovale réactif */}
             {ready && (
               <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-                {/* Ovale de centrage avec anneau réactif */}
                 <div
                   className={cn(
                     "relative w-[75vw] max-w-[290px] aspect-[3/4] rounded-[50%] border-2 transition-all duration-300 shadow-[0_0_0_9999px_rgba(18,14,12,0.68)] flex items-center justify-center",
-                    lighting === "optimal"
-                      ? "border-[#3F7D3F] border-solid shadow-[0_0_28px_rgba(63,125,63,0.5)]"
+                    recording
+                      ? "border-[#F5D37E] border-solid shadow-[0_0_0_9999px_rgba(18,14,12,0.72),0_0_36px_rgba(245,211,126,0.65)]"
+                      : lighting === "optimal"
+                      ? "border-[#3F7D3F] border-solid shadow-[0_0_0_9999px_rgba(18,14,12,0.68),0_0_28px_rgba(63,125,63,0.5)]"
                       : lighting === "faible"
-                        ? "border-[#C8951E]/90 border-dashed shadow-[0_0_20px_rgba(200,149,30,0.35)]"
-                        : "border-[#C93B62] border-dashed shadow-[0_0_24px_rgba(201,59,98,0.4)]"
+                      ? "border-[#C8951E]/90 border-dashed shadow-[0_0_0_9999px_rgba(18,14,12,0.68),0_0_20px_rgba(200,149,30,0.35)]"
+                      : "border-[#C93B62] border-dashed shadow-[0_0_0_9999px_rgba(18,14,12,0.68),0_0_24px_rgba(201,59,98,0.4)]",
                   )}
                 >
                   <div
                     className={cn(
                       "w-full h-full rounded-[50%] border transition-colors",
-                      lighting === "optimal" ? "border-[#3F7D3F]/40" : "border-[#C8951E]/30"
+                      recording ? "border-[#F5D37E]/60" : lighting === "optimal" ? "border-[#3F7D3F]/40" : "border-[#C8951E]/30",
                     )}
                   />
                   {/* Croix de centrage discrète */}
@@ -440,33 +621,41 @@ export function LiveCameraModal({
                   <div className="absolute inset-y-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-0.5 h-4 bg-[#C8951E]/40" />
                 </div>
 
-                {/* Badge d'indication d'éclairage et qualité en temps réel */}
+                {/* Badges temps réel (Instruction de balayage vidéo OU éclairage) */}
                 <div className="mt-4 z-10 flex flex-col items-center gap-1.5 px-4 text-center">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-md shadow-lg transition-all",
-                      lighting === "optimal"
-                        ? "bg-[#3F7D3F]/90 text-white ring-1 ring-white/20"
-                        : lighting === "faible"
+                  {recording ? (
+                    <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black bg-[#18120C]/90 text-[#FFF9EC] border border-[#F5D37E]/60 shadow-xl backdrop-blur-md">
+                      <span className="size-2 rounded-full bg-[#F5D37E] animate-ping" />
+                      <span>{videoStepPrompt}</span>
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-md shadow-lg transition-all",
+                        lighting === "optimal"
+                          ? "bg-[#3F7D3F]/90 text-white ring-1 ring-white/20"
+                          : lighting === "faible"
                           ? "bg-[#C8951E]/90 text-[#120E0C] ring-1 ring-[#C8951E]/30"
-                          : "bg-[#C93B62]/90 text-white ring-1 ring-white/20"
-                    )}
-                  >
-                    <Lightbulb size={13} className="shrink-0" />
-                    <span>
-                      {lighting === "optimal"
-                        ? `Lumière idéale (${lightScore}%) · Prêt pour le scan ✨`
-                        : lighting === "faible"
+                          : "bg-[#C93B62]/90 text-white ring-1 ring-white/20",
+                      )}
+                    >
+                      <Lightbulb size={13} className="shrink-0" />
+                      <span>
+                        {lighting === "optimal"
+                          ? `Lumière idéale (${lightScore}%) · Prêt pour le scan ✨`
+                          : lighting === "faible"
                           ? `Lumière faible (${lightScore}%) — approche-toi d'une fenêtre ☀️`
                           : lighting === "contre_jour"
-                            ? `Contre-jour (${lightScore}%) — tourne le dos à la lumière ⚠️`
-                            : `Lumière trop vive (${lightScore}%) — atténue le reflet ⚠️`}
+                          ? `Contre-jour (${lightScore}%) — tourne le dos à la lumière ⚠️`
+                          : `Lumière trop vive (${lightScore}%) — atténue le reflet ⚠️`}
+                      </span>
                     </span>
-                  </span>
+                  )}
 
-                  {/* Conseil Peau nue & cadrage */}
                   <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-semibold bg-black/75 text-white/90 border border-white/15 backdrop-blur-md">
-                    💄 Peau démaquillée &amp; visage centré = Bilan biométrique 100% précis
+                    {mode === "video"
+                      ? "🎬 5s de balayage fluide = 3 angles HD extraits automatiquement"
+                      : "💄 Peau démaquillée & visage centré = Bilan biométrique précis"}
                   </span>
                 </div>
               </div>
@@ -475,14 +664,54 @@ export function LiveCameraModal({
         )}
       </div>
 
-      {/* Barre inférieure de déclenchement — surélevée pour libérer le bouton sous tous les écrans */}
-      <footer className="p-6 pb-[max(env(safe-area-inset-bottom,0px),3.5rem)] flex flex-col items-center gap-4 bg-gradient-to-t from-[#120E0C] via-[#120E0C]/90 to-transparent z-20">
+      {/* Barre inférieure : Sélecteur Photo / Vidéo 360° + Déclencheur */}
+      <footer className="p-5 pb-[max(env(safe-area-inset-bottom,0px),2.8rem)] flex flex-col items-center gap-3.5 bg-gradient-to-t from-[#120E0C] via-[#120E0C]/92 to-transparent z-20">
+        {/* Sélecteur de mode Photo / Vidéo 360° */}
+        {!recording && !error && (
+          <div className="inline-flex items-center p-1 rounded-full bg-white/10 border border-white/15 backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setMode("photo");
+              }}
+              className={cn(
+                "px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer",
+                mode === "photo" ? "bg-[#FFF9EC] text-[#18120C] shadow-sm" : "text-white/75 hover:text-white",
+              )}
+            >
+              <Camera size={13} />
+              <span>Photo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setMode("video");
+              }}
+              className={cn(
+                "px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer",
+                mode === "video"
+                  ? "bg-gradient-to-r from-[#E5A93C] to-[#C8951E] text-[#18120C] shadow-sm"
+                  : "text-white/75 hover:text-white",
+              )}
+            >
+              <Video size={13} />
+              <span>Vidéo 360° (5s)</span>
+            </button>
+          </div>
+        )}
+
         <p className="text-xs text-white/80 text-center font-medium">
-          Aligne ton visage dans l&apos;ovale, détends tes traits et capture
+          {recording
+            ? "Garde le visage dans l'ovale et suis le mouvement indiqué…"
+            : mode === "video"
+            ? "Touche pour filmer 5s (Face → Gauche → Droite)"
+            : "Aligne ton visage dans l'ovale, détends tes traits et capture"}
         </p>
 
-        <div className="flex items-center justify-center gap-4 w-full pb-3">
-          {capturedCount > 0 && slots && slots.length > 1 && (
+        <div className="flex items-center justify-center gap-4 w-full pb-2">
+          {!recording && capturedCount > 0 && slots && slots.length > 1 && mode === "photo" && (
             <button
               type="button"
               onClick={handleClose}
@@ -492,19 +721,57 @@ export function LiveCameraModal({
             </button>
           )}
 
-          {/* Déclencheur tactile principal */}
-          <button
-            type="button"
-            disabled={!ready || Boolean(error)}
-            onClick={takeSnapshot}
-            aria-label="Prendre la photo pour l'analyse"
-            className="group relative h-20 w-20 rounded-full border-4 border-white/80 p-1 flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40 shadow-xl"
-          >
-            <div className="h-full w-full rounded-full bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] shadow-[0_0_24px_rgba(200,149,30,0.7)] group-hover:scale-95 transition-transform" />
-          </button>
+          {/* Déclencheur tactile Photo OU Vidéo 360° avec anneau de progression SVG */}
+          {mode === "video" ? (
+            <button
+              type="button"
+              disabled={!ready || Boolean(error)}
+              onClick={toggleVideoSweep}
+              aria-label={recording ? "Arrêter le balayage vidéo" : "Démarrer le scan vidéo 360° de 5 secondes"}
+              className="group relative h-22 w-22 grid place-items-center active:scale-95 transition-transform disabled:opacity-40 cursor-pointer"
+            >
+              <svg className="absolute inset-0 size-full -rotate-90" viewBox="0 0 88 88" aria-hidden="true">
+                <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="4.5" />
+                {recording && (
+                  <circle
+                    cx="44"
+                    cy="44"
+                    r="38"
+                    fill="none"
+                    stroke="#F5D37E"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeDasharray={ringCircumference}
+                    strokeDashoffset={ringDashOffset}
+                    className="transition-[stroke-dashoffset] duration-100 ease-linear"
+                  />
+                )}
+              </svg>
+              <div
+                className={cn(
+                  "grid place-items-center transition-all duration-200 shadow-xl",
+                  recording
+                    ? "size-11 rounded-xl bg-[#D9385A] text-white shadow-[0_0_24px_rgba(217,56,90,0.7)]"
+                    : "size-16 rounded-full bg-gradient-to-tr from-[#9E2045] via-[#D9385A] to-[#E5A93C] text-white shadow-[0_0_26px_rgba(217,56,90,0.65)] group-hover:scale-95",
+                )}
+              >
+                {recording ? <Square size={18} fill="currentColor" /> : <Video size={24} />}
+              </div>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!ready || Boolean(error)}
+              onClick={takeSnapshot}
+              aria-label="Prendre la photo pour l'analyse"
+              className="group relative h-20 w-20 rounded-full border-4 border-white/80 p-1 flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40 shadow-xl cursor-pointer"
+            >
+              <div className="h-full w-full rounded-full bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] shadow-[0_0_24px_rgba(200,149,30,0.7)] group-hover:scale-95 transition-transform" />
+            </button>
+          )}
         </div>
       </footer>
     </div>,
-    document.body
+    document.body,
   );
 }

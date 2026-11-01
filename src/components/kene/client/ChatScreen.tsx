@@ -38,6 +38,7 @@ import {
   Smartphone,
   Square,
   TriangleAlert,
+  Video,
   Volume2,
   VolumeX,
   X,
@@ -52,6 +53,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
+import { extractVideoKeyframes, isVideoFile } from "@/lib/kene/video-frames";
 import { KeneEmblem, NeaOnnimIcon, CauriIcon, NsorommaIcon } from "@/components/kene/icons";
 import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
@@ -1130,6 +1132,19 @@ export function ChatScreen() {
   async function onPhotoFiles(files: File[]) {
     if (!files || files.length === 0 || photoBusy) return;
     try {
+      const videoFile = files.find((f) => isVideoFile(f));
+      if (videoFile) {
+        const toastId = toast.loading("Extraction des angles HD de votre vidéo…");
+        try {
+          const { frames } = await extractVideoKeyframes(videoFile, 3);
+          toast.success(`Vidéo analysée (${frames.length} angles extraits)`, { id: toastId });
+          await processPhotosDataUrls(frames);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Vidéo illisible", { id: toastId });
+        }
+        return;
+      }
+
       const slice = files.slice(0, 4);
       if (slice.length > 1) {
         toast.info(`Optimisation de ${slice.length} photos...`);
@@ -1137,7 +1152,7 @@ export function ChatScreen() {
       const dataUrls = await Promise.all(slice.map((f) => resizeImage(f)));
       await processPhotosDataUrls(dataUrls);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossible de charger les photos");
+      toast.error(e instanceof Error ? e.message : "Impossible de charger les médias");
     }
   }
 
@@ -2008,11 +2023,11 @@ export function ChatScreen() {
         </>
       )}
 
-      {/* Hidden inputs pour la capture photo et galerie */}
+      {/* Hidden inputs pour la capture photo, vidéo et galerie */}
       <input
         ref={galleryInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*,video/mp4,video/quicktime,video/webm"
         multiple
         className="sr-only"
         onChange={(e) => {
@@ -2034,13 +2049,18 @@ export function ChatScreen() {
         }}
       />
 
-      {/* ── Modal Caméra Live ── */}
+      {/* ── Modal Caméra Live (Photo ou Vidéo 360° 5s) ── */}
       {liveCamOpen && (
         <LiveCameraModal
           zoneLabel="Visage / Peau"
           onCapture={(dataUrl) => {
             setLiveCamOpen(false);
             void processPhotoDataUrl(dataUrl);
+          }}
+          onCaptureMultiple={(captures) => {
+            setLiveCamOpen(false);
+            const urls = captures.map((c) => c.dataUrl).filter(Boolean);
+            if (urls.length > 0) void processPhotosDataUrls(urls);
           }}
           onClose={() => setLiveCamOpen(false)}
         />
@@ -2131,13 +2151,13 @@ export function ChatScreen() {
                     </span>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-foreground">Prendre une photo en direct</span>
+                        <span className="text-xs font-bold text-foreground">Photo ou Vidéo 360° en direct</span>
                         <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                           Recommandé
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Guide facial ovale &amp; vérification de la lumière en temps réel
+                        Photo guidée ou balayage vidéo 5s avec contrôle de la lumière
                       </p>
                     </div>
                   </div>
@@ -2179,9 +2199,9 @@ export function ChatScreen() {
                     <ImagePlus size={19} />
                   </span>
                   <div>
-                    <span className="text-xs font-bold text-foreground">Choisir dans la galerie</span>
+                    <span className="text-xs font-bold text-foreground">Choisir photo ou vidéo dans la galerie</span>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Sélectionnez une ou plusieurs photos (face, profil, gros plan)
+                      Importez une vidéo courte (3–15s) ou des photos (face, profil, gros plan)
                     </p>
                   </div>
                 </button>

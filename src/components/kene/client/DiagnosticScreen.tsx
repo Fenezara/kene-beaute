@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Download, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X, Trash2, Sparkles, Zap,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, Video, WifiOff, X, Trash2, Sparkles, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry, KENE_SUPPORT_PHONE } from "@/lib/kene/whatsapp-relay";
 import { ApiError, apiGet, apiPost, apiDelete, resizeImage } from "@/lib/kene/api";
+import { extractVideoKeyframes, isVideoFile } from "@/lib/kene/video-frames";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -172,8 +173,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
   const [queuedCount, setQueuedCount] = useState(0);
   const [liveCamOpen, setLiveCamOpen] = useState(false);
+  const [liveCamInitialMode, setLiveCamInitialMode] = useState<"photo" | "video">("photo");
+  const [videoExtracting, setVideoExtracting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nativeCameraRef = useRef<HTMLInputElement>(null);
+  const nativeVideoRef = useRef<HTMLInputElement>(null);
   const landingFileRef = useRef<HTMLInputElement>(null);
 
   // Résilience 502: message discret sous la barre de progression
@@ -292,23 +296,54 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     loadHistory();
   }
 
-  async function onFile(f: File | undefined) {
+  async function onFile(f: File | undefined, explicitZone?: BodyZone) {
     if (!f) return;
+    const effectiveZone = explicitZone ?? zone;
+    const targetSlots = ZONE_PHOTO_SLOTS[effectiveZone] ?? [{ id: "main", label: "Vue principale", hint: "Photo nette", required: true }];
+
+    if (isVideoFile(f)) {
+      setVideoExtracting(true);
+      const toastId = toast.loading("Extraction des angles HD de ta vidéo…");
+      try {
+        const maxCount = Math.min(targetSlots.length, 3);
+        const { frames, durationSec } = await extractVideoKeyframes(f, maxCount);
+        const mapped: Record<string, string> = {};
+        frames.forEach((dataUrl, idx) => {
+          const slotId = targetSlots[idx]?.id ?? `frame_${idx}`;
+          mapped[slotId] = dataUrl;
+        });
+        setSlotImages((prev) => ({ ...prev, ...mapped }));
+        setImage(frames[0]);
+        if (targetSlots[0]) setActiveSlotId(targetSlots[0].id);
+        const totalKo = Math.max(1, Math.round(frames.reduce((acc, u) => acc + u.length * 0.75, 0) / 1024));
+        toast.success(
+          `Vidéo analysée (${durationSec}s) : ${frames.length} angle${frames.length > 1 ? "s" : ""} extrait${frames.length > 1 ? "s" : ""} (${totalKo} Ko)`,
+          { id: toastId, description: "Tu peux lancer immédiatement ton bilan cutané 360°." },
+        );
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Vidéo illisible", { id: toastId });
+      } finally {
+        setVideoExtracting(false);
+      }
+      return;
+    }
+
     try {
       const dataUrl = await resizeImage(f);
-      setSlotImages((prev) => ({ ...prev, [activeSlotId]: dataUrl }));
+      const slotIdToFill = explicitZone ? (targetSlots[0]?.id ?? activeSlotId) : activeSlotId;
+      const filledSlot = targetSlots.find((s) => s.id === slotIdToFill) ?? activeSlot;
+      setSlotImages((prev) => ({ ...prev, [slotIdToFill]: dataUrl }));
       setImage(dataUrl);
       // Transparence « petite data »: montrer le poids réel envoyé (compressé côté client)
-      const origKo = Math.round(f.size / 1024);
       const sentKo = Math.max(1, Math.round((dataUrl.length * 0.75) / 1024)); // base64 ≈ 4/3
-      const nextEmpty = slots.find((s) => s.id !== activeSlotId && !slotImages[s.id]);
+      const nextEmpty = targetSlots.find((s) => s.id !== slotIdToFill && !slotImages[s.id]);
       if (nextEmpty) {
-        toast.success(`Photo « ${activeSlot.label} » prête (${sentKo} Ko)`, {
+        toast.success(`Photo « ${filledSlot.label} » prête (${sentKo} Ko)`, {
           description: `Tu peux aussi prendre l'angle « ${nextEmpty.label} » pour une analyse 360°.`,
         });
         setActiveSlotId(nextEmpty.id);
       } else {
-        toast.success(`Photo « ${activeSlot.label} » prête (${sentKo} Ko)`);
+        toast.success(`Photo « ${filledSlot.label} » prête (${sentKo} Ko)`);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Photo illisible");
@@ -717,13 +752,14 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       { id: "naevi" as BodyZone, label: "Corps & Lésions", benefit: "Taches, vergetures & texture", icon: Cross },
     ];
 
-    const launchScan = (targetZone: BodyZone, opts?: { openCamera?: boolean }) => {
+    const launchScan = (targetZone: BodyZone, opts?: { openCamera?: boolean; cameraMode?: "photo" | "video" }) => {
       const proceed = () => {
         setZone(targetZone);
         setSlotImages({});
         setImage("");
         setStep(1);
         if (opts?.openCamera) {
+          setLiveCamInitialMode(opts.cameraMode ?? "photo");
           setLiveCamOpen(true);
         }
         haptic(HAPTIC.medium);
@@ -741,11 +777,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 
     return (
       <div className="pt-2 sm:pt-4">
-        {/* Input fichier masqué pour l'import immédiat depuis la galerie sur la page d'accueil */}
+        {/* Input fichier masqué pour l'import immédiat photo OU vidéo depuis la galerie sur la page d'accueil */}
         <input
           ref={landingFileRef}
           type="file"
-          accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif,image/jpg"
+          accept="image/*,video/*,video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,image/heic,image/heif,image/jpg"
           className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -755,7 +791,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                 setSlotImages({});
                 setImage("");
                 setStep(1);
-                void onFile(f);
+                void onFile(f, "visage");
               };
 
               if (!user.consentHealth) {
@@ -770,7 +806,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             }
             e.target.value = "";
           }}
-          aria-label="Choisir une photo du visage dans la galerie"
+          aria-label="Choisir une photo ou une vidéo du visage dans la galerie"
         />
 
         {/* Sélecteur d'onglets Scanner */}
@@ -997,15 +1033,23 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                   </div>
                 </button>
 
-                {/* Action secondaire élégante : Importer un selfie existant */}
-                <div className="flex items-center justify-center sm:justify-start gap-2 pt-0.5">
+                {/* Actions secondaires tactiles : Scan Vidéo 360° (5s) OU Galerie Photo/Vidéo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => launchScan("visage", { openCamera: true, cameraMode: "video" })}
+                    className="inline-flex items-center justify-center gap-1.5 text-xs font-extrabold text-primary hover:text-primary-foreground py-2 px-3.5 rounded-full bg-primary/10 hover:bg-primary border border-primary/35 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    <Video size={14} className="shrink-0" />
+                    <span>Scan Vidéo 360° (5s)</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => landingFileRef.current?.click()}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-xs font-bold text-foreground/85 hover:text-foreground py-2 px-4 rounded-full bg-card/90 hover:bg-muted/70 border border-border/80 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-foreground/85 hover:text-foreground py-2 px-3.5 rounded-full bg-card/90 hover:bg-muted/70 border border-border/80 shadow-2xs active:scale-[0.98] transition-all cursor-pointer"
                   >
-                    <ImagePlus size={14} className="text-primary shrink-0" />
-                    <span>Importer un selfie depuis ma galerie</span>
+                    <ImagePlus size={14} className="text-gold-text shrink-0" />
+                    <span>Galerie (Photo ou Vidéo)</span>
                   </button>
                 </div>
               </div>
@@ -1328,48 +1372,86 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Option 1 : Selfie Caméra Live (Recommandé) */}
-              <button
-                type="button"
-                onClick={() => setLiveCamOpen(true)}
-                className="w-full aspect-[16/10] sm:aspect-[16/9] rounded-[24px] border-2 border-primary/60 bg-gradient-to-br from-primary/15 via-gold/10 to-transparent p-5 flex flex-col items-center justify-center gap-2.5 shadow-md active:scale-[0.99] transition-all group"
-              >
-                <span className="grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg group-hover:scale-105 transition-transform">
-                  <Camera size={28} />
-                </span>
-                <span className="font-heading font-black text-sm sm:text-base text-foreground">
-                  Capturer « {activeSlot.label} » en direct
-                </span>
-                <span className="text-xs text-muted-foreground text-center px-4 max-w-sm font-medium">
-                  {activeSlot.hint} · Peau démaquillée &amp; éclairage naturel recommandés
-                </span>
-              </button>
-
-              {/* Option 2 : Alternatifs (Appareil photo du téléphone, Galerie, Exemple) */}
-              <div className="grid grid-cols-3 gap-2">
+              {/* Option 1 : Caméra Live (Photo instantanée OU Scan Vidéo 360° 5s) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button
                   type="button"
+                  disabled={videoExtracting}
+                  onClick={() => {
+                    setLiveCamInitialMode("photo");
+                    setLiveCamOpen(true);
+                  }}
+                  className="rounded-[24px] border-2 border-primary/60 bg-gradient-to-br from-primary/15 via-gold/10 to-transparent p-4 sm:p-5 flex flex-col items-center justify-center gap-2 shadow-md active:scale-[0.99] transition-all group cursor-pointer"
+                >
+                  <span className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg group-hover:scale-105 transition-transform">
+                    <Camera size={24} />
+                  </span>
+                  <span className="font-heading font-black text-sm text-foreground text-center">
+                    Capturer « {activeSlot.label} » en photo
+                  </span>
+                  <span className="text-[11px] text-muted-foreground text-center font-medium">
+                    {activeSlot.hint}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={videoExtracting}
+                  onClick={() => {
+                    setLiveCamInitialMode("video");
+                    setLiveCamOpen(true);
+                  }}
+                  className="rounded-[24px] border-2 border-[#D49A24]/65 bg-gradient-to-br from-[#17110B] via-[#231810] to-[#17110B] text-[#FFF9EC] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all group cursor-pointer"
+                >
+                  <span className="grid size-12 place-items-center rounded-2xl k-btn-gold text-[#18120C] shadow-lg group-hover:scale-105 transition-transform">
+                    <Video size={24} />
+                  </span>
+                  <span className="font-heading font-black text-sm text-[#FFF9EC] text-center">
+                    Scan Vidéo 360° en 5s
+                  </span>
+                  <span className="text-[11px] text-[#F5D37E] text-center font-medium">
+                    Extrait automatiquement Face + Profils HD
+                  </span>
+                </button>
+              </div>
+
+              {/* Option 2 : Alternatifs (Photo tél., Vidéo tél., Galerie Photo/Vidéo, Exemple) */}
+              <div className="grid grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  disabled={videoExtracting}
                   onClick={() => nativeCameraRef.current?.click()}
                   className="h-12 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-foreground"
                 >
-                  <Camera size={16} className="text-primary" />
-                  <span className="text-[10px] leading-none">Photo tél.</span>
+                  <Camera size={15} className="text-primary" />
+                  <span className="text-[9.5px] leading-none">Photo tél.</span>
                 </button>
                 <button
                   type="button"
+                  disabled={videoExtracting}
+                  onClick={() => nativeVideoRef.current?.click()}
+                  className="h-12 rounded-2xl border border-gold/40 bg-gold/10 hover:bg-gold/15 text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-foreground"
+                >
+                  {videoExtracting ? <Loader2 size={15} className="animate-spin text-gold-text" /> : <Video size={15} className="text-gold-text" />}
+                  <span className="text-[9.5px] leading-none">Vidéo tél.</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={videoExtracting}
                   onClick={() => fileRef.current?.click()}
                   className="h-12 rounded-2xl border border-border bg-card hover:bg-muted/40 text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-foreground"
                 >
-                  <ImagePlus size={16} className="text-muted-foreground" />
-                  <span className="text-[10px] leading-none">Galerie</span>
+                  <ImagePlus size={15} className="text-muted-foreground" />
+                  <span className="text-[9.5px] leading-none">Galerie</span>
                 </button>
                 <button
                   type="button"
+                  disabled={videoExtracting}
                   onClick={useGuidePhoto}
                   className="h-12 rounded-2xl border border-border/60 bg-muted/20 hover:bg-muted/40 text-xs font-semibold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-foreground"
                 >
-                  <CauriIcon size={15} className="text-primary" />
-                  <span className="text-[10px] leading-none">Exemple</span>
+                  <CauriIcon size={14} className="text-primary" />
+                  <span className="text-[9.5px] leading-none">Exemple</span>
                 </button>
               </div>
             </div>
@@ -1377,14 +1459,14 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif,image/jpg"
+            accept="image/*,video/*,video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,image/heic,image/heif,image/jpg"
             className="sr-only"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void onFile(f);
               e.target.value = "";
             }}
-            aria-label={`Photo de la zone ${zoneDef.label} - ${activeSlot.label}`}
+            aria-label={`Photo ou vidéo de la zone ${zoneDef.label} - ${activeSlot.label}`}
           />
           <input
             ref={nativeCameraRef}
@@ -1399,47 +1481,79 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             }}
             aria-label={`Prendre une photo de ${activeSlot.label} avec l'appareil photo du téléphone`}
           />
+          <input
+            ref={nativeVideoRef}
+            type="file"
+            accept="video/*"
+            capture="user"
+            className="sr-only"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onFile(f);
+              e.target.value = "";
+            }}
+            aria-label={`Filmer une courte vidéo de ${zoneDef.label} avec le téléphone`}
+          />
         </div>
 
         {/* Boutons d'action après capture */}
         {activeImage && (
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setLiveCamOpen(true)}
-              className="k-chip h-11 flex-1 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+              onClick={() => {
+                setLiveCamInitialMode("photo");
+                setLiveCamOpen(true);
+              }}
+              className="k-chip h-11 flex-1 min-w-[140px] rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
             >
               <RotateCcw size={15} /> Reprendre « {activeSlot.label} »
             </button>
             <button
               type="button"
-              onClick={() => nativeCameraRef.current?.click()}
+              onClick={() => {
+                setLiveCamInitialMode("video");
+                setLiveCamOpen(true);
+              }}
               className="k-chip h-11 px-3.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
-              title="Prendre avec l'appareil photo du téléphone"
+              title="Refaire un balayage vidéo 360° de 5 secondes"
             >
-              <Camera size={15} className="text-primary" /> Tél.
+              <Video size={15} className="text-gold-text" /> Vidéo 5s
             </button>
             <button
               type="button"
-              onClick={useGuidePhoto}
+              onClick={() => fileRef.current?.click()}
               className="k-chip h-11 px-3.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+              title="Importer une photo ou vidéo depuis la galerie"
             >
-              <ImagePlus size={15} className="text-primary" /> Exemple
+              <ImagePlus size={15} className="text-primary" /> Galerie
             </button>
           </div>
         )}
 
-        {/* Modal Caméra Live (Multi-angles continu sans coupure ni re-prompt) */}
+        {/* Modal Caméra Live (Photo Multi-angles OU Balayage Vidéo 360° 5s) */}
         {liveCamOpen && (
           <LiveCameraModal
             zoneLabel={`${zoneDef.label} — ${activeSlot.label}`}
             slots={slots}
             activeSlotId={activeSlotId}
+            initialMode={liveCamInitialMode}
             onSlotChange={(id) => setActiveSlotId(id)}
             onCapture={(dataUrl, slotId) => {
               const targetId = slotId || activeSlotId;
               setSlotImages((prev) => ({ ...prev, [targetId]: dataUrl }));
               setImage(dataUrl);
+            }}
+            onCaptureMultiple={(captures) => {
+              const mapped: Record<string, string> = {};
+              captures.forEach((c, idx) => {
+                const targetId = c.slotId || slots[idx]?.id || `video_${idx}`;
+                mapped[targetId] = c.dataUrl;
+              });
+              setSlotImages((prev) => ({ ...prev, ...mapped }));
+              if (captures[0]?.dataUrl) {
+                setImage(captures[0].dataUrl);
+              }
             }}
             onClose={() => setLiveCamOpen(false)}
           />
