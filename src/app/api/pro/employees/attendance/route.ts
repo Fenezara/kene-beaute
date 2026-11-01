@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (!employee) return jsonError("Employée introuvable", 404);
 
     // CONTRÔLE ANTI-FRAUDE PRÉSENCE PHYSIQUE (Standards Sécurité RH 2026) :
-    // Le pointage d'arrivée exige une preuve physique (GPS < 150m de l'institut OU QR Token caisse)
+    // Le pointage d'arrivée exige une preuve physique (GPS de proximité OU QR Token caisse)
     if (parsed.data.action === "in") {
       const { lat, lng, qrToken } = parsed.data;
       const tenant = employee.tenant;
@@ -92,15 +92,16 @@ export async function POST(req: NextRequest) {
         if (typeof lat === "number" && typeof lng === "number") {
           const tenantCoords = getTenantCoords(tenant.city, tenant.address);
           const distanceKm = haversineKm(lat, lng, tenantCoords.lat, tenantCoords.lng);
-          // Rayon de tolérance : 350 mètres (0.35 km) pour absorber les imprécisions GPS en intérieur / Abidjan
-          if (distanceKm > 0.35) {
+          const distanceMeters = Math.round(distanceKm * 1000);
+
+          // Rayon de tolérance : 1000 mètres (1 km) pour absorber toute dispersion d'antenne relais ou imprécision d'Abidjan
+          if (distanceKm > 1.0) {
             return jsonError(
-              `Présence non confirmée : vous êtes à ${(distanceKm * 1000).toFixed(0)}m de l'institut ${tenant.name}. Le pointage mobile exige d'être dans l'enceinte de l'établissement (ou pointez directement sur l'écran du salon).`,
+              `Présence non confirmée : vous êtes localisé à ${distanceMeters}m de l'institut ${tenant.name}. Veuillez vérifier l'autorisation de localisation précise de votre téléphone ou enregistrer votre position exacte dans Paramètres.`,
               403
             );
           }
         }
-        // Si ni GPS ni QR n'est fourni, on autorise si l'employé est en poste caisse ou si le flag de contournement d'urgence est documenté
       }
     }
 

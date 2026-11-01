@@ -71,9 +71,10 @@ export function getTenantCoords(city: string, address?: string | null): { lat: n
   if (text.includes("marcory")) return DISTRICT_COORDS.marcory;
   if (text.includes("riviera")) return DISTRICT_COORDS.riviera;
   if (text.includes("vallon")) return DISTRICT_COORDS.vallon;
-  if (text.includes("plateau")) return DISTRICT_COORDS.plateau_abidjan;
+  // Ordre de priorité : tester les quartiers spécifiques (Dokui, Abobo) AVANT le mot générique "plateau"
   if (text.includes("dokui")) return DISTRICT_COORDS.dokui;
   if (text.includes("abobo")) return DISTRICT_COORDS.abobo;
+  if (text.includes("plateau")) return DISTRICT_COORDS.plateau_abidjan;
   if (text.includes("yopougon")) return DISTRICT_COORDS.yopougon;
   return DISTRICT_COORDS.cocody;
 }
