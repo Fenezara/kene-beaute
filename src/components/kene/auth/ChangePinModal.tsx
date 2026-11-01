@@ -109,10 +109,6 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin }: Cha
       toast.error("Le nouveau code doit comporter 4 chiffres");
       return;
     }
-    if (hasPin && oldPin && newPin === oldPin) {
-      toast.error("Le nouveau code doit être différent de l'ancien");
-      return;
-    }
     haptic(HAPTIC.tap);
     setStep("confirm_pin");
   };
@@ -158,7 +154,7 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin }: Cha
       haptic(HAPTIC.warning);
       toast.error(err instanceof Error ? err.message : "Erreur lors de la mise à jour du code");
       if (step === "confirm_pin") {
-        setStep("old_pin");
+        setStep(effectiveHasPin ? "old_pin" : "new_pin");
         setOldPin("");
         setNewPin("");
         setConfirmPin("");
