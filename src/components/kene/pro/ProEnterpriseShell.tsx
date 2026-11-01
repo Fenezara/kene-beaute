@@ -1088,9 +1088,21 @@ export function ProEnterpriseShell() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                  En poste
-                </span>
+                {staffAttendance?.checkIn ? (
+                  staffAttendance.checkOut ? (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      Journée finie
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                      Présente ({staffAttendance.checkIn})
+                    </span>
+                  )
+                ) : (
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                    Non pointée
+                  </span>
+                )}
                 <Settings size={12} className="text-muted-foreground" />
               </div>
             </button>

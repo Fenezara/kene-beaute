@@ -325,7 +325,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                       </Badge>
                     ) : emp.active ? (
                       <Badge variant="outline" className="text-[10px] shrink-0 bg-success/10 text-success border-success/30">
-                        En poste
+                        Contrat actif
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px] shrink-0 text-muted-foreground">
