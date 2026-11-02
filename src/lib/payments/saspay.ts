@@ -145,7 +145,7 @@ export async function verifySaspayPayment(
       return {
         success: false,
         isPaid: false,
-        status: "invalid_in_production",
+        status: "failed",
         amount: 0,
         paymentId: sessionIdOrPaymentId,
         paymentMethod: "Rejeté (Simulation interdite en production)",

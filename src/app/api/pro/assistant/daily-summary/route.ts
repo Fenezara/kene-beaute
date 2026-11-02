@@ -4,8 +4,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
-import { guardProRole } from "@/lib/kene/session";
+import { jsonError, serverError, resolveTenant, resolveUserProContext } from "@/lib/kene/server";
+import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 
@@ -14,14 +14,28 @@ export async function GET(req: NextRequest) {
     const guard = guardProRole(req, "pro:assistant:daily-summary");
     if (guard) return guard;
 
-    const tenantId = req.nextUrl.searchParams.get("tenantId");
-    if (!tenantId) return jsonError("tenantId requis", 400);
+    const tenantIdParam = req.nextUrl.searchParams.get("tenantId");
+    const resolvedTenant = await resolveTenant(req, tenantIdParam);
+    if (!resolvedTenant) return jsonError("Institut introuvable", 404);
+    const tenantId = resolvedTenant.id;
 
     const userNameParam = req.nextUrl.searchParams.get("userName") || "";
     const userRoleParam = req.nextUrl.searchParams.get("userRole") || "";
     const isOwnerParam = req.nextUrl.searchParams.get("isOwner");
     const allowedSectionsParam = req.nextUrl.searchParams.get("allowedSections") || "";
-    const allowedSections = allowedSectionsParam ? allowedSectionsParam.split(",").map((s) => s.trim()) : null;
+    let allowedSections = allowedSectionsParam ? allowedSectionsParam.split(",").map((s) => s.trim()) : null;
+    let isOwner = isOwnerParam === null ? true : isOwnerParam !== "false";
+
+    // Vérification serveur des permissions réelles en base de données
+    const sess = sessionFromRequest(req);
+    if (sess && sess.role !== "admin") {
+      const proCtx = await resolveUserProContext({ id: sess.userId, phone: sess.phone, role: sess.role });
+      const isActualOwner = proCtx.isOwner && proCtx.ownerTenant?.id === tenantId;
+      isOwner = isActualOwner;
+      if (!isActualOwner && proCtx.employeePermissions) {
+        allowedSections = proCtx.employeePermissions;
+      }
+    }
 
     const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
@@ -33,7 +47,6 @@ export async function GET(req: NextRequest) {
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     // Détermination dynamique des permissions effectives
-    const isOwner = isOwnerParam === null ? true : isOwnerParam !== "false";
     const canViewCaisse = isOwner || Boolean(allowedSections?.includes("caisse") || allowedSections?.includes("dashboard"));
     const canViewStock = isOwner || Boolean(allowedSections?.includes("stock") || allowedSections?.includes("catalogue"));
     const canViewTeam = isOwner || Boolean(allowedSections?.includes("equipe"));

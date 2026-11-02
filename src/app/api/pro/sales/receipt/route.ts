@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { generateThermalReceiptHtml, ThermalFormat } from "@/lib/accounting/receipt-thermal";
 import { guardProRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 
 export const runtime = "nodejs";
 
@@ -44,9 +44,10 @@ export async function GET(req: NextRequest) {
       return jsonError("Accès refusé", 403);
     }
 
-    const tenant = await db.tenant.findUnique({
-      where: { id: sale.tenantId },
-    });
+    const tenant = await resolveTenant(req, sale.tenantId);
+    if (!tenant) {
+      return jsonError("Accès refusé", 403);
+    }
 
     const receiptHtml = generateThermalReceiptHtml(
       {

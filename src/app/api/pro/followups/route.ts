@@ -110,9 +110,10 @@ export async function POST(req: NextRequest) {
     // Traitement par lot (campagne de relance groupée SMS / WhatsApp)
     const parsedBatch = BatchBody.safeParse(json);
     if (parsedBatch.success) {
-      const { tenantId, batch, via } = parsedBatch.data;
-      const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+      const { tenantId: reqTenantId, batch, via } = parsedBatch.data;
+      const tenant = await resolveTenant(req, reqTenantId);
       if (!tenant) return jsonError("Institut introuvable", 404);
+      const tenantId = tenant.id;
 
       let processed = 0;
       for (const item of batch) {
@@ -155,10 +156,11 @@ export async function POST(req: NextRequest) {
 
     const parsed = Body.safeParse(json);
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, dedupKey, status, via, note, clientProfileId, clientPhone, clientName, message } = parsed.data;
+    const { tenantId: reqTenantId, dedupKey, status, via, note, clientProfileId, clientPhone, clientName, message } = parsed.data;
 
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await resolveTenant(req, reqTenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
+    const tenantId = tenant.id;
 
     // Réactivation: on efface la marque, la relance redevient « à traiter »
     if (status === "todo") {

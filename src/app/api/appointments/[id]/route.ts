@@ -8,13 +8,19 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const { id } = await params;
     const sess = sessionFromRequest(req);
+    if (!sess && process.env.NODE_ENV === "production") {
+      return jsonError("Session requise", 401);
+    }
     const userIdQuery = req.nextUrl.searchParams.get("userId");
     const userId = sess?.userId || userIdQuery;
+    if (!userId && sess?.role !== "admin") {
+      return jsonError("Authentification requise", 401);
+    }
 
     const appt = await db.appointment.findUnique({ where: { id } });
     if (!appt) return jsonError("Rendez-vous introuvable", 404);
 
-    if (userId && appt.userId !== userId && sess?.role !== "admin" && sess?.role !== "pro") {
+    if (sess?.role !== "admin" && appt.userId !== userId) {
       return jsonError("Ce rendez-vous ne vous appartient pas", 403);
     }
 

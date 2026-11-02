@@ -133,8 +133,8 @@ export async function POST(req: NextRequest) {
       ok: true,
       message: smsSent ? "Code de vérification envoyé par SMS" : "Code de vérification généré",
       smsSent,
-      // En mode développement ou si l'envoi SMS réel a échoué, on renvoie devCode pour éviter tout blocage
-      devCode: (!isProd || !smsSent) ? rawOtp : undefined,
+      // En mode développement uniquement, on renvoie devCode (jamais en production)
+      devCode: !isProd ? rawOtp : undefined,
     });
   }
 

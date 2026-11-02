@@ -304,13 +304,16 @@ export function guardUserClaim(
 ): NextResponse | null {
   const sess = sessionFromRequest(req);
   if (sess) {
-    if (sess.role === "admin" || sess.role === "pro") return null;
+    if (sess.role === "admin") return null;
     if (claimed && claimed !== sess.userId) {
       return sessionError("Session invalide pour ce compte", 401);
     }
     return null;
   }
   warnLegacyNoCookie(routePath);
+  if (process.env.NODE_ENV === "production") {
+    return sessionError("Session requise — veuillez vous reconnecter", 401);
+  }
   return null;
 }
 

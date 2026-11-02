@@ -90,11 +90,14 @@ export function rateLimit(key: string, opts?: RateLimitOpts): RateLimitResult {
   return { ok: true, remaining: Math.max(0, limit - hits.length), retryAfterSec: 0 };
 }
 
-/** Clé de limiting par IP: x-forwarded-for (première IP de la chaîne, derrière
- * le gateway Caddy) sinon x-real-ip, sinon "local" (accès direct:3000). */
+/** Clé de limiting par IP: x-real-ip (écrasé par le gateway Caddy avec {remote_host})
+ * sinon la DERNIÈRE IP de x-forwarded-for (ajoutée par le reverse-proxy de confiance,
+ * insensible à l'injection d'en-tête client), sinon "local" (accès direct:3000). */
 export function rlKey(req: Request, scope: string): string {
+  const realIp = req.headers.get("x-real-ip")?.trim();
   const fwd = req.headers.get("x-forwarded-for");
-  const ip = (fwd ? fwd.split(",")[0].trim() : req.headers.get("x-real-ip")?.trim()) || "local";
+  const lastFwd = fwd ? fwd.split(",").pop()?.trim() : undefined;
+  const ip = realIp || lastFwd || "local";
   return `${scope}:${ip}`;
 }
 

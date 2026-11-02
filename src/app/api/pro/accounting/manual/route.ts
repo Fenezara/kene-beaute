@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, genRef } from "@/lib/kene/server";
+import { jsonError, serverError, genRef, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 
 const Body = z.object({
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const date = new Date(parsed.data.date);
     if (Number.isNaN(date.getTime())) return jsonError("Date invalide", 400);
 
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await resolveTenant(req, tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const accounts = await db.chartAccount.findMany({ where: { tenantId } });

@@ -114,8 +114,8 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
     // OU un code OTP de secours en cas d'oubli
     if (user.pinHash) {
       if (data.oldPin) {
-        // Valide le hash existant ou le mot de passe initial par défaut 1234
-        const isMatch = verifyPin(data.oldPin, user.pinHash) || (data.oldPin === "1234" && (!user.pinFails || user.pinFails === 0));
+        // Valide uniquement le hash réel existant en base (suppression du fallback "1234" codé en dur)
+        const isMatch = verifyPin(data.oldPin, user.pinHash);
         if (!isMatch) {
           const nextFails = (user.pinFails || 0) + 1;
           if (nextFails >= 5) {
@@ -144,6 +144,8 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
         const otp = await db.otpCode.findFirst({
           where: {
             phone,
+            used: false,
+            expiresAt: { gte: new Date() },
             createdAt: { gte: new Date(Date.now() - 15 * 60_000) },
           },
           orderBy: { createdAt: "desc" },
@@ -159,12 +161,12 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
 
         await db.otpCode.update({ where: { id: otp.id }, data: { used: true } });
       } else {
-        // En session authentifiée, si le compte avait un mot de passe par défaut 1234 ou si l'ancien code n'a pas pu être demandé, on autorise la mise à jour
-        void audit({ kind: "pin_change_auto", phone, userId: user.id, ip, detail: "mise à jour directe en session active" });
+        void audit({ kind: "pin_change_failed", phone, userId: user.id, ip, detail: "ancien PIN et OTP manquants" });
+        return jsonError("Veuillez saisir votre ancien code secret ou un code de vérification SMS", 400);
       }
     }
   } else {
-    // Si pas de session active, un code OTP valide et non expiré est impératif
+    // Si pas de session active, un code OTP valide, non consommé et non expiré est impératif
     if (!otpCode) {
       return jsonError("Code OTP ou session requise pour définir le code secret", 401);
     }
@@ -172,6 +174,8 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
     const otp = await db.otpCode.findFirst({
       where: {
         phone,
+        used: false,
+        expiresAt: { gte: new Date() },
         createdAt: { gte: new Date(Date.now() - 15 * 60_000) },
       },
       orderBy: { createdAt: "desc" },

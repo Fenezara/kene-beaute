@@ -41,6 +41,9 @@ export async function GET(req: NextRequest) {
   try {
     const userId = req.nextUrl.searchParams.get("userId")?.trim() ?? "";
     if (!userId) return jsonError("userId requis", 400);
+    const guard = guardUserClaim(req, "orders:get", userId);
+    if (guard) return guard;
+
     const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, phone: true } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);
 

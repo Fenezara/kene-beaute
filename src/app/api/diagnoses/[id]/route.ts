@@ -40,11 +40,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!diagnosis) return jsonError("Diagnostic introuvable", 404);
     const sess = sessionFromRequest(req);
     if (sess) {
-      if (diagnosis.userId !== sess.userId) {
+      if (sess.role !== "admin" && diagnosis.userId !== sess.userId) {
         return jsonError("Session invalide pour ce compte", 401);
       }
     } else {
       warnLegacyNoCookie("diagnoses:get:id");
+      if (process.env.NODE_ENV === "production") {
+        return jsonError("Session requise", 401);
+      }
     }
     return NextResponse.json({ diagnosis });
   } catch (err) {
@@ -55,13 +58,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const userIdQuery = req.nextUrl.searchParams.get("userId");
     const sess = sessionFromRequest(req);
+    if (!sess && process.env.NODE_ENV === "production") {
+      return jsonError("Session requise pour supprimer ce diagnostic", 401);
+    }
+    const userIdQuery = req.nextUrl.searchParams.get("userId");
     const userId = sess?.userId || userIdQuery;
+    if (!userId) {
+      return jsonError("Identifiant utilisateur requis", 401);
+    }
 
     const diagnosis = await db.diagnosis.findUnique({ where: { id } });
     if (diagnosis) {
-      if (userId && diagnosis.userId !== userId) {
+      if (sess?.role !== "admin" && diagnosis.userId !== userId) {
         return jsonError("Ce diagnostic ne vous appartient pas", 403);
       }
       await db.diagnosis.delete({ where: { id } });
@@ -70,7 +79,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     const proDiag = await db.proDiagnosis.findUnique({ where: { id } });
     if (proDiag) {
-      if (userId && proDiag.userId !== userId) {
+      if (sess?.role !== "admin" && proDiag.userId !== userId) {
         return jsonError("Ce diagnostic ne vous appartient pas", 403);
       }
       await db.proDiagnosis.delete({ where: { id } });

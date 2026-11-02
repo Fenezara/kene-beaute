@@ -5,6 +5,7 @@
 // notification système). Un abonnement obsolète (404/410 du push service ou
 // domaine mort) est purgé et n'interrompt jamais les autres envois.
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { sendNotification, setVapidDetails, WebPushError } from "web-push";
 import { db } from "@/lib/db";
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
     const expectedSecret = secret || "kene-push-secret";
     const bufA = Buffer.from(parsed.data.secret);
     const bufB = Buffer.from(expectedSecret);
-    if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
+    if (bufA.length !== bufB.length || !timingSafeEqual(bufA, bufB)) {
       return jsonError("Interdit", 403);
     }
 

@@ -112,10 +112,11 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
 
-    const tenant = await db.tenant.findUnique({ where: { id: parsed.data.tenantId } });
+    const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const { tenantId, name, role, contractType, baseSalary, transport, housing, cadres, phone, pin, permissions } = parsed.data;
+    const { name, role, contractType, baseSalary, transport, housing, cadres, phone, pin, permissions } = parsed.data;
+    const tenantId = tenant.id;
 
     if (pin && !isValidPin(pin)) {
       return jsonError("Le code PIN doit comporter 4 chiffres", 400);
@@ -140,16 +141,17 @@ export async function POST(req: NextRequest) {
         if (alreadyEmployee && alreadyEmployee.tenantId !== tenantId) {
           return jsonError("Ce numéro est déjà employée dans un autre institut", 409);
         }
+        // Toujours promouvoir le compte en rôle pro et mettre à jour le nom.
+        // Sécurité : on n'écrase le code PIN existant QUE si la gérante a fourni un nouveau PIN explicite
+        // ou si le compte n'avait aucun PIN défini jusque-là.
+        const shouldSetPin = Boolean(pin?.trim() || !existing.pinHash);
         const initialPin = pin?.trim() || "1234";
-        // Toujours promouvoir le compte en rôle pro et mettre à jour le nom et code PIN éventuel
         await db.user.update({
           where: { id: existing.id },
           data: {
             role: "pro",
             ...((!existing.name || existing.name === "Nouvelle cliente") ? { name } : {}),
-            pinHash: hashPin(initialPin),
-            pinFails: 0,
-            pinLockedUntil: null,
+            ...(shouldSetPin ? { pinHash: hashPin(initialPin), pinFails: 0, pinLockedUntil: null } : {}),
           },
         });
         accountUserId = existing.id;

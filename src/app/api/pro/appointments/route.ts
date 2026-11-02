@@ -93,12 +93,13 @@ export async function POST(req: NextRequest) {
 
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, clientName, clientPhone, clientProfileId, serviceId, customServiceName, customPrice, customDurationMin, resourceId, notes } = parsed.data;
+    const { tenantId: reqTenantId, clientName, clientPhone, clientProfileId, serviceId, customServiceName, customPrice, customDurationMin, resourceId, notes } = parsed.data;
     const start = new Date(parsed.data.startAt);
     if (Number.isNaN(start.getTime())) return jsonError("Date de début invalide", 400);
 
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await resolveTenant(req, reqTenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
+    const tenantId = tenant.id;
 
     // Résolution du soin : depuis le catalogue OU création d'un soin saisi manuellement
     let service = serviceId

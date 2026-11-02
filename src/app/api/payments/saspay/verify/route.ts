@@ -54,6 +54,9 @@ export async function GET(req: NextRequest) {
     const verifyResult = await verifySaspayPayment(verifyTarget);
 
     if (verifyResult.isPaid) {
+      if (verifyResult.amount && verifyResult.amount > 0 && verifyResult.amount < payment.amount) {
+        return jsonError("Montant vérifié inférieur au montant attendu", 400);
+      }
       await executePaymentSuccess(payment.id);
 
       return NextResponse.json({

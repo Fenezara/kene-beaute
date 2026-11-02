@@ -16,7 +16,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
-import { setSessionCookie, sanitizeUser } from "@/lib/kene/session";
+import { setSessionCookie, sanitizeUser, guardUserClaim } from "@/lib/kene/session";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 
@@ -188,6 +188,9 @@ export async function GET(req: NextRequest) {
 async function runRegister(data: z.infer<typeof Body>, req: NextRequest): Promise<NextResponse> {
   try {
     const { userId, instituteName, ownerName, city, country } = data;
+    const guard = guardUserClaim(req, "auth:pro:register", userId);
+    if (guard) return guard;
+
     const type: InstituteType = data.type ?? "institut";
 
     const user = await db.user.findUnique({ where: { id: userId } });

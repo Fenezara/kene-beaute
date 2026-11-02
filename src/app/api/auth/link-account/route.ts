@@ -62,40 +62,24 @@ export async function POST(req: NextRequest) {
     const existingWithPhone = await db.user.findUnique({ where: { phone: cleanPhone } });
 
     if (existingWithPhone && existingWithPhone.id !== currentUserId) {
-      // Le numéro existe déjà : on bascule la session vers ce compte existant
-      // et on peut rattacher les diagnostics temporaires de l'invitée au compte existant !
-      await db.diagnosis.updateMany({
-        where: { userId: currentUserId },
-        data: { userId: existingWithPhone.id },
-      }).catch(() => null);
-
-      await db.appointment.updateMany({
-        where: { userId: currentUserId },
-        data: { userId: existingWithPhone.id },
-      }).catch(() => null);
-
-      if (parsed.data.name && (!existingWithPhone.name || existingWithPhone.name === "Nouvelle cliente")) {
-        await db.user.update({
-          where: { id: existingWithPhone.id },
-          data: { name: parsed.data.name },
-        }).catch(() => null);
-      }
-
+      // Sécurité anti-prise de contrôle (Account Takeover) :
+      // On n'émet JAMAIS un cookie de session pour un compte existant sans preuve d'identité (PIN ou OTP SMS).
       void audit({
-        kind: "account_linked",
+        kind: "account_link_blocked",
         phone: cleanPhone,
-        userId: existingWithPhone.id,
+        userId: currentUserId,
         ip: clientIp(req),
-        detail: "fusion_guest_to_existing",
+        detail: "existing_phone_requires_auth",
       });
 
-      const response = NextResponse.json({
-        ok: true,
-        user: sanitizeUser(existingWithPhone),
-        message: "Compte rattaché avec succès !",
-      });
-      setSessionCookie(response, existingWithPhone);
-      return response;
+      return NextResponse.json(
+        {
+          error: "Ce numéro est déjà associé à un compte Kènè. Connecte-toi avec ton code secret ou un code SMS.",
+          requiresLogin: true,
+          hasPin: Boolean(existingWithPhone.pinHash),
+        },
+        { status: 409 }
+      );
     }
 
     // Nouveau numéro : mise à jour directe du compte en cours

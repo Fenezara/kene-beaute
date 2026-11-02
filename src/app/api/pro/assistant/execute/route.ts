@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, createJournalEntry, recomputeClientRfm, genRef } from "@/lib/kene/server";
+import { jsonError, serverError, createJournalEntry, recomputeClientRfm, genRef, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
 import { pushTenantFeed } from "@/lib/kene/realtime";
@@ -106,7 +106,10 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
 
-    const { tenantId, debrief } = parsed.data;
+    const { tenantId: requestedTenantId, debrief } = parsed.data;
+    const resolvedTenant = await resolveTenant(req, requestedTenantId);
+    if (!resolvedTenant) return jsonError("Institut introuvable", 404);
+    const tenantId = resolvedTenant.id;
 
     const tenant = await db.tenant.findUnique({
       where: { id: tenantId },

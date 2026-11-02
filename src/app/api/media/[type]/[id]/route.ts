@@ -52,7 +52,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ type: strin
     const bytes = Buffer.from(b64, "base64");
     const etag = `"${type}-${id}-${bytes.byteLength}"`;
 
-    if (_req.headers.get("if-none-match") === etag) {
+    if (req.headers.get("if-none-match") === etag) {
       return new NextResponse(null, {
         status: 304,
         headers: {

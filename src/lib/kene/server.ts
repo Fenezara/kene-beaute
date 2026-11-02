@@ -171,7 +171,7 @@ export async function resolveUserProContext(user: {
     ) ?? null;
 
   // 2) Est-ce une employée active rattachée par userId ?
-  let employeeLink = await db.employee.findFirst({
+  const employeeLink = await db.employee.findFirst({
     where: { userId: user.id, active: true },
     include: {
       tenant: {
@@ -179,31 +179,6 @@ export async function resolveUserProContext(user: {
       },
     },
   });
-
-  // 3) Si non rattachée par userId et que ce n'est PAS la propriétaire d'un institut,
-  // vérifier si son numéro de téléphone correspond à une fiche employée active (liaison stricte et sécurisée).
-  if (!employeeLink && !ownerTenant && user.role !== "admin" && user.phone) {
-    const activeEmps = await db.employee.findMany({
-      where: { active: true },
-      include: {
-        tenant: {
-          select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true, themeTier: true },
-        },
-      },
-    });
-    const matchedEmp = activeEmps.find((e) => {
-      if (!e.phone) return false;
-      return e.phone === user.phone || (userSuffix && phoneSuffix(e.phone) === userSuffix);
-    });
-    if (matchedEmp) {
-      employeeLink = matchedEmp;
-      // Lier formellement le userId à la fiche employée pour accélérer les prochaines résolutions
-      void db.employee.update({
-        where: { id: matchedEmp.id },
-        data: { userId: user.id },
-      }).catch(() => null);
-    }
-  }
 
   // Si la personne a une fiche employée active et n'est pas l'ownerPhone de cet institut, son statut employée prime
   const isStrictlyOwner = Boolean(ownerTenant) && (!employeeLink || (ownerTenant ? ownerTenant.ownerPhone === user.phone || phoneSuffix(ownerTenant.ownerPhone) === userSuffix : false));

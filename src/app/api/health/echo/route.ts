@@ -15,13 +15,17 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const m = req.nextUrl.searchParams.get("m") ?? "?";
-  console.log(`[kene:beacon] GET ${m} ua=${(req.headers.get("user-agent") ?? "?").slice(0, 80)}`);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[kene:beacon] GET ${m} ua=${(req.headers.get("user-agent") ?? "?").slice(0, 80)}`);
+  }
   return NextResponse.json({ ok: true, method: "GET", m }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { m?: string };
   const m = body.m ?? "?";
-  console.log(`[kene:beacon] POST ${m} ua=${(req.headers.get("user-agent") ?? "?").slice(0, 80)}`);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[kene:beacon] POST ${m} ua=${(req.headers.get("user-agent") ?? "?").slice(0, 80)}`);
+  }
   return NextResponse.json({ ok: true, method: "POST", m }, { headers: { "Cache-Control": "no-store" } });
 }

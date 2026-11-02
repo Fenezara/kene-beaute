@@ -11,8 +11,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
-import { guardProRole } from "@/lib/kene/session";
+import { jsonError, serverError, resolveTenant, resolveUserProContext } from "@/lib/kene/server";
+import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 import { zaiCall } from "@/lib/ai/zai-retry";
 
 const DEBRIEF_TIMEOUT_MS = 7_000;
@@ -151,7 +151,10 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
 
-    const { tenantId, text, previousDebrief } = parsed.data;
+    const { tenantId: requestedTenantId, text, previousDebrief } = parsed.data;
+    const resolvedTenant = await resolveTenant(req, requestedTenantId);
+    if (!resolvedTenant) return jsonError("Institut introuvable", 404);
+    const tenantId = resolvedTenant.id;
 
     const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
@@ -257,9 +260,21 @@ export async function POST(req: NextRequest) {
         price: p.price,
       }));
 
-    // Détermination dynamique des permissions effectives
-    const { userRole, isOwner, allowedSections, tenantPlan } = parsed.data;
-    const isEffectiveOwner = isOwner !== false;
+    // Détermination dynamique des permissions effectives (vérifiées côté serveur)
+    const { userRole, isOwner, allowedSections: clientSections, tenantPlan } = parsed.data;
+    let isEffectiveOwner = isOwner !== false;
+    let allowedSections = clientSections ?? null;
+
+    const sess = sessionFromRequest(req);
+    if (sess && sess.role !== "admin") {
+      const proCtx = await resolveUserProContext({ id: sess.userId, phone: sess.phone, role: sess.role });
+      const isActualOwner = proCtx.isOwner && proCtx.ownerTenant?.id === tenantId;
+      isEffectiveOwner = isActualOwner;
+      if (!isActualOwner && proCtx.employeePermissions) {
+        allowedSections = proCtx.employeePermissions;
+      }
+    }
+
     const canViewCaisse = isEffectiveOwner || Boolean(allowedSections?.includes("caisse") || allowedSections?.includes("dashboard"));
     const canViewStock = isEffectiveOwner || Boolean(allowedSections?.includes("stock") || allowedSections?.includes("catalogue"));
     const canManageExpenses = isEffectiveOwner || Boolean(allowedSections?.includes("caisse"));

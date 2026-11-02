@@ -90,12 +90,14 @@ export function maskPhone(phone: string): string {
 
 // ─────────────── Réseau ───────────────
 
-/** IP cliente: x-forwarded-for (première IP, derrière le gateway Caddy)
- * sinon x-real-ip sinon "local" (accès direct:3000) — même logique que
- * rlKey, sans préfixe de scope. */
+/** IP cliente: x-real-ip (écrasé par le gateway Caddy avec {remote_host})
+ * sinon la dernière IP de x-forwarded-for sinon "local" (accès direct:3000) —
+ * même logique anti-spoofing que rlKey. */
 export function clientIp(req: Request): string {
+  const realIp = req.headers.get("x-real-ip")?.trim();
   const fwd = req.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0].trim() : req.headers.get("x-real-ip")?.trim()) || "local";
+  const lastFwd = fwd ? fwd.split(",").pop()?.trim() : undefined;
+  return realIp || lastFwd || "local";
 }
 
 // ─────────────── Hachage OTP (durcissement) ───────────────

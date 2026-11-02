@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, dayStart, dayEnd, hhmm } from "@/lib/kene/server";
+import { jsonError, serverError, dayStart, dayEnd, hhmm, resolveTenant } from "@/lib/kene/server";
 import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 import { getTenantCoords, haversineKm } from "@/app/api/institutes/route";
 
@@ -40,6 +40,11 @@ export async function GET(req: NextRequest) {
 
     if (!employee) {
       return NextResponse.json({ attendance: null, employee: null });
+    }
+
+    const authorizedTenant = await resolveTenant(req, employee.tenantId);
+    if (!authorizedTenant) {
+      return jsonError("Accès non autorisé à cet institut", 403);
     }
 
     const attendance = await db.attendance.findFirst({
@@ -79,14 +84,19 @@ export async function POST(req: NextRequest) {
 
     if (!employee) return jsonError("Employée introuvable", 404);
 
+    const authorizedTenant = await resolveTenant(req, employee.tenantId);
+    if (!authorizedTenant) {
+      return jsonError("Accès non autorisé à cet institut", 403);
+    }
+
     // CONTRÔLE ANTI-FRAUDE PRÉSENCE PHYSIQUE (Standards Sécurité RH 2026) :
-    // Le pointage d'arrivée exige une preuve physique (GPS de proximité OU QR Token caisse)
+    // Le pointage d'arrivée exige une preuve physique (GPS de proximité OU QR Token caisse du jour)
     if (parsed.data.action === "in") {
       const { lat, lng, qrToken } = parsed.data;
       const tenant = employee.tenant;
       const expectedQrToday = `kene_presence_${tenant.id}_${new Date().toISOString().slice(0, 10)}`;
 
-      const isQrValid = Boolean(qrToken && (qrToken === expectedQrToday || qrToken.startsWith(`kene_presence_${tenant.id}`)));
+      const isQrValid = Boolean(qrToken && qrToken === expectedQrToday);
 
       if (!isQrValid) {
         if (typeof lat === "number" && typeof lng === "number") {

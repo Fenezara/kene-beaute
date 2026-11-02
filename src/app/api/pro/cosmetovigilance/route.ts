@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       reportedBy,
     } = parsed.data;
 
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await resolveTenant(req, tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const now = new Date();

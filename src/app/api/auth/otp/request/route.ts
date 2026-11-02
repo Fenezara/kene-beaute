@@ -117,11 +117,8 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
     smsSent: realSmsDelivered,
   };
 
-  // Repli résilient : si le SMS n'a pas pu être délivré par l'opérateur (Sender ID non
-  // encore validé chez l'opérateur, solde SMS insuffisant ou panne réseau), on transmet
-  // le code de confirmation instantané (devCode) pour ne jamais bloquer l'administrateur
-  // ni les utilisatrices.
-  if (!realSmsDelivered || process.env.NODE_ENV !== "production") {
+  // Sécurité production : ne jamais divulguer le code OTP en clair dans la réponse HTTP en production.
+  if (process.env.NODE_ENV !== "production") {
     payload.devCode = code;
   }
 
