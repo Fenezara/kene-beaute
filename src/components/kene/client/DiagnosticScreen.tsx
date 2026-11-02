@@ -238,6 +238,16 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const [compareMode, setCompareMode] = useState(false);
   const [compareSel, setCompareSel] = useState<string[]>([]);
 
+  // Démonstrateur 360° du miroir spectral (alternance fluide Face -> Profil Gauche -> Profil Droit)
+  const [guideAngleIndex, setGuideAngleIndex] = useState<number>(0);
+  useEffect(() => {
+    if (step !== 0) return;
+    const interval = setInterval(() => {
+      setGuideAngleIndex((prev) => (prev + 1) % 3);
+    }, 3800);
+    return () => clearInterval(interval);
+  }, [step]);
+
   // File d'attente offline: compteur vivant — la REPLAY vit dans
   // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
   useEffect(() => {
@@ -873,21 +883,40 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </p>
           </div>
 
-          {/* Composition Centrale : Arche Visuelle Ovale & Capteurs Spectraux */}
+          {/* Composition Centrale : Arche Visuelle Ovale & Capteurs Spectraux Animés 360° */}
           <div className="relative mx-auto max-w-md my-2">
             <button
               type="button"
               onClick={() => launchScan("visage", { openCamera: true })}
               aria-label="Toucher le miroir spectral pour lancer le scan du visage"
-              className="group/mirror relative w-full h-[260px] sm:h-[300px] rounded-[36px] p-[2.5px] bg-gradient-to-b from-[#F5D37E] via-[#C8951E]/60 to-[#9E2045]/60 shadow-[0_20px_45px_-12px_rgba(24,18,12,0.4)] cursor-pointer active:scale-[0.985] transition-transform duration-300 text-left block overflow-hidden"
+              className="group/mirror relative w-full h-[280px] sm:h-[320px] rounded-[36px] p-[2.5px] bg-gradient-to-b from-[#F5D37E] via-[#C8951E]/60 to-[#9E2045]/60 shadow-[0_20px_45px_-12px_rgba(24,18,12,0.4)] cursor-pointer active:scale-[0.985] transition-transform duration-300 text-left block overflow-hidden"
             >
               <div className="relative w-full h-full rounded-[33px] overflow-hidden bg-[#120D09]">
-                {/* Photo visage portrait complet haute résolution — cadrage naturel avec front, joues et menton */}
-                <img
-                  src="/hero/hero-client.webp"
-                  alt="Aperçu du diagnostic de peau Kènè"
-                  className="w-full h-full object-cover object-[center_28%] opacity-90 group-hover/mirror:scale-105 transition-transform duration-700 ease-out"
-                />
+                {/* Carrousel animé des 3 angles de capture clinique : Face, Profil Gauche, Profil Droit */}
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={guideAngleIndex}
+                    src={
+                      guideAngleIndex === 0
+                        ? "/skin/scan-front.jpg"
+                        : guideAngleIndex === 1
+                        ? "/skin/scan-left.jpg"
+                        : "/skin/scan-right.jpg"
+                    }
+                    alt={
+                      guideAngleIndex === 0
+                        ? "Angle Face — Front, nez et joues"
+                        : guideAngleIndex === 1
+                        ? "Angle Profil Gauche — Pommette, mâchoire et tempe"
+                        : "Angle Profil Droit — Pommette, mâchoire et tempe"
+                    }
+                    initial={{ opacity: 0, scale: 1.05 }}
+                    animate={{ opacity: 0.95, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.7, ease: "easeInOut" }}
+                    className="w-full h-full object-cover object-[center_28%]"
+                  />
+                </AnimatePresence>
 
                 {/* Voile dégradé de profondeur & halo studio */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#100B07]/90 via-transparent to-[#100B07]/45 pointer-events-none" />
@@ -915,37 +944,58 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                   />
                 </svg>
 
+                {/* Indicateur de zone & angle ciblé en direct */}
+                <div className="absolute top-3 left-3 pointer-events-none z-20">
+                  <motion.div
+                    key={`label-${guideAngleIndex}`}
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#140E0A]/85 backdrop-blur-md border border-[#F5D37E]/50 text-[10px] font-black text-[#FFF9EC] shadow-md"
+                  >
+                    <span className="size-2 rounded-full bg-[#E5A93C] animate-pulse" />
+                    <span>
+                      {guideAngleIndex === 0
+                        ? "Vue 1/3 · Face (Front, Nez, Menton)"
+                        : guideAngleIndex === 1
+                        ? "Vue 2/3 · Profil Gauche (Joues & Tempes)"
+                        : "Vue 3/3 · Profil Droit (Ligne mandibulaire)"}
+                    </span>
+                  </motion.div>
+                </div>
+
+                {/* Micro-puces de télémétrie Liquid Glass adaptées selon l'angle */}
+                <div className="absolute top-11 inset-x-3 flex items-center justify-between gap-1.5 pointer-events-none z-20">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#140E0A]/80 backdrop-blur-md border border-amber-400/40 text-[9.5px] font-bold text-[#FFF9EC] shadow-sm">
+                    <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
+                    Taches &amp; HPI
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#140E0A]/80 backdrop-blur-md border border-[#F26B8A]/45 text-[9.5px] font-bold text-[#FFF9EC] shadow-sm">
+                    <span className="size-2 rounded-full bg-[#F26B8A] animate-pulse" />
+                    Pores &amp; Sébum
+                  </span>
+                </div>
+
                 {/* Faisceau laser spectral Or 24K en balayage vertical doux */}
                 <motion.div
                   aria-hidden="true"
-                  initial={{ top: "12%" }}
-                  animate={{ top: ["12%", "82%", "12%"] }}
-                  transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+                  initial={{ top: "16%" }}
+                  animate={{ top: ["16%", "80%", "16%"] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                   className="absolute inset-x-6 pointer-events-none z-10"
                 >
                   <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#FFE59E] to-transparent shadow-[0_0_16px_2.5px_rgba(245,211,126,0.95)]" />
                   <div className="h-8 w-full bg-gradient-to-b from-[#D49A24]/20 to-transparent" />
                 </motion.div>
 
-                {/* Micro-puces de télémétrie Liquid Glass sur les zones cutanées */}
-                <div className="absolute top-3 inset-x-3 flex items-center justify-between gap-1.5 pointer-events-none z-20">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#140E0A]/80 backdrop-blur-md border border-amber-400/40 text-[10px] font-bold text-[#FFF9EC] shadow-sm">
-                    <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
-                    Taches &amp; HPI
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#140E0A]/80 backdrop-blur-md border border-[#F26B8A]/45 text-[10px] font-bold text-[#FFF9EC] shadow-sm">
-                    <span className="size-2 rounded-full bg-[#F26B8A] animate-pulse" />
-                    Pores &amp; Sébum
-                  </span>
-                </div>
-
+                {/* Bas du miroir avec sélecteur 3 points d'angle et bouton d'action */}
                 <div className="absolute bottom-3 inset-x-3 flex items-center justify-between gap-2 z-20">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#140E0A]/80 backdrop-blur-md border border-emerald-400/40 text-[10px] font-bold text-[#FFF9EC] shadow-sm">
-                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                    Hydratation &amp; Éclat
-                  </span>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-[#140E0A]/85 border border-white/10 backdrop-blur-md">
+                    <span className={cn("size-2 rounded-full transition-all", guideAngleIndex === 0 ? "bg-[#E5A93C] scale-125" : "bg-white/30")} />
+                    <span className={cn("size-2 rounded-full transition-all", guideAngleIndex === 1 ? "bg-[#E5A93C] scale-125" : "bg-white/30")} />
+                    <span className={cn("size-2 rounded-full transition-all", guideAngleIndex === 2 ? "bg-[#E5A93C] scale-125" : "bg-white/30")} />
+                  </div>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#D49A24] to-[#E5A93C] text-[#18120C] text-[10.5px] font-black tracking-tight shadow-md group-hover/mirror:brightness-110 transition-all">
-                    <Sparkles size={12} strokeWidth={2.5} />
+                    <ScanFace size={13} strokeWidth={2.3} />
                     <span>Lancer le scan</span>
                   </span>
                 </div>
