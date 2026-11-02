@@ -59,6 +59,10 @@ export async function POST(req: NextRequest) {
     const product = await db.product.findFirst({ where: { id: productId, tenantId } });
     if (!product) return jsonError("Produit introuvable", 404);
 
+    if (type !== "in" && product.stock < qty) {
+      return jsonError(`Stock insuffisant (${product.stock} unité(s) disponible(s))`, 400);
+    }
+
     const movement = await db.inventoryMovement.create({
       data: {
         tenantId,

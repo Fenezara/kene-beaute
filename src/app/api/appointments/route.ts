@@ -198,18 +198,6 @@ export async function POST(req: NextRequest) {
           ],
         },
       });
-      if (!service && serviceName) {
-        service = await db.service.create({
-          data: {
-            tenantId,
-            name: serviceName,
-            price: 15000,
-            durationMin: 30,
-            category: "visage",
-            active: true,
-          },
-        }).catch(() => null);
-      }
       if (!service) {
         service = await db.service.findFirst({ where: { tenantId, active: true } });
       }
@@ -473,12 +461,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const paymentOut = payment
-      ? created.confirmToken
-        ? paymentWithConfirmToken(payment, created.confirmToken)
-        : serializePayment(payment)
-      : undefined;
-
     let paymentUrl: string | null = null;
     let saspayLaunchUrl: string | null = null;
     let winipayerLaunchUrl: string | null = null;
@@ -532,6 +514,14 @@ export async function POST(req: NextRequest) {
         if (!paymentUrl) paymentUrl = waveSession.waveLaunchUrl;
       }
     }
+
+    const paymentOut = payment
+      ? paymentUrl
+        ? serializePayment(payment)
+        : created.confirmToken
+        ? paymentWithConfirmToken(payment, created.confirmToken)
+        : serializePayment(payment)
+      : undefined;
 
     pushTenantFeed(tenantId);
 

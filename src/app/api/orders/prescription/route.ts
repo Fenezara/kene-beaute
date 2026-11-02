@@ -53,31 +53,29 @@ export async function POST(req: NextRequest) {
       return jsonError("Aucun institut partenaire disponible", 404);
     }
 
-    // Recherche ou création automatique du produit sous cet institut
+    // Recherche du produit sous cet institut ou dans le catalogue global Kènè
+    const cleanSearchName = productName.trim().toLowerCase();
     const allProducts = await db.product.findMany({
       where: {
-        tenantId: tenant.id,
+        active: true,
       },
     });
-    let product = allProducts.find((p) => p.name.trim().toLowerCase() === productName.trim().toLowerCase()) ?? null;
-
+    // Recherche prioritaire dans l'institut cible
+    let product = allProducts.find((p) => p.tenantId === tenant.id && p.name.trim().toLowerCase() === cleanSearchName) ?? null;
+    // Repli : correspondance globale catalogue
     if (!product) {
-      product = await db.product.create({
-        data: {
-          tenantId: tenant.id,
-          name: productName,
-          price: price > 0 ? price : 15000,
-          stock: 50,
-          active: true,
-          category: "visage",
-          description: `Soin prescrit en ordonnance beauté (${moment || "quotidien"}). ${posology || ""}`,
-          botanicals: "[]",
-          image: "/products/creme-visage.webp",
-        },
-      });
+      product = allProducts.find((p) => p.name.trim().toLowerCase() === cleanSearchName) ?? null;
+    }
+    if (!product) {
+      product = allProducts.find((p) => p.name.toLowerCase().includes(cleanSearchName) || cleanSearchName.includes(p.name.toLowerCase())) ?? null;
     }
 
-    const itemPrice = price > 0 ? price : product.price;
+    if (!product) {
+      return jsonError("Ce produit prescrit n'est pas disponible au catalogue pour le moment", 404);
+    }
+
+    // Le prix officiel est TOUJOURS le prix du produit en base (anti-manipulation de prix client)
+    const itemPrice = product.price;
 
     // Création de la commande réelle chez l'institut
     const order = await db.order.create({

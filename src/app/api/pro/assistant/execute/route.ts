@@ -371,16 +371,34 @@ export async function POST(req: NextRequest) {
     // ── 5. Gestion Petite Caisse (Dépenses Imprévues) ─────────────
     if (debrief.hasExpense && debrief.expense) {
       try {
-        await createJournalEntry(tenantId, {
+        const decRef = genRef("DEC");
+        const entry = await createJournalEntry(tenantId, {
           journalCode: "CA",
           date: new Date(),
-          reference: genRef("DEC"),
+          reference: decRef,
           description: `Petite caisse — ${debrief.expense.description} (${debrief.expense.amount} F)`,
           sourceType: "cash_expense",
           lines: [
             { accountCode: "605000", debit: debrief.expense.amount, credit: 0, label: debrief.expense.description },
             { accountCode: "571000", debit: 0, credit: debrief.expense.amount, label: "Sortie caisse espèces" },
           ],
+        });
+        await db.auditLog.create({
+          data: {
+            tenantId,
+            entity: "cash_expense",
+            action: "disbursement",
+            entityId: entry?.id ?? decRef,
+            detailsJson: JSON.stringify({
+              amount: debrief.expense.amount,
+              reason: debrief.expense.description,
+              category: "autre",
+              beneficiary: "Secrétaire IA",
+              journalEntryId: entry?.id,
+              reference: entry?.reference ?? decRef,
+              date: new Date().toISOString(),
+            }),
+          },
         });
         results.expenseLogged = true;
       } catch {

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
-import { guardUserClaim } from "@/lib/kene/session";
+import { sessionFromRequest } from "@/lib/kene/session";
 import { appointmentPassPdf } from "@/lib/kene/appointment-pass-pdf";
 
 export async function GET(req: NextRequest) {
@@ -27,13 +27,15 @@ export async function GET(req: NextRequest) {
     }
 
     // Sécurité : l'utilisatrice propriétaire ou le pro de l'institut du RDV peut accéder au pass
-    if (appt.userId) {
-      const guard = guardUserClaim(req, "appointments:pass", appt.userId);
-      if (guard) {
-        const proTenant = await resolveTenant(req, appt.tenantId);
-        if (!proTenant || proTenant.id !== appt.tenantId) {
-          return guard;
-        }
+    const sess = sessionFromRequest(req);
+    if (!sess) return jsonError("Session requise pour télécharger ce pass", 401);
+
+    if (appt.userId && sess.userId === appt.userId) {
+      // Autorisée (cliente propriétaire du rendez-vous)
+    } else {
+      const proTenant = await resolveTenant(req, appt.tenantId);
+      if (!proTenant || proTenant.id !== appt.tenantId) {
+        return jsonError("Accès non autorisé à ce pass de rendez-vous", 403);
       }
     }
 

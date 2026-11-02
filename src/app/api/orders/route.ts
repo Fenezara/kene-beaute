@@ -11,7 +11,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef, debitWallet, creditWallet, notify, rewardReferrerIfNeeded } from "@/lib/kene/server";
 import { CASHBACK_RATE, xof } from "@/lib/kene/format";
-import { newConfirmToken, paymentWithConfirmToken } from "@/lib/kene/confirm-token";
+import { newConfirmToken, paymentWithConfirmToken, serializePayment } from "@/lib/kene/confirm-token";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardUserClaim } from "@/lib/kene/session";
 import { ensureClientProfile } from "@/lib/kene/client-link";
@@ -279,9 +279,6 @@ export async function POST(req: NextRequest) {
 
     const fullOrder = await db.order.findUnique({ where: { id: created.orderId }, include: { items: true } });
     const paymentRow = created.paymentId ? await db.payment.findUnique({ where: { id: created.paymentId } }) : null;
-    const paymentOut = !created.paid && paymentRow && created.confirmToken
-      ? paymentWithConfirmToken(paymentRow, created.confirmToken)
-      : null;
 
     let paymentUrl: string | null = null;
     let saspayLaunchUrl: string | null = null;
@@ -347,6 +344,14 @@ export async function POST(req: NextRequest) {
         if (!paymentUrl) paymentUrl = omSession.omLaunchUrl;
       }
     }
+
+    const paymentOut = !created.paid && paymentRow
+      ? paymentUrl
+        ? serializePayment(paymentRow)
+        : created.confirmToken
+        ? paymentWithConfirmToken(paymentRow, created.confirmToken)
+        : serializePayment(paymentRow)
+      : null;
 
     return NextResponse.json(
       { order: fullOrder, payment: paymentOut, paid: created.paid, paymentUrl, saspayLaunchUrl, winipayerLaunchUrl, waveLaunchUrl, omLaunchUrl },

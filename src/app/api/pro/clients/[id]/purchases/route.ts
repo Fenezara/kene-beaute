@@ -4,7 +4,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
+import { jsonError, serverError, resolveTenant, createJournalEntry, genRef } from "@/lib/kene/server";
+import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
 import { guardProRole } from "@/lib/kene/session";
 
 const PostPurchaseBody = z.object({
@@ -46,19 +47,33 @@ export async function POST(
     let resolvedLabel = label;
 
     if (productId) {
-      const product = await db.product.findUnique({ where: { id: productId } });
-      if (product) {
-        resolvedProductId = product.id;
-        resolvedLabel = label || product.name;
-        // Décrémente le stock si positif
-        if (product.stock >= qty) {
-          await db.product.update({
-            where: { id: product.id },
-            data: { stock: { decrement: qty } },
-          });
-        }
+      // Isolation multi-tenant stricte : le produit doit appartenir à cet institut
+      const product = await db.product.findFirst({ where: { id: productId, tenantId: tenant.id } });
+      if (!product) {
+        return jsonError("Produit introuvable dans cet établissement", 404);
       }
+      resolvedProductId = product.id;
+      resolvedLabel = label || product.name;
+      // Vérification disponibilité et décrémentation stock
+      if (product.stock < qty) {
+        return jsonError(`Stock insuffisant (${product.stock} disponible(s))`, 400);
+      }
+      await db.product.update({
+        where: { id: product.id },
+        data: { stock: { decrement: qty } },
+      });
+      await db.inventoryMovement.create({
+        data: {
+          tenantId: tenant.id,
+          productId: product.id,
+          type: "out",
+          qty,
+          reason: `Vente dossier patient — cliente ${client.name}`,
+        },
+      });
     }
+
+    const tvaAmount = splitTVA(total).tva;
 
     const sale = await db.sale.create({
       data: {
@@ -67,6 +82,7 @@ export async function POST(
         subtotal: total,
         discount: 0,
         total,
+        tvaAmount,
         paymentMethod,
         cashierName: "Dossier patient",
         status: "completed",
@@ -111,6 +127,17 @@ export async function POST(
         lastVisit: new Date(),
       },
     });
+
+    // Écriture comptable SYSCOHADA au journal CA (espèces) ou BQ (monétique/momo)
+    await createJournalEntry(tenant.id, {
+      journalCode: paymentMethod === "cash" ? "CA" : "BQ",
+      date: new Date(),
+      reference: genRef("VE"),
+      description: `Vente produit fiche cliente — ${client.name}`,
+      sourceType: "sale",
+      sourceId: sale.id,
+      lines: saleJournalLines({ total, servicesAmount: 0, productsAmount: total, method: paymentMethod }),
+    }).catch(() => null);
 
     return NextResponse.json({
       success: true,

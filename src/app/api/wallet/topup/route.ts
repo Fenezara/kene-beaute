@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef } from "@/lib/kene/server";
-import { newConfirmToken, paymentWithConfirmToken } from "@/lib/kene/confirm-token";
+import { newConfirmToken, paymentWithConfirmToken, serializePayment } from "@/lib/kene/confirm-token";
 import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, WALLET_TOPUP } from "@/lib/kene/rate-limit";
 import { createWaveCheckoutSession } from "@/lib/payments/wave";
@@ -106,8 +106,10 @@ export async function POST(req: NextRequest) {
       if (!paymentUrl) paymentUrl = waveSession.waveLaunchUrl;
     }
 
+    const paymentOut = paymentUrl ? serializePayment(payment) : paymentWithConfirmToken(payment, token);
+
     return NextResponse.json(
-      { payment: paymentWithConfirmToken(payment, token), paymentUrl, saspayLaunchUrl, winipayerLaunchUrl, waveLaunchUrl },
+      { payment: paymentOut, paymentUrl, saspayLaunchUrl, winipayerLaunchUrl, waveLaunchUrl },
       { status: 201 }
     );
   } catch (err) {

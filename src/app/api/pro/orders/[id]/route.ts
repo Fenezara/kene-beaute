@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, resolveTenant, notify, ensureWallet, creditWallet } from "@/lib/kene/server";
+import { jsonError, serverError, resolveTenant, notify, ensureWallet, creditWallet, debitWallet } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 import { xof } from "@/lib/kene/format";
@@ -84,13 +84,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             data: { paymentId: payment.id },
           });
         }
+        // Décrémente le stock des articles de cet institut (passage pending -> paid)
+        if (order.status === "pending") {
+          for (const item of order.items) {
+            if (item.product.tenantId === tenant.id) {
+              await tx.product.update({
+                where: { id: item.productId },
+                data: { stock: { decrement: item.qty } },
+              });
+              await tx.inventoryMovement.create({
+                data: {
+                  tenantId: tenant.id,
+                  productId: item.productId,
+                  type: "out",
+                  qty: item.qty,
+                  reason: `Sortie stock encaissement commande #${ref}`,
+                },
+              });
+            }
+          }
+        }
       }
 
       if (target === "cancelled") {
-        // Remboursement wallet automatique (paiement wallet confirmé)
+        // Remboursement wallet automatique (paiement wallet confirmé) avec reprise du cashback
         if (order.payment?.method === "wallet" && order.payment.status === "success") {
           const w = await ensureWallet(order.userId, tx);
-          if (w) await creditWallet(w.id, order.total, "refund", `cancel:${order.id}`, tx);
+          if (w) {
+            await creditWallet(w.id, order.total, "refund", `cancel:${order.id}`, tx);
+            if (order.cashback > 0) {
+              await debitWallet(w.id, order.cashback, "Reprise cashback (commande annulée)", `clawback:${order.id}`, tx);
+            }
+          }
         }
         // Retour en stock des articles de CET institut uniquement si la commande avait été payée/préparée
         for (const item of order.items) {

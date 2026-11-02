@@ -53,6 +53,18 @@ export async function POST(req: NextRequest) {
       return jsonError("Code de confirmation invalide", 400);
     }
 
+    // Sécurité financière : en production avec passerelle active (SasPay, WiniPayer, etc.),
+    // la validation d'un paiement en attente doit obligatoirement provenir du guichet sécurisé
+    const meta = payment.metaJson ? (JSON.parse(payment.metaJson) as Record<string, unknown>) : {};
+    const hasExternalGateway = Boolean(meta.saspayId || meta.winipayerId || meta.waveId);
+    const hasLiveGatewayEnv = Boolean(process.env.SASPAY_API_KEY?.trim() || (process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN));
+    if (process.env.NODE_ENV === "production" && (hasExternalGateway || hasLiveGatewayEnv)) {
+      return jsonError(
+        "Ce paiement externe doit être validé via le guichet sécurisé de paiement",
+        403
+      );
+    }
+
     // Anti-TOCTOU + atomicité: le flip pending → success et TOUS les effets
     // métier sont délégués au cœur transactionnel idempotent executePaymentSuccess.
     const outcome = await executePaymentSuccess(paymentId);

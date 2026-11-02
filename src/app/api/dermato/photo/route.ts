@@ -7,6 +7,7 @@ import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-li
 import { checkImageDataUrl } from "@/lib/kene/upload";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { inciQuotaFor, proInciQuotaFor } from "@/lib/kene/plans";
+import { guardUserClaim, sessionFromRequest } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -46,10 +47,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const sess = sessionFromRequest(req);
+    const effectiveUserId = sess?.userId ?? parsed.data.userId;
+    const effectiveTenantId = parsed.data.tenantId;
+
+    if (parsed.data.userId) {
+      const guard = guardUserClaim(req, "dermato:photo", parsed.data.userId);
+      if (guard) return guard;
+    }
+
+    if (!effectiveTenantId && !effectiveUserId) {
+      return jsonError("Connexion requise pour utiliser le scanner dermo-cosmétique", 401);
+    }
+
     // Vérification du quota Scanner INCI
-    if (parsed.data.tenantId) {
+    if (effectiveTenantId) {
       // 1. Quota Pro (si appelé par un institut / tenant)
-      const pQuota = await proInciQuotaFor(parsed.data.tenantId, parsed.data.userId);
+      const pQuota = await proInciQuotaFor(effectiveTenantId, effectiveUserId);
       if (pQuota.remaining <= 0) {
         return NextResponse.json(
           {
@@ -60,9 +74,9 @@ export async function POST(req: NextRequest) {
           { status: 403 },
         );
       }
-    } else if (parsed.data.userId) {
+    } else if (effectiveUserId) {
       // 2. Quota Cliente (grand public autonome)
-      const iQuota = await inciQuotaFor(parsed.data.userId);
+      const iQuota = await inciQuotaFor(effectiveUserId);
       if (iQuota.remaining <= 0) {
         return NextResponse.json(
           {

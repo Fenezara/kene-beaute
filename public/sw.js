@@ -11,7 +11,7 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v71";
+const VERSION = "kene-sw-v72";
 const PRECACHE = "kene-precache-v71";
 const DATA_CACHE = "kene-data-v71";
 const IMG_CACHE = "kene-img-v71";

@@ -8,6 +8,7 @@ import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-li
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { voiceQuotaFor } from "@/lib/kene/plans";
 import { audit } from "@/lib/kene/audit";
+import { guardUserClaim, sessionFromRequest } from "@/lib/kene/session";
 import {
   getDrKeneReply,
   getDrKeneAudioReply,
@@ -45,7 +46,16 @@ export async function POST(req: NextRequest) {
     if (!parsedData.audio && (!parsedData.messages || parsedData.messages.length === 0)) {
       return jsonError("messages ou audio requis", 400);
     }
-    return await runChat(parsedData);
+    const sess = sessionFromRequest(req);
+    if (parsedData.userId) {
+      const guard = guardUserClaim(req, "dermato:chat", parsedData.userId);
+      if (guard) return guard;
+    }
+    const effectiveUserId = sess?.userId ?? parsedData.userId;
+    if (parsedData.audio && !effectiveUserId) {
+      return jsonError("Connexion requise pour consulter l'Orbe vocal Dr Kènè", 401);
+    }
+    return await runChat(parsedData, effectiveUserId);
   } catch (err) {
     return chatFallbackResponse(err, parsedData);
   }
@@ -68,24 +78,34 @@ export async function GET(req: NextRequest) {
     if (!parsedData.audio && (!parsedData.messages || parsedData.messages.length === 0)) {
       return jsonError("messages ou audio requis", 400);
     }
-    return await runChat(bridged.data);
+    const sess = sessionFromRequest(req);
+    if (parsedData.userId) {
+      const guard = guardUserClaim(req, "dermato:chat", parsedData.userId);
+      if (guard) return guard;
+    }
+    const effectiveUserId = sess?.userId ?? parsedData.userId;
+    if (parsedData.audio && !effectiveUserId) {
+      return jsonError("Connexion requise pour consulter l'Orbe vocal Dr Kènè", 401);
+    }
+    return await runChat(bridged.data, effectiveUserId);
   } catch (err) {
     return chatFallbackResponse(err, parsedData);
   }
 }
 
 /** Cœur partagé POST/GET : traitement texte ou audio direct pour Dermo Kènè */
-async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
+async function runChat(parsed: z.infer<typeof Body>, effectiveUserId?: string): Promise<NextResponse> {
   const profileOrId = {
-    id: parsed.userId || undefined,
+    id: effectiveUserId || parsed.userId || undefined,
     name: parsed.userName || undefined,
     gender: parsed.userGender || "non_precise",
   };
 
   // Cas 1 : Note vocale directe (l'audio est envoyé directement à Dermo Kènè)
   if (parsed.audio) {
-    if (parsed.userId) {
-      const vQuota = await voiceQuotaFor(parsed.userId);
+    const targetUserId = effectiveUserId || parsed.userId;
+    if (targetUserId) {
+      const vQuota = await voiceQuotaFor(targetUserId);
       if (vQuota.remaining <= 0) {
         return NextResponse.json(
           {
@@ -96,7 +116,7 @@ async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
           { status: 403 },
         );
       }
-      void audit({ kind: "orbe_voice", userId: parsed.userId });
+      void audit({ kind: "orbe_voice", userId: targetUserId });
     }
 
     const audioResult = await getDrKeneAudioReply(

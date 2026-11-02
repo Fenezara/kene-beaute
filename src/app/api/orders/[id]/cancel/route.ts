@@ -2,8 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, notify, ensureWallet, creditWallet } from "@/lib/kene/server";
-import { guardUserClaim } from "@/lib/kene/session";
+import { jsonError, serverError, notify, ensureWallet, creditWallet, debitWallet } from "@/lib/kene/server";
+import { sessionFromRequest } from "@/lib/kene/session";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 
 const Body = z.object({
@@ -18,8 +18,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const parsed = Body.safeParse(raw);
     const userId = parsed.success ? parsed.data.userId : undefined;
 
-    const guard = guardUserClaim(req, "orders:cancel", userId);
-    if (guard) return guard;
+    const sess = sessionFromRequest(req);
+    if (!sess) return jsonError("Session requise", 401);
 
     const order = await db.order.findUnique({
       where: { id },
@@ -32,8 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!order) return jsonError("Commande introuvable", 404);
 
-    // Vérification d'appartenance si userId fourni
-    if (userId && order.userId !== userId) {
+    // Une cliente ne peut annuler QUE sa propre commande
+    if (sess.role === "client" && order.userId !== sess.userId) {
       return jsonError("Cette commande ne t'appartient pas", 403);
     }
 
@@ -48,11 +48,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Annulation atomique en base
     const updated = await db.$transaction(async (tx) => {
-      // Remboursement wallet si payée
+      // Remboursement wallet si payée avec reprise du cashback accordé
       if (order.payment?.method === "wallet" && order.payment.status === "success") {
         const w = await ensureWallet(order.userId, tx);
         if (w) {
           await creditWallet(w.id, order.total, "refund", `cancel:${order.id}`, tx);
+          if (order.cashback > 0) {
+            await debitWallet(w.id, order.cashback, "Reprise cashback (commande annulée)", `clawback:${order.id}`, tx);
+          }
+        }
+      }
+
+      // Remise en stock si la commande avait été payée ou préparée
+      if (order.status === "paid" || order.status === "preparing") {
+        for (const item of order.items) {
+          if (item.productId) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { increment: item.qty } },
+            });
+            await tx.inventoryMovement.create({
+              data: {
+                tenantId: item.product?.tenantId ?? "system",
+                productId: item.productId,
+                type: "in",
+                qty: item.qty,
+                reason: `Annulation commande #${ref}`,
+              },
+            });
+          }
         }
       }
 

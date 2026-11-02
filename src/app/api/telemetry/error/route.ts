@@ -14,6 +14,10 @@ const ErrorSchema = z.object({
   userAgent: z.string().max(300).optional(),
 });
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export async function POST(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "telemetry:error"), AUTH_MUTATION);
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec);
@@ -51,15 +55,18 @@ export async function POST(req: NextRequest) {
     });
 
     // Relais externe instantané (Webhook Discord / Slack / Telegram)
-    const alertText = `🚨 *[KÈNÈ ALERTE ERREUR]*\n• *Écran / Scope* : ${scope}\n• *Appareil* : ${deviceHint}\n• *Message* : ${message}\n• *URL* : ${url ?? "—"}\n• *Date* : ${new Date().toLocaleString("fr-FR")}`;
+    const safeScope = scope.slice(0, 100);
+    const safeMessage = message.slice(0, 500);
+    const safeUrl = (url ?? "—").slice(0, 300);
 
     const webhook = process.env.ALERT_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL;
     if (webhook) {
+      const discordText = `🚨 **[KÈNÈ ALERTE ERREUR]**\n• **Écran / Scope** : ${safeScope}\n• **Appareil** : ${deviceHint}\n• **Message** : ${safeMessage.replace(/@(everyone|here)/g, "@ $1")}\n• **URL** : ${safeUrl}\n• **Date** : ${new Date().toLocaleString("fr-FR")}`;
       void fetch(webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: alertText,
+          content: discordText,
         }),
       }).catch(() => null);
     }
@@ -67,14 +74,15 @@ export async function POST(req: NextRequest) {
     const tgToken = process.env.TELEGRAM_BOT_TOKEN;
     const tgChatId = process.env.TELEGRAM_CHAT_ID;
     if (tgToken && tgChatId) {
+      const tgHtml = `🚨 <b>[KÈNÈ ALERTE ERREUR]</b>\n• <b>Écran / Scope</b> : ${escapeHtml(safeScope)}\n• <b>Appareil</b> : ${escapeHtml(deviceHint)}\n• <b>Message</b> : ${escapeHtml(safeMessage)}\n• <b>URL</b> : ${escapeHtml(safeUrl)}\n• <b>Date</b> : ${escapeHtml(new Date().toLocaleString("fr-FR"))}`;
       const tgUrl = `https://api.telegram.org/bot${tgToken}/sendMessage`;
       void fetch(tgUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: tgChatId,
-          text: alertText,
-          parse_mode: "Markdown",
+          text: tgHtml,
+          parse_mode: "HTML",
         }),
       }).catch(() => null);
     }

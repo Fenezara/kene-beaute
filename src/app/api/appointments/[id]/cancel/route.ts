@@ -8,7 +8,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { cancellationRefund } from "@/lib/kene/rfm";
 import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
-import { guardUserClaim } from "@/lib/kene/session";
+import { sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, APPOINTMENT_CANCEL } from "@/lib/kene/rate-limit";
 
 const Body = z.object({ userId: z.string().optional() });
@@ -23,11 +23,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
 
-    // Session signée (, migration douce): avec cookie, le userId du
-    // corps doit être celui de la session — la garde propriétaire (403 juste
-    // après) reste la barrière métier; sans cookie → legacy.
-    const guard = guardUserClaim(req, "appointments:cancel", parsed.data.userId);
-    if (guard) return guard;
+    const sess = sessionFromRequest(req);
+    if (!sess) return jsonError("Session requise", 401);
 
     const appointment = await db.appointment.findUnique({
       where: { id },
@@ -36,9 +33,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!appointment) return jsonError("Rendez-vous introuvable", 404);
     if (appointment.status === "cancelled") return jsonError("Rendez-vous déjà annulé", 400);
 
-    // Appartenance (POC: userId fourni par le client, mais au moins le refund
-    // ne part plus vers un tiers): seule la propriétaire du RDV peut l'annuler.
-    if (parsed.data.userId !== appointment.userId) {
+    // Seule la cliente propriétaire peut annuler son rendez-vous (ou le personnel pro/admin)
+    if (sess.role === "client" && appointment.userId !== sess.userId) {
       return jsonError("Ce rendez-vous ne t'appartient pas", 403);
     }
 

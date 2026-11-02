@@ -141,6 +141,33 @@ export async function PATCH(req: NextRequest) {
       if (!check.ok) return jsonError(check.error, 400);
     }
 
+    // Validation stricte des données numériques (prix, stock, durée, commission)
+    if ("price" in data) {
+      if (typeof data.price !== "number" || Number.isNaN(data.price) || data.price < 0) {
+        return jsonError("Le prix doit être un montant positif ou nul", 400);
+      }
+    }
+    if ("stock" in data) {
+      if (typeof data.stock !== "number" || !Number.isInteger(data.stock) || data.stock < 0) {
+        return jsonError("Le stock doit être un nombre entier positif ou nul", 400);
+      }
+    }
+    if ("stockAlert" in data) {
+      if (typeof data.stockAlert !== "number" || !Number.isInteger(data.stockAlert) || data.stockAlert < 0) {
+        return jsonError("Le seuil d'alerte doit être un entier positif ou nul", 400);
+      }
+    }
+    if ("durationMin" in data) {
+      if (typeof data.durationMin !== "number" || !Number.isInteger(data.durationMin) || data.durationMin < 5) {
+        return jsonError("La durée doit être d'au moins 5 minutes", 400);
+      }
+    }
+    if ("commissionPct" in data) {
+      if (typeof data.commissionPct !== "number" || Number.isNaN(data.commissionPct) || data.commissionPct < 0 || data.commissionPct > 100) {
+        return jsonError("Le pourcentage de commission doit être compris entre 0 et 100 %", 400);
+      }
+    }
+
     if (type === "service") {
       const service = await db.service.findFirst({ where: { id, tenantId } });
       if (!service) return jsonError("Service introuvable", 404);
