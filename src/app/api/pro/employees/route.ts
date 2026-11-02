@@ -104,7 +104,7 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (, migration douce): avec cookie, l'embauche
+    // Session signée (migration douce): avec cookie, l'embauche
     // exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:employees:post");
     if (guard) return guard;

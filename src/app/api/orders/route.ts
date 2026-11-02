@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       deliveryNotes,
     } = parsed.data;
 
-    // Session signée (, migration douce): avec cookie, la commande ne
+    // Session signée (migration douce): avec cookie, la commande ne
     // peut passer que pour le compte de la session; sans cookie → legacy.
     const guard = guardUserClaim(req, "orders:post", userId);
     if (guard) return guard;
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
         paid = true;
       } else {
         // MoMo (wave/orange): commande en attente — le paiement pending porte
-        // un code de confirmation (contrat 63-b: token brut renvoyé, hash stocké).
+        // un code de confirmation (: token brut renvoyé, hash stocké).
         const { token, tokenHash } = newConfirmToken();
         const payment = await tx.payment.create({
           data: {

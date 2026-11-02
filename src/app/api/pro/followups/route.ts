@@ -10,7 +10,7 @@ import { sharedScanUserIds } from "@/lib/kene/share-consent";
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (, migration douce): GET navigateur — avec
+    // Session signée (migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:followups:get");
     if (guard) return guard;
@@ -100,7 +100,7 @@ const BatchBody = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (, migration douce): avec cookie, le traitement
+    // Session signée (migration douce): avec cookie, le traitement
     // d'une relance exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:followups:post");
     if (guard) return guard;

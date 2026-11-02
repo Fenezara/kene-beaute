@@ -1,6 +1,6 @@
 // POST /api/wallet/topup — recharge wallet via Payment MoMo (confirmé ensuite
 // via /api/payments/confirm).: le Payment pending porte un code de
-// confirmation — token BRUT renvoyé au front (contrat 63-b), hash sha256 seul
+// confirmation — token BRUT renvoyé au front (), hash sha256 seul
 // stocké. Sans ce code, la confirmation refuse le paiement (fin du « mint »
 // anonyme) et le crédit wallet part dans la transaction de confirmation.
 import { NextRequest, NextResponse } from "next/server";
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide (amount ≥ 100, method wave|orange|saspay)", 400);
 
-    // Session signée (, migration douce): avec cookie, la recharge ne
+    // Session signée (migration douce): avec cookie, la recharge ne
     // peut créer un paiement que pour le compte de la session.
     const guard = guardUserClaim(req, "wallet:topup", parsed.data.userId);
     if (guard) return guard;

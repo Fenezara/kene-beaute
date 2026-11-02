@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     const { userId, ids } = parsed.data;
 
-    // Session signée (, migration douce): avec cookie, seules les
+    // Session signée (migration douce): avec cookie, seules les
     // notifications de la session peuvent être marquées lues; sans cookie → legacy.
     const guard = guardUserClaim(req, "notifications:read", userId);
     if (guard) return guard;

@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.vscode
+.idea
+.agents
+db
+backups
+download
+upload
+scratch
+tests
+test-results
+*.log
+*.tsbuildinfo
+.env.local
+.env*.local

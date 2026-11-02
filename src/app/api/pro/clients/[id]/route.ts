@@ -14,7 +14,7 @@ import { canonicalPhone, arePhonesMatching } from "@/lib/kene/phone-normalize";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // Session signée (, migration douce): GET navigateur — avec
+    // Session signée (migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:clients:[id]:get");
     if (guard) return guard;

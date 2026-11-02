@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes caisse");
 
   try {
-    // Session signée (, migration douce): GET navigateur — avec
+    // Session signée (migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:sales:get");
     if (guard) return guard;
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop d'enregistrements de vente consécutifs");
 
   try {
-    // Session signée (, migration douce): avec cookie, la vente
+    // Session signée (migration douce): avec cookie, la vente
     // caisse exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:sales:post");
     if (guard) return guard;

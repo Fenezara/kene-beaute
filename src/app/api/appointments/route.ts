@@ -1,7 +1,7 @@
 // GET /api/appointments?userId= — RDV de la cliente | POST — nouveau RDV (côté cliente)
 //: les écritures de booking (appointment + payment) passent dans UNE
 // prisma.$transaction. L'acompte MoMo (wave/orange) crée un Payment pending
-// porteur d'un code de confirmation (token BRUT renvoyé au front — contrat 63-b,
+// porteur d'un code de confirmation (token BRUT renvoyé au front — ,
 // hash sha256 stocké); le paiement wallet reste instantané (succès, sans code).
 // Les notifications/rappels restent best-effort, APRÈS le commit.
 import { NextRequest, NextResponse } from "next/server";
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
 
-    // Session signée (, migration douce): avec cookie, la session ne
+    // Session signée (migration douce): avec cookie, la session ne
     // lit que SES rendez-vous; sans cookie → legacy (comportement conservé).
     const guard = guardUserClaim(req, "appointments:get", userId);
     if (guard) return guard;
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, serviceId, serviceCategory, serviceName, resourceId, startAt, clientName, clientPhone, userId, notes, paymentMethod } = parsed.data;
 
-    // Session signée (, migration douce): avec cookie, le userId
+    // Session signée (migration douce): avec cookie, le userId
     // éventuel du corps doit être celui de la session (réservation pour soi);
     // sans cookie → legacy (walk-in sans compte: userId facultatif, inchangé).
     const guard = guardUserClaim(req, "appointments:post", userId);
@@ -399,7 +399,7 @@ export async function POST(req: NextRequest) {
             });
           } else {
             // MoMo (wave/orange): Payment pending porteur du code de
-            // confirmation (contrat 63-b: token brut renvoyé, hash stocké).
+            // confirmation (: token brut renvoyé, hash stocké).
             const { token, tokenHash } = newConfirmToken();
             confirmToken = token;
             payment = await tx.payment.create({

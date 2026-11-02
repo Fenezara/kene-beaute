@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
 
-    // Session signée (, migration douce): avec cookie, la session ne
+    // Session signée (migration douce): avec cookie, la session ne
     // peut lire que SON wallet; sans cookie → legacy (comportement conservé).
     const guard = guardUserClaim(req, "wallet:get", userId);
     if (guard) return guard;

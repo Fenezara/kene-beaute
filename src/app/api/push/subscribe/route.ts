@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     const { userId, subscription } = parsed.data;
 
-    // Session signée (, migration douce): avec cookie, l'abonnement
+    // Session signée (migration douce): avec cookie, l'abonnement
     // push s'enregistre pour le compte de la session; sans cookie → legacy.
     const guard = guardUserClaim(req, "push:subscribe", userId);
     if (guard) return guard;

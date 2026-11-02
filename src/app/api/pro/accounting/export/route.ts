@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop d'exports demandés — patiente quelques secondes");
 
   try {
-    // Session signée (, migration douce): export navigateur — avec
+    // Session signée (migration douce): export navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:accounting:export");
     if (guard) return guard;

@@ -1,6 +1,6 @@
 "use client";
-// Kènè — Console Admin (t. 128 — console de GESTION; t. 130 — porte dédiée
-// /console, session 8 h, step-up, passkeys; t. 135 — abonnements): onglets
+// Kènè — Console Admin ( — console de GESTION;  — porte dédiée
+// /console, session 8 h, step-up, passkeys;  — abonnements): onglets
 // Vue d'ensemble · Instituts · Utilisatrices · Abonnements · Sécurité.
 // La fondatrice pilote le réseau: suspendre/réactiver un institut (motif
 // montré à la gérante, notifiée), piloter commission et plan, verrouiller

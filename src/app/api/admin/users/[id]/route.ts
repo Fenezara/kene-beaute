@@ -1,14 +1,14 @@
-// PATCH /api/admin/users/[id] — les leviers de compte (t. 128 verrouiller /
-// déverrouiller ; t. 141 accès Console délégué).
+// PATCH /api/admin/users/[id] — les leviers de compte ( verrouiller /
+// déverrouiller ;  accès Console délégué).
 //
 // · { locked: true, reason } / { locked: false } — le compte est refusé à la
 //   vérification OTP (403 avec le motif montré) et sa session existante
 //   s'éteint au prochain boot (auth/session → 404 « Session expirée »).
 // · { action: "promote" } — DONNE l'accès Console (rôle admin) à un compte
-//   CLIENTE: elle ouvrira /console avec son propre numéro. t. 141.
+//   CLIENTE: elle ouvrira /console avec son propre numéro. .
 // · { action: "demote" } — RETIRE l'accès Console: le compte redevient
-//   cliente (ses données restent intactes). t. 141.
-//   ⚠ t. 130/141 — STEP-UP: ce PATCH exige une session admin + une ÉLÉVATION
+//   cliente (ses données restent intactes). .
+//   ⚠ /141 — STEP-UP: ce PATCH exige une session admin + une ÉLÉVATION
 //   fraîche (< 5 min, code confirmé) — ASVS V2.7 sur les actions sensibles.
 //
 // Protections: l'admin ne peut ni se verrouiller ELLE-MÊME ni verrouiller un
@@ -46,7 +46,7 @@ const Body = z.union([
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const rl = rateLimit(rlKey(req, "admin:user:patch"), ADMIN_STATS);
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop d'actions — réessaie dans une minute");
-  // t. 130 — step-up: session admin + élévation fraîche.
+  //  — step-up: session admin + élévation fraîche.
   const guard = guardAdminElevated(req);
   if (guard) return guard;
   try {
@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (!user) return jsonError("Compte introuvable", 404);
     const ip = clientIp(req);
 
-    // ── ACCÈS CONSOLE DÉLÉGUÉ (t. 141) ───────────────────────────
+    // ── ACCÈS CONSOLE DÉLÉGUÉ () ───────────────────────────
     if ("action" in body) {
       if (body.action === "promote") {
         if (user.role === "admin") return jsonError("Ce compte a déjà accès à la Console", 400);
@@ -124,7 +124,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       });
     }
 
-    // ── VERROUILLAGE (t. 128) ────────────────────────────────────
+    // ── VERROUILLAGE () ────────────────────────────────────
     const { locked, reason } = body;
     if (locked && id === sess.userId) {
       return jsonError("Tu ne peux pas verrouiller ton propre compte console", 400);

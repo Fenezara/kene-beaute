@@ -5,7 +5,7 @@ import { toast } from "sonner";
 export class ApiError extends Error {
   status: number;
   /** Code machine optionnel du body d'erreur (ex. "elevation_required" —
-   * t. 130 step-up console: le front ouvre le dialogue de confirmation
+   *  step-up console: le front ouvre le dialogue de confirmation
    * puis rejoue l'action). */
   code?: string;
   constructor(message: string, status: number, code?: string) {
@@ -76,7 +76,7 @@ export async function apiGet<T>(url: string): Promise<T> {
   return handle<T>(res);
 }
 
-/* ─────────────── Téléchargement de fichier (CSV/PDF — t. 140) ───────────────
+/* ─────────────── Téléchargement de fichier (CSV/PDF — ) ───────────────
  * Les exports console ne passent PAS par apiGet (réponse non-JSON): même
  * discipline que la compta Pro — fetch → blob → ancre de téléchargement,
  * nom de fichier lu dans Content-Disposition, erreur JSON propagée en
@@ -170,11 +170,11 @@ const BRIDGEABLE_ROUTES = new Set([
   "/api/auth/pro/register", // inscription entreprise 
   "/api/subscriptions/activate", // activation plan 
   "/api/subscriptions/renew", // renouvellement plan 
-  "/api/admin/elevate", // t. 130 — step-up console (dialogue code frais)
-  "/api/admin/passkey/login/options", // t. 130 — connexion console par passkey
-  "/api/admin/passkey/login/verify", // t. 130 (assertion ~1 ko — tient en query)
-  "/api/admin/passkey/register/options", // t. 130 — enregistrement appareil
-  "/api/admin/passkey/register/verify", // t. 130 (attestation ~1-3 ko)
+  "/api/admin/elevate", //  — step-up console (dialogue code frais)
+  "/api/admin/passkey/login/options", //  — connexion console par passkey
+  "/api/admin/passkey/login/verify", //  (assertion ~1 ko — tient en query)
+  "/api/admin/passkey/register/options", //  — enregistrement appareil
+  "/api/admin/passkey/register/verify", //  (attestation ~1-3 ko)
 ]);
 
 /** La route expose-t-elle un handler GET ponté (`_g`)? */
@@ -365,7 +365,7 @@ export async function apiPatch<T>(url: string, body?: unknown, opts: { timeoutMs
   return apiWrite<T>("PATCH", url, body, opts.timeoutMs ?? POST_TIMEOUT_MS);
 }
 
-/** DELETE JSON (t. 130 — retrait d'un appareil passkey). Borné 8 s; pas de
+/** DELETE JSON ( — retrait d'un appareil passkey). Borné 8 s; pas de
  * pont (les routes dynamiques ne sont pas au registre) — message FR clair si
  * le transport est bloqué. */
 export async function apiDelete<T>(url: string, opts: { timeoutMs?: number } = {}): Promise<T> {

@@ -1,11 +1,11 @@
 // GET /api/admin/subscriptions?q= — gestion des abonnements Kènè+ / Pro
-// (t. 135 — la monétisation entre dans la console). Liste COMPLÈTE
+// ( — la monétisation entre dans la console). Liste COMPLÈTE
 // (actifs, expirés, annulés, offerts) avec l'abonnée, tri « ce qui vit
 // d'abord », + KPIs agrégés: abonnées actives, revenus mensuels simulés
 // (MRR — les mois offerts par la Console comptent 0 F), échéances ≤ 7 j,
 // mois offerts actifs, répartition par plan.
 //
-// NORMES (travail préparatoire t. 133): visibilité complète = standard de
+// NORMES (travail préparatoire ): visibilité complète = standard de
 // facto (Stripe Billing / Chargebee); MRR = LE KPI SaaS; l'historique est
 // INTOUCHABLE (IFRS 15 / SYSCOHADA — on annule ou on ajoute une ligne,
 // jamais on ne modifie ou supprime: cette route est LECTURE SEULE).
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       activeCount: live.length,
       mrrFcfa,
       expiringSoon: live.filter((r) => r.derived === "expiring").length,
-      // Mois offerts actifs: gestes Console (t. 135) + cadeaux parrainage (t. 138).
+      // Mois offerts actifs: gestes Console () + cadeaux parrainage ().
       giftActive: live.filter((r) => r.source === "console_gift" || r.source === "referral_gift").length,
     };
 
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     };
     filtered.sort(byLife);
 
-    // t. 140 — EXPORT COMPTABLE CSV: l'historique COMPLET (toutes lignes,
+    //  — EXPORT COMPTABLE CSV: l'historique COMPLET (toutes lignes,
     // hors recherche éventuelle — un export ne dépend jamais d'un filtre
     // d'écran) pour la comptable. Même discipline que la compta Pro: BOM
     // UTF-8 + «;» + \r\n + en-tête documentaire. Jamais de suppression ni

@@ -1,4 +1,4 @@
-// Kènè — helpers WebAuthn serveur (t. 130 — passkeys Console).
+// Kènè — helpers WebAuthn serveur ( — passkeys Console).
 //
 // RP ID & ORIGIN DÉRIVÉS DE LA REQUÊTE: l'app vit derrière le gateway Caddy
 // (le Host vu par Next est réécrit), et la fondatrice peut y accéder par le

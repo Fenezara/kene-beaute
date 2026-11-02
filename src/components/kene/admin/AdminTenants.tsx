@@ -1,5 +1,5 @@
 "use client";
-// Kènè — Console Admin · Instituts (t. 128): la gestion du réseau partenaire.
+// Kènè — Console Admin · Instituts (): la gestion du réseau partenaire.
 // Liste avec recherche + filtre statut, fiche détaillée (dialog), et les
 // leviers de gestion: suspendre (motif obligatoire — l'opération ferme:
 // vitrine, réservations, connexion de l'équipe), réactiver, piloter la
@@ -83,11 +83,11 @@ export function AdminTenants() {
   const [suspendFor, setSuspendFor] = useState<AdminTenantRow | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // t. 130 — les PATCH passent par le gate: confirmation d'identité (code
+  //  — les PATCH passent par le gate: confirmation d'identité (code
   // frais < 5 min) exigée par le serveur, dialogue puis rejeu automatique.
   const gate = useAdminGate();
 
-  // t. 140 — export CSV du réseau complet (CA 30 j, commission, plan, équipe).
+  //  — export CSV du réseau complet (CA 30 j, commission, plan, équipe).
   const [exportBusy, setExportBusy] = useState(false);
   async function exportCsv() {
     setExportBusy(true);
@@ -159,7 +159,7 @@ export function AdminTenants() {
             </button>
           ))}
         </div>
-        {/* t. 140 — export comptable CSV (réseau complet, hors filtre d'écran) */}
+        {/*  — export comptable CSV (réseau complet, hors filtre d'écran) */}
         <Button
           variant="outline"
           className="h-11 gap-1.5 sm:ml-auto"

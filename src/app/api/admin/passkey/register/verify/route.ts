@@ -1,5 +1,5 @@
 // POST /api/admin/passkey/register/verify — étape 2 de l'enregistrement
-// (t. 130). GET ponté (?_g=… — le payload d'attestation tient en query).
+// (). GET ponté (?_g=… — le payload d'attestation tient en query).
 //
 // { name?, response } → vérifie la cérémonie WebAuthn (défi fraî du register/
 // options, origine et rpID attendus), puis ENREGISTRE l'appareil:

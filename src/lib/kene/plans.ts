@@ -703,7 +703,7 @@ export async function activatePlan(userId: string, planId: string, source: strin
   return { subscription, created: true };
 }
 
-// ─────────────── Renouvellement (t. 138 — le moment échéance) ───────────────
+// ─────────────── Renouvellement ( — le moment échéance) ───────────────
 
 export interface RenewPlanResult {
   subscription: Subscription;
@@ -777,7 +777,7 @@ export async function renewPlan(userId: string, source: string = "winipayer", pl
   return { subscription, previousExpiry: existing ? existing.expiresAt : now };
 }
 
-// ─────────────── Cadeau de jours (parrainage — t. 138) ───────────────
+// ─────────────── Cadeau de jours (parrainage — ) ───────────────
 
 export interface GrantGiftResult {
   subscription: Subscription;
@@ -788,7 +788,7 @@ export interface GrantGiftResult {
  * (source personnalisée, p. ex. "referral_gift"): sans abonnement actif une
  * nouvelle ligne est créée (dès aujourd'hui) ; avec un abonnement actif du
  * MÊME plan, la période se raccorde après l'échéance (ancienne ligne
- * clôturée, jamais écrasée — même discipline que l'offre Console t. 135).
+ * clôturée, jamais écrasée — même discipline que l'offre Console ).
  * Throws Error (message FR) si plan/user inconnu. */
 export async function grantGiftDays(userId: string, planId: string, days: number, source: string): Promise<GrantGiftResult> {
   const def = planDefById(planId);
@@ -817,7 +817,7 @@ export async function grantGiftDays(userId: string, planId: string, days: number
         userId,
         plan: def.id,
         status: "active",
-        priceFcfa: 0, // cadeau — 0 F, hors revenus (norme MRR t. 133)
+        priceFcfa: 0, // cadeau — 0 F, hors revenus (norme MRR )
         source,
         startedAt: now,
         expiresAt: newExpires,

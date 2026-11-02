@@ -1,5 +1,5 @@
 // POST /api/admin/passkey/login/verify — étape 2: la connexion console par
-// PASSKEY (t. 130), PRÉ-AUTH. GET ponté (le payload d'assertion tient en
+// PASSKEY (), PRÉ-AUTH. GET ponté (le payload d'assertion tient en
 // query, ~1 ko).
 //
 // { phone, response } → vérifie l'assertion WebAuthn contre CHAQUE appareil
@@ -40,7 +40,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const user = await db.user.findUnique({ where: { phone } });
   const creds = user && user.role === "admin" ? await db.passkeyCredential.findMany({ where: { userId: user.id } }) : [];
 
-  // Garde de modération (t. 128): un compte console verrouillé ne se rouvre
+  // Garde de modération (): un compte console verrouillé ne se rouvre
   // pas, même par passkey.
   if (user?.lockedAt) {
     void audit({

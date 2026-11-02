@@ -21,7 +21,7 @@ import { executePaymentSuccess } from "@/lib/kene/payment-core";
 
 const Body = z.object({
   paymentId: z.string().min(1),
-  // absent/vide → message dédié (contrat 63-b: le front passe r.payment.confirmToken)
+  // absent/vide → message dédié (: le front passe r.payment.confirmToken)
   confirmToken: z.string().optional(),
 });
 

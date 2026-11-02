@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     void audit({ kind: "logout", userId: sess?.userId, ip: clientIp(req) });
     const res = NextResponse.json({ ok: true });
     clearSessionCookie(res);
-    // t. 130 — l'élévation (step-up console) meurt avec la session.
+    //  — l'élévation (step-up console) meurt avec la session.
     clearElevationCookie(res);
     return res;
   } catch {

@@ -7,7 +7,7 @@ import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (, migration douce): GET navigateur — avec
+    // Session signée (migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:stock:get");
     if (guard) return guard;
@@ -44,7 +44,7 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (, migration douce): avec cookie, le mouvement
+    // Session signée (migration douce): avec cookie, le mouvement
     // d'inventaire exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:stock:post");
     if (guard) return guard;

@@ -1,6 +1,6 @@
 "use client";
-// Kènè — Console Admin · Posture sécurité (t. 128: extraite d'AdminApp,
-// enrichie des kinds de gestion t. 128): 4 indicateurs + journal d'audit.
+// Kènè — Console Admin · Posture sécurité (: extraite d'AdminApp,
+// enrichie des kinds de gestion ): 4 indicateurs + journal d'audit.
 import { AlertTriangle, RefreshCw, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ import type { AdminSecurity } from "@/components/kene/pro/types";
 
 // Kind → libellé FR lisible + pastille couleur (tokens shadcn: succès vert
 // Baobab, échecs/verrous bordeaux Bissap, demande de code or profond, les
-// décisions de GESTION t. 128 en or — acte fondateur piloté, pas une alerte
+// décisions de GESTION  en or — acte fondateur piloté, pas une alerte
 // ni une routine). Zéro nouvelle dépendance.
 const SEC_KINDS: Record<string, { label: string; cls: string }> = {
   login_success: { label: "Connexion réussie", cls: "bg-success/15 text-success" },
@@ -28,14 +28,14 @@ const SEC_KINDS: Record<string, { label: string; cls: string }> = {
   pro_register: { label: "Inscription pro", cls: "bg-muted text-muted-foreground" },
   push_subscribe: { label: "Abonnement push", cls: "bg-muted text-muted-foreground" },
   upload_reject: { label: "Fichier rejeté", cls: "bg-muted text-muted-foreground" },
-  // ── t. 128 — gestes de gestion console ──
+  // ──  — gestes de gestion console ──
   tenant_suspended: { label: "Institut suspendu", cls: "bg-gold/15 text-gold" },
   tenant_reactivated: { label: "Institut réactivé", cls: "bg-success/15 text-success" },
   tenant_commission: { label: "Commission fixée", cls: "bg-gold/15 text-gold" },
   tenant_plan: { label: "Plan changé", cls: "bg-muted text-muted-foreground" },
   user_locked: { label: "Compte verrouillé (console)", cls: "bg-gold/15 text-gold" },
   user_unlocked: { label: "Compte déverrouillé", cls: "bg-success/15 text-success" },
-  // ── t. 130 — step-up & passkeys ──
+  // ──  — step-up & passkeys ──
   admin_elevated: { label: "Identité confirmée (step-up)", cls: "bg-primary/15 text-primary" },
   admin_elevate_failed: { label: "Step-up refusé", cls: "bg-bissap/15 text-bissap" },
   passkey_registered: { label: "Passkey enregistré", cls: "bg-gold/15 text-gold" },

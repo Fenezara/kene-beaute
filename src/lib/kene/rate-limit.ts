@@ -35,7 +35,7 @@ export const DIAGNOSES_CREATE = { limit: 6, windowMs: 60_000 } as const;
 export const PRO_DIAGNOSES = { limit: 10, windowMs: 60_000 } as const;
 // Stats admin: scan complet de la base (cachées TTL 60 s côté route) → 30/min.
 export const ADMIN_STATS = { limit: 30, windowMs: 60_000 } as const;
-// Passkey console (t. 130): routes PRÉ-AUTH login/options + login/verify —
+// Passkey console (): routes PRÉ-AUTH login/options + login/verify —
 // même discipline que l'OTP (12/15 min par IP), les cérémonies d'enregistrement
 // derrière session admin restent sur ADMIN_STATS.
 export const PASSKEY_LOGIN = { limit: 12, windowMs: 15 * 60_000 } as const;

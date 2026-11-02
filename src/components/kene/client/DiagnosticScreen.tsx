@@ -1862,7 +1862,7 @@ function ResultView({
   const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
   const isSaved = isSavedUser(user);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
-  // t. 138 — le moment diagnostic: la fin d'un résultat réussi est LE moment
+  //  — le moment diagnostic: la fin d'un résultat réussi est LE moment
   // où la valeur est visible. On sait si l'utilisatrice est déjà abonnée
   // (chargement non bloquant — la carte n'apparaît que si non abonnée).
   const [hasSub, setHasSub] = useState<boolean | null>(null);
@@ -2685,7 +2685,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
         <p className="rounded-[14px] bg-muted/70 p-3 text-[10px] leading-relaxed text-muted-foreground">{r.avertissement} Kènè est un outil d&apos;éducation beauté assisté par IA — les estimations ne constituent pas un diagnostic médical.</p>
       </RevealItem>
 
-      {/* t. 138 — PARCOURS CONVERSION: le moment diagnostic. Uniquement si la
+      {/*  — PARCOURS CONVERSION: le moment diagnostic. Uniquement si la
           cliente n'est PAS abonnée (pas de doublon avec la carte quota 403).
           Une carte, un prix, une action — jamais de compte à rebours. */}
       {hasSub === false && (

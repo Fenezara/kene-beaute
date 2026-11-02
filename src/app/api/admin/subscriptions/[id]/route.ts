@@ -1,5 +1,5 @@
 // PATCH /api/admin/subscriptions/[id] — les leviers de gestion des
-// abonnements (t. 135). ⚠ Step-up t. 130: session admin + ÉLÉVATION
+// abonnements (). ⚠ Step-up : session admin + ÉLÉVATION
 // fraîche (< 5 min) — une action de facturation est sensible (ASVS V2.7).
 //
 // • { action: "cancel", reason } — ANNULATION (motif obligatoire, min 3):
@@ -51,7 +51,7 @@ async function purgeExpiryReminders(userId: string, subscriptionId: string): Pro
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const rl = rateLimit(rlKey(req, "admin:subs:patch"), ADMIN_STATS);
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop d'actions — réessaie dans une minute");
-  // t. 130/135 — step-up: session admin + élévation fraîche (401/403/
+  // /135 — step-up: session admin + élévation fraîche (401/403/
   // elevation_required selon le cas).
   const guard = guardAdminElevated(req);
   if (guard) return guard;

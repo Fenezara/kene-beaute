@@ -1,5 +1,5 @@
 "use client";
-// Kènè — Porte dédiée de la Console (t. 130): « /console » est le SEUL
+// Kènè — Porte dédiée de la Console (): « /console » est le SEUL
 // chemin vers l'espace administrateur, séparé de la vitrine publique
 // (standard 2026: le back-office ne vit pas sur la page de login grand
 // public — cf. /wp-admin, dashboard.stripe.com). Le middleware réécrit

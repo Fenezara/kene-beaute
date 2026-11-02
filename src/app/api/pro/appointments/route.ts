@@ -16,7 +16,7 @@ const include = {
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (, migration douce): GET navigateur — avec
+    // Session signée (migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:appointments:get");
     if (guard) return guard;
@@ -86,7 +86,7 @@ const CreateBody = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (, migration douce): avec cookie, la création de
+    // Session signée (migration douce): avec cookie, la création de
     // RDV côté institut exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:appointments:post");
     if (guard) return guard;

@@ -704,7 +704,7 @@ const STEPS = [
 
 const ANALYSIS_STEPS = [
   "Analyse de l'entretien (déclaratif dermo)…",
-  "Lecture optique de la photo par le VLM…",
+  "Lecture optique de la photo…",
   "Fusion multi-spectrale & cartographie 3D…",
   "Calcul des recommandations botaniques…",
 ];

@@ -1,5 +1,5 @@
 // GET /api/admin/users?q=&role= — annuaire des comptes pour la modération
-// (t. 128 — console de gestion). Liste avec recherche et filtre par rôle;
+// ( — console de gestion). Liste avec recherche et filtre par rôle;
 // chaque ligne: identité, rôle, ville, verrou (lockedAt/Reason), compteurs
 // d'activité (commandes, diagnostics), institut pour les comptes pro.
 //

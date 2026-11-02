@@ -1,5 +1,5 @@
 "use client";
-// Kènè — Console · Carte Passkey (t. 130 — onglet Sécurité).
+// Kènè — Console · Carte Passkey ( — onglet Sécurité).
 //
 // Les passkeys sont la MFA résistante au hameçonnage (NIST 800-63B-4):
 // la preuve vit dans l'appareil (enclave sécurisée / clé USB), le numéro

@@ -56,7 +56,7 @@ const CONTENT_SECURITY_POLICY =
   "object-src 'none'; " +
   "base-uri 'self'; " +
   "form-action 'self'; " +
-  "frame-ancestors *";
+  "frame-ancestors 'self'";
 
 // En-têtes posés sur CHAQUE réponse (403 CSRF inclus — un refus aussi est
 // une réponse durcie). ⚠️ Aucun en-tête d'interdiction de frame ici: l'iframe de préview
@@ -66,6 +66,7 @@ const SECURITY_HEADERS: ReadonlyArray<readonly [string, string]> = [
   // Ignoré par les navigateurs en HTTP de dev — actif dès qu'on sert en
   // HTTPS (standard 2026: 2 ans, sous-domaines inclus).
   ["Strict-Transport-Security", "max-age=63072000; includeSubDomains"],
+  ["X-Frame-Options", "SAMEORIGIN"],
   ["X-Content-Type-Options", "nosniff"],
   ["Referrer-Policy", "strict-origin-when-cross-origin"],
   // camera/micro autorisés pour le diagnostic de peau (photo/scan) et l'ASR
@@ -338,7 +339,7 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // 0) LIEN DÉDIÉ CONSOLE (t. 130) — « /console » ouvre la Console Kènè:
+  // 0) LIEN DÉDIÉ CONSOLE () — « /console » ouvre la Console Kènè:
   // rewrite TRANSPARENT vers la page unique « / » (aucune route de page
   // supplémentaire — le navigateur garde /console en barre d'adresse, le
   // client détecte l'entrée par location.pathname et monte l'écran de

@@ -1,5 +1,5 @@
 // DELETE /api/admin/passkey/credentials/[id] — RETIRE un appareil passkey
-// de la console (t. 130). Session admin + ÉLÉVATION fraîche exigées
+// de la console (). Session admin + ÉLÉVATION fraîche exigées
 // (retirer un authenticator est un acte sensible — ASVS V2.7).
 //
 // Sans appareil restant, la connexion console retombe sur le code à 6

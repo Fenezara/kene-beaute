@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Diagnostic en institut très sollicité — reprends dans quelques secondes");
   }
   try {
-    // Session signée (, migration douce): avec cookie, le diagnostic
+    // Session signée (migration douce): avec cookie, le diagnostic
     // en institut exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:diagnoses:post");
     if (guard) return guard;
@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (, migration douce): GET navigateur — avec
+    // Session signée (migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:diagnoses:get");
     if (guard) return guard;

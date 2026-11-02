@@ -1,5 +1,5 @@
 // GET /api/admin/tenants?q= — instituts partenaires avec KPIs de gestion
-// (t. 128 — console de gestion). Liste COMPLETE (actifs ET suspendus) triée
+// ( — console de gestion). Liste COMPLETE (actifs ET suspendus) triée
 // par CA 30 jours, chaque ligne portant: identité, statut, commission, plan,
 // CA boutique + POS 30 j, commandes en cours, clientes CRM, équipe, catalogue.
 //
@@ -19,7 +19,7 @@ import { isDemoAccount, isDemoTenant } from "@/lib/kene/demo";
 
 export const runtime = "nodejs";
 
-/** Garde stricte (t. 128): la gestion exige un cookie admin signé. */
+/** Garde stricte (): la gestion exige un cookie admin signé. */
 export function requireAdmin(req: NextRequest): NextResponse | null {
   const sess = sessionFromRequest(req);
   if (!sess) {
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
     // Tri: CA total 30 j décroissant — la console montre d'abord ce qui vit.
     filtered.sort((a, b) => b.caBoutique30 + b.caPos30 - (a.caBoutique30 + a.caPos30));
 
-    // t. 140 — EXPORT CSV instituts: le réseau au complet avec ses KPIs de
+    //  — EXPORT CSV instituts: le réseau au complet avec ses KPIs de
     // gestion (CA 30 j, commission, plan, équipe) — hors recherche éventuelle.
     if (req.nextUrl.searchParams.get("format") === "csv") {
       const PLAN: Record<string, string> = { trial: "Pass Découverte", pro: "Essentiel", business: "Complexe" };

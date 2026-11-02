@@ -52,7 +52,7 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
   const setCartQty = useKene((s) => s.setCartQty);
   const clearCart = useKene((s) => s.clearCart);
   const setClientTab = useKene((s) => s.setClientTab);
-  // t. 138 — le moment commande: une acheteuse a prouvé son engagement. On
+  //  — le moment commande: une acheteuse a prouvé son engagement. On
   // sait si elle est déjà abonnée (non bloquant, échec → pas de carte).
   const [hasSub, setHasSub] = useState<boolean | null>(null);
 
@@ -1017,7 +1017,7 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
                   <p className="text-xs text-[#F8F1E4]/70 max-w-[300px] leading-relaxed">
                     Commande confirmée. Ton institut partenaire prépare ta commande.
                   </p>
-                  {/* t. 138 — PARCOURS CONVERSION: le moment commande (une
+                  {/*  — PARCOURS CONVERSION: le moment commande (une
                       acheteuse a déjà prouvé son engagement). Une seule offre
                       sobre, seulement si NON abonnée — jamais de pression. */}
                   {hasSub === false && (

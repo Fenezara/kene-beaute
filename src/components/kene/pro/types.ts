@@ -591,7 +591,7 @@ export interface AdminSecurity {
   stats: AdminSecurityStats;
 }
 
-// ─────────────── Admin — console de gestion (t. 128) ───────────────
+// ─────────────── Admin — console de gestion () ───────────────
 
 // GET /api/admin/tenants — ligne de la liste des instituts.
 export interface AdminTenantRow {
@@ -667,19 +667,19 @@ export interface AdminUserRow {
   isDemo?: boolean;
 }
 
-// PATCH /api/admin/users/[id] — réponse (verrouillage t. 128, accès Console t. 141).
+// PATCH /api/admin/users/[id] — réponse (verrouillage , accès Console ).
 export interface AdminUserPatchResult {
   ok: boolean;
   user?: {
     id: string;
     name: string;
-    role?: string; // présent après promote/demote (t. 141)
+    role?: string; // présent après promote/demote ()
     lockedAt: string | null;
     lockedReason: string | null;
   };
 }
 
-// ─────────────── Admin — abonnements Kènè+ / Pro (t. 135) ───────────────
+// ─────────────── Admin — abonnements Kènè+ / Pro () ───────────────
 
 // GET /api/admin/subscriptions — ligne de la liste des abonnements.
 // `derived` est calculé serveur (jamais stocké — IFRS 15: la ligne d'origine

@@ -1,5 +1,5 @@
 "use client";
-// Kènè — Console Admin · Abonnements (t. 135): la monétisation Kènè+ / Pro
+// Kènè — Console Admin · Abonnements (): la monétisation Kènè+ / Pro
 // entre dans la console. Liste complète (actives, expirées, annulées,
 // offertes) avec recherche et filtres, KPIs (abonnées actives, revenus
 // mensuels simulés — MRR, échéances ≤ 7 j, mois offerts), et les 2 leviers
@@ -97,7 +97,7 @@ export function AdminSubscriptions() {
   const [giftFor, setGiftFor] = useState<AdminSubRow | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // t. 135 — les PATCH passent par le gate: step-up (code frais < 5 min)
+  //  — les PATCH passent par le gate: step-up (code frais < 5 min)
   // exigé par le serveur, dialogue puis rejeu automatique.
   const gate = useAdminGate();
 
@@ -119,7 +119,7 @@ export function AdminSubscriptions() {
     [list, gate],
   );
 
-  // t. 140 — export comptable CSV: l'historique COMPLET des abonnements
+  //  — export comptable CSV: l'historique COMPLET des abonnements
   // (IFRS 15 — lignes clôturées incluses) pour la comptable.
   const [exportBusy, setExportBusy] = useState(false);
   async function exportCsv() {
@@ -164,7 +164,7 @@ export function AdminSubscriptions() {
               className="pl-9"
             />
           </div>
-          {/* t. 140 — export comptable CSV (historique complet, hors recherche) */}
+          {/*  — export comptable CSV (historique complet, hors recherche) */}
           <Button
             variant="outline"
             className="h-11 gap-1.5 sm:ml-auto"

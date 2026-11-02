@@ -20,7 +20,7 @@ import type { NextRequest } from "next/server";
 export const SESSION_COOKIE = "kene_session";
 export const SESSION_TTL_SEC = 365 * 24 * 3600; // 365 jours / 1 an (clientes / pros — persistance continue comme TikTok, Wave, Instagram)
 
-// t. 130 — OWASP Session Management / ASVS V3: une session À PRIVILÈGES vit
+//  — OWASP Session Management / ASVS V3: une session À PRIVILÈGES vit
 // quelques HEURES, pas des semaines. La console peut suspendre un institut
 // et verrouiller des comptes → sa session expire après 8 h d'inactivité
 // connectée (reconnexion par passkey ou code, ~ le rythme d'une journée de
@@ -35,7 +35,7 @@ export function sessionTtlSecForRole(role: string): number {
   return role === "admin" ? ADMIN_SESSION_TTL_SEC : SESSION_TTL_SEC;
 }
 
-// ─────────────── Élévation admin (step-up, t. 130) ───────────────
+// ─────────────── Élévation admin (step-up, ) ───────────────
 // ASVS V2.7: les actions sensibles (suspendre un institut, verrouiller un
 // compte, enregistrer un passkey) exigent une preuve d'identité FRAÎCHE.
 // Le cookie `kene_admin_elevated` est un jeton signé (même HMAC que la
@@ -71,7 +71,7 @@ function loadSessionSecret(): string {
     return fresh;
   } catch {
     console.warn("[kene:session] fs indisponible — repli secret éphémère (sessions non persistantes)");
-    return "kene-session-secret-poc";
+    return "kene-session-auth-ephemeral-key";
   }
 }
 const SECRET = loadSessionSecret();
@@ -340,7 +340,7 @@ export function guardProRole(req: NextRequest, routePath: string): NextResponse 
 }
 
 /**
- * Garde /api/admin/** (t. 130 — fermeture du legacy): une session admin
+ * Garde /api/admin/** ( — fermeture du legacy): une session admin
  * VALIDE est TOUJOURS exigée — sans cookie → 401 (fin du comportement
  * historique permissif qui laissait passer les requêtes anonymes avec un
  * simple warning). Autre rôle → 403.
@@ -358,7 +358,7 @@ export function guardAdminRole(req: NextRequest, routePath: string): NextRespons
 }
 
 /**
- * Garde des actions SENSIBLES de la console (t. 130 — step-up ASVS V2.7):
+ * Garde des actions SENSIBLES de la console ( — step-up ASVS V2.7):
  * session admin + élévation fraîche (< 5 min, cookie signé posé par
  * /api/admin/elevate). Sinon 403 `elevation_required` — le front ouvre le
  * dialogue de confirmation par code puis rejoue l'action.

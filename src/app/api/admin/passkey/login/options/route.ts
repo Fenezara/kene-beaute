@@ -1,5 +1,5 @@
 // POST /api/admin/passkey/login/options — étape 1 de la connexion console
-// par PASSKEY (t. 130), PRÉ-AUTH (aucune session requise). GET ponté.
+// par PASSKEY (), PRÉ-AUTH (aucune session requise). GET ponté.
 //
 // { phone } → si ce numéro est un compte admin NON verrouillé avec au moins
 // un appareil enregistré: { passkey: true, options } (défis d'authentification

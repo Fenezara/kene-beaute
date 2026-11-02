@@ -61,7 +61,7 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const { userId, code: rawCode } = data;
   const code = rawCode.toUpperCase().trim();
 
-  // Session signée (, migration douce): avec cookie, le code ne
+  // Session signée (migration douce): avec cookie, le code ne
   // s'échange que pour le compte de la session; sans cookie → legacy.
   const guard = guardUserClaim(req, "referral:redeem", userId);
   if (guard) return guard;
@@ -90,7 +90,7 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
   await db.user.update({ where: { id: user.id }, data: { referredBy: parrain.id } });
   const wallet = await creditWallet(myWallet.id, FILLEUL_GIFT, "referral", filleulGiftRefId(user.id));
 
-  // t. 138 — AMBASSADRICES: la marraine CLIENTE reçoit 30 jours de Kènè+
+  //  — AMBASSADRICES: la marraine CLIENTE reçoit 30 jours de Kènè+
   // offerts dès que sa filleule rejoint (geste 0 F TRACÉ source
   // "referral_gift" — jamais d'écrasement, IFRS 15 comme l'offre Console).
   // Les comptes pro/admin ne reçoivent pas le cadeau (leur plan vit dans

@@ -1,8 +1,8 @@
 "use client";
-// Kènè — Console Admin · Utilisatrices (t. 128): l'annuaire des comptes pour
+// Kènè — Console Admin · Utilisatrices (): l'annuaire des comptes pour
 // la modération. Recherche + filtre par rôle, et les leviers individualisés:
 // verrouiller un compte (motif obligatoire, montré au compte à sa tentative
-// de connexion) / déverrouiller, et depuis t. 141 l'ACCÈS CONSOLE DÉLÉGUÉ:
+// de connexion) / déverrouiller, et depuis  l'ACCÈS CONSOLE DÉLÉGUÉ:
 // donner l'accès Console à une cliente de confiance / le retirer (jamais au
 // dernier admin, jamais à soi-même — protections côté serveur).
 import { useEffect, useMemo, useState } from "react";
@@ -58,7 +58,7 @@ export function AdminUsers() {
     return all;
   }, [allUsers, accountTypeFilter]);
 
-  // Dialogs de verrouillage + accès Console (t. 141) + purge légale RGPD/ARTCI
+  // Dialogs de verrouillage + accès Console () + purge légale RGPD/ARTCI
   const [lockFor, setLockFor] = useState<AdminUserRow | null>(null);
   const [promoteFor, setPromoteFor] = useState<AdminUserRow | null>(null);
   const [demoteFor, setDemoteFor] = useState<AdminUserRow | null>(null);
@@ -66,7 +66,7 @@ export function AdminUsers() {
   const [purgeReason, setPurgeReason] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // t. 141 — qui suis-je dans cette console ? (pour ne jamais proposer de
+  //  — qui suis-je dans cette console ? (pour ne jamais proposer de
   // retirer MON propre accès — la protection vit aussi côté serveur).
   const [meId, setMeId] = useState<string | null>(null);
   useEffect(() => {
@@ -75,7 +75,7 @@ export function AdminUsers() {
       .catch(() => setMeId(null));
   }, []);
 
-  // t. 130 — le PATCH de verrouillage passe par le gate (step-up serveur:
+  //  — le PATCH de verrouillage passe par le gate (step-up serveur:
   // code frais exigé, dialogue de confirmation puis rejeu automatique).
   const gate = useAdminGate();
 
@@ -275,7 +275,7 @@ export function AdminUsers() {
                           )
                         ) : (
                           <span className="inline-flex flex-wrap justify-end gap-1.5">
-                            {/* t. 141 — accès Console délégué: clientes uniquement
+                            {/*  — accès Console délégué: clientes uniquement
                                 (les comptes Pro restent liés à leur institut). */}
                             {u.role === "client" && !u.lockedAt && (
                               <Button
@@ -363,7 +363,7 @@ export function AdminUsers() {
           />
         </DialogContent>
       </Dialog>
-      {/* t. 141 — Dialog: DONNER l'accès Console (énoncé d'impact complet) */}
+      {/*  — Dialog: DONNER l'accès Console (énoncé d'impact complet) */}
       <Dialog open={Boolean(promoteFor)} onOpenChange={(o) => (!o ? setPromoteFor(null) : undefined)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -400,7 +400,7 @@ export function AdminUsers() {
         </DialogContent>
       </Dialog>
 
-      {/* t. 141 — Dialog: RETIRER l'accès Console */}
+      {/*  — Dialog: RETIRER l'accès Console */}
       <Dialog open={Boolean(demoteFor)} onOpenChange={(o) => (!o ? setDemoteFor(null) : undefined)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

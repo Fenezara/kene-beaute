@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
 
-    // Session signée (, migration douce): avec cookie, l'export RGPD
+    // Session signée (migration douce): avec cookie, l'export RGPD
     // ne sort que pour le compte de la session; sans cookie → legacy.
     const guard = guardUserClaim(req, "profile:export", userId);
     if (guard) return guard;

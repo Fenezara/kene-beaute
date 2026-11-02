@@ -127,12 +127,11 @@ export async function GET(req: NextRequest) {
       : "Passerelle SasPay active en mode Sandbox / Test";
   }
 
-  // 5. Gemini / IA
+  // 5. Moteur d'analyse clinique Kènè
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
-  const geminiModel = (process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== "gemini-1.5-flash") ? process.env.GEMINI_MODEL : "gemini-2.5-flash";
   const aiStatus = geminiKey ? "live" : "fallback_expert";
   const aiDetail = geminiKey
-    ? `Google Gemini (${geminiModel}) connecté`
+    ? `Moteur d'Analyse Clinique Kènè actif`
     : "Moteur Expert Dermo-Cosmétique Kènè actif (Palier 3 Haute Disponibilité)";
 
   // 6. Base de données
@@ -169,7 +168,7 @@ export async function GET(req: NextRequest) {
     },
     ai: {
       status: aiStatus,
-      model: geminiModel,
+      model: "Kènè Optical & Clinical Engine",
       detail: aiDetail,
     },
     database: {

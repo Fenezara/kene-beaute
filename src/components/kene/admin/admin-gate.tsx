@@ -1,5 +1,5 @@
 "use client";
-// Kènè — AdminGate: step-up console (t. 130, ASVS V2.7).
+// Kènè — AdminGate: step-up console (, ASVS V2.7).
 //
 // Les actions SENSIBLES de la console (suspendre/réactiver un institut,
 // piloter commission/plan, verrouiller un compte, gérer les passkeys)

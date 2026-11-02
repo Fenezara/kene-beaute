@@ -1,5 +1,5 @@
 // POST /api/admin/passkey/register/options — étape 1 de l'enregistrement
-// d'un passkey (t. 130). GET ponté (?_g=… — même payload, la préview de la
+// d'un passkey (). GET ponté (?_g=… — même payload, la préview de la
 // fondatrice peut bloquer les POST).
 //
 // Session admin + ÉLÉVATION fraîche exigées (ajouter un authenticator est

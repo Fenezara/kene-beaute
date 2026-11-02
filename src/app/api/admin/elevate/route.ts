@@ -1,4 +1,4 @@
-// POST /api/admin/elevate — STEP-UP console (t. 130, ASVS V2.7).
+// POST /api/admin/elevate — STEP-UP console (, ASVS V2.7).
 // GET /api/admin/elevate?_g=… — pont (même payload JSON en query — la chaîne
 // de préview de la fondatrice peut bloquer les POST, cf. get-bridge.ts).
 //

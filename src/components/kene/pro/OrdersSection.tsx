@@ -2,7 +2,7 @@
 // Kènè Pro — Commandes boutique: ce que les clientes commandent DEPUIS L'APP.
 // Liste temps réel (rafraîchie par le flux tenant-feed), KPIs du jour,
 // suivi livraison (payée → livrée) et annulation avec remboursement wallet.
-// t. 139 — REÇU DE CAISSE: toute commande encaissée (payée/livrée) peut être
+//  — REÇU DE CAISSE: toute commande encaissée (payée/livrée) peut être
 // imprimée en ticket 80 mm (ou A4) pour la cliente — articles de CET institut,
 // mode de paiement, mention honnête « simulation » pour le mobile money d'essai.
 import { useState } from "react";
@@ -50,7 +50,7 @@ export function OrderStatusBadge({ status }: { status: string }) {
 export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }: { tenantId: string; tenantName?: string; refreshKey?: number }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
-  // t. 139 — reçu de caisse: la commande encaissée dont on prépare le ticket.
+  //  — reçu de caisse: la commande encaissée dont on prépare le ticket.
   const [receiptFor, setReceiptFor] = useState<ProOrderView | null>(null);
 
   const orders = useApi<ProOrdersResponse>(
@@ -205,7 +205,7 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
                       <span className="hidden lg:inline"> {formatTime(o.createdAt)}</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      {/* t. 139 — reçu de caisse: toute commande ENCAISSÉE
+                      {/*  — reçu de caisse: toute commande ENCAISSÉE
                           (payée ou livrée) peut être imprimée pour la cliente. */}
                       {(o.status === "paid" || o.status === "delivered") && confirmCancelId !== o.id && (
                         <Button
@@ -364,7 +364,7 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
         remet vos articles en stock.
       </p>
 
-      {/* t. 139 — Dialogue du reçu: aperçu fidèle du ticket + impression
+      {/*  — Dialogue du reçu: aperçu fidèle du ticket + impression
           (imprimante ticket 80 mm ou A4 — le CSS d'impression masque tout
           sauf le ticket). */}
       <Dialog open={Boolean(receiptFor)} onOpenChange={(o) => (!o ? setReceiptFor(null) : undefined)}>
@@ -391,7 +391,7 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
         </DialogContent>
       </Dialog>
 
-      {/* Zone d'impression (t. 139): rendue dans le DOM mais masquée à
+      {/* Zone d'impression (): rendue dans le DOM mais masquée à
           l'écran ; @media print masque TOUT sauf elle (visibilité) et force
           une page ticket 80 mm — le dialogue reste ouvert, il devient
           invisible à l'impression. */}
@@ -417,7 +417,7 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
   );
 }
 
-/* ─────────────── Ticket de caisse (t. 139) ───────────────
+/* ─────────────── Ticket de caisse () ───────────────
  * Monospace blanc/noir — fidèle à l'impression thermique. Ne montre que les
  * articles de CET institut (une commande mixte imprimera le ticket de chaque
  * vendeur chez elle). Modes de paiement honnêtes: Wave/Orange/Wallet =

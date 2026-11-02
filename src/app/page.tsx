@@ -45,7 +45,7 @@ export default function Page() {
   const space = useKene((s) => s.space);
   const user = useKene((s) => s.user);
   const hydrated = useKene((s) => s._keneHydrated);
-  // t. 130 — porte dédiée: « /console » (rewrite middleware) monte l'écran
+  //  — porte dédiée: « /console » (rewrite middleware) monte l'écran
   // de connexion console; « /pin » monte l'écran dédié de code secret;
   // null → BootSkeleton le temps de la résolution client (zéro flash).
   const entry = useEntryKind();

@@ -8,15 +8,14 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const users = await db.user.count();
     return NextResponse.json(
       {
         ok: true,
         service: "kene",
-        version: "poc-1.0",
+        version: "2.4.0",
         uptimeSec: Math.floor(process.uptime()),
         ts: new Date().toISOString(),
-        db: { ok: true, users },
+        db: { ok: true },
       },
       { headers: { "Cache-Control": "no-store" } },
     );

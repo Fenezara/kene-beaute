@@ -1520,7 +1520,7 @@ function ClientSkinDossierDetail({
                           ? item.vlmUsed
                             ? "Biométrie spectrale couplée · Examen cabine validé"
                             : "Entretien cabine seul"
-                          : "Auto-diagnostic assisté par IA VLM Kènè"}
+                          : "Auto-diagnostic assisté par l'Imagerie Kènè"}
                       </span>
 
                       {isCabine && (

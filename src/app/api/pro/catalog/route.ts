@@ -18,7 +18,7 @@ function withPhotoFlag<T extends { photoData?: string | null }>(item: T): Omit<T
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (, migration douce): GET navigateur — avec
+    // Session signée (migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:catalog:get");
     if (guard) return guard;
@@ -56,7 +56,7 @@ const CreateBody = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (, migration douce): avec cookie, la création
+    // Session signée (migration douce): avec cookie, la création
     // service/produit exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:catalog:post");
     if (guard) return guard;
@@ -124,7 +124,7 @@ const PHOTO_FIELD = "photoData";
 
 export async function PATCH(req: NextRequest) {
   try {
-    // Session signée (, migration douce): avec cookie, la mise à jour
+    // Session signée (migration douce): avec cookie, la mise à jour
     // catalogue exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:catalog:patch");
     if (guard) return guard;

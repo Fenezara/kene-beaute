@@ -17,7 +17,7 @@ const Body = z.object({
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // Session signée (, migration douce): avec cookie, la gestion du
+    // Session signée (migration douce): avec cookie, la gestion du
     // RDV (confirm/complete/cancel/reschedule) exige un compte pro/admin.
     const guard = guardProRole(req, "pro:appointments:[id]:patch");
     if (guard) return guard;

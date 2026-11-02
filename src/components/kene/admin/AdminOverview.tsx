@@ -1,5 +1,5 @@
 "use client";
-// Kènè — Console Admin · Vue d'ensemble (t. 128: extraite d'AdminApp,
+// Kènè — Console Admin · Vue d'ensemble (: extraite d'AdminApp,
 // comportement inchangé): KPIs plateforme, courbe diagnostics 14 j,
 // top instituts par CA 30 j.
 import { useEffect, useState } from "react";
@@ -360,7 +360,7 @@ export function AdminOverview({
                         : "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
                     }`}
                   >
-                    {connectors.ai.status === "live" ? "Gemini REST" : "Moteur Expert"}
+                    {connectors.ai.status === "live" ? "Moteur IA Kènè" : "Moteur Expert"}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-snug">

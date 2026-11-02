@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Note (1-5) requise", 400);
 
-    // Session signée (, migration douce): avec cookie, l'avis est
+    // Session signée (migration douce): avec cookie, l'avis est
     // déposé pour le compte de la session; sans cookie → legacy.
     const guard = guardUserClaim(req, "appointments:review", parsed.data.userId);
     if (guard) return guard;

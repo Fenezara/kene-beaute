@@ -1,5 +1,5 @@
 // GET /api/admin/passkey — appareils passkey enregistrés sur le compte
-// console de la session (t. 130 — carte « Passkey » de l'onglet Sécurité).
+// console de la session ( — carte « Passkey » de l'onglet Sécurité).
 //
 // Session admin (pas d'élévation: simple lecture du propre compte).
 // Jamais de clé publique dans le payload — seulement étiquette, type

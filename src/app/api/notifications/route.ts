@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Rappel J-3: abonnement payant actif arrivant à échéance (t. 135 —
+    // Rappel J-3: abonnement payant actif arrivant à échéance ( —
     // principe « rappel avant renouvellement », standard facturation 2026).
     // Une seule ligne active par abonnée par construction (activatePlan et
     // les 30 j offerts par la Console annulent l'ancienne ligne — le rappel
