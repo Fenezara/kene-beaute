@@ -975,16 +975,28 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                   </span>
                 </div>
 
-                {/* Faisceau laser spectral Or 24K en balayage vertical doux */}
+                {/* Faisceau laser spectral Or 24K en balayage vertical complet (Haut <-> Bas) */}
                 <motion.div
                   aria-hidden="true"
-                  initial={{ top: "16%" }}
-                  animate={{ top: ["16%", "80%", "16%"] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute inset-x-6 pointer-events-none z-10"
+                  initial={{ top: "4%" }}
+                  animate={{
+                    top: ["4%", "88%", "4%"],
+                  }}
+                  transition={{
+                    duration: 2.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute inset-x-2 pointer-events-none z-15"
                 >
-                  <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#FFE59E] to-transparent shadow-[0_0_16px_2.5px_rgba(245,211,126,0.95)]" />
-                  <div className="h-8 w-full bg-gradient-to-b from-[#D49A24]/20 to-transparent" />
+                  {/* Ligne laser principale brillante avec double halo haute intensité */}
+                  <div className="relative">
+                    <div className="h-[2.5px] w-full bg-gradient-to-r from-transparent via-[#FFE8A3] to-transparent shadow-[0_0_20px_4px_rgba(245,211,126,0.95)]" />
+                    {/* Écho lumineux et halo spectral qui traverse le visage */}
+                    <div className="h-10 w-full bg-gradient-to-b from-[#D49A24]/30 via-[#D49A24]/10 to-transparent blur-[1px]" />
+                    {/* Trait de retour inversé doux */}
+                    <div className="h-6 w-full -mt-10 bg-gradient-to-t from-[#D49A24]/25 to-transparent blur-[1px]" />
+                  </div>
                 </motion.div>
 
                 {/* Bas du miroir avec sélecteur 3 points d'angle et bouton d'action */}
