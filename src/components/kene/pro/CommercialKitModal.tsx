@@ -238,7 +238,7 @@ export function CommercialKitModal({
                   </p>
                 </div>
                 <div className="p-2.5 rounded-xl bg-background/80 border border-gold/20 space-y-1">
-                  <p className="text-[11px] font-bold text-foreground">✨ 30 Jours Offerts</p>
+                  <p className="text-[11px] font-bold text-foreground">30 Jours Offerts</p>
                   <p className="text-[10px] text-muted-foreground leading-snug">
                     Pass VIP Kènè+ offert à l&apos;inscription, zéro engagement.
                   </p>

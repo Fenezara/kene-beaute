@@ -785,7 +785,7 @@ export function PosSection({
               className="h-8 gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black shadow-xs active:scale-95 transition-all shrink-0"
             >
               <Zap className="size-3.5 fill-black" />
-              ⚡ Reçu Express (Saisie Libre)
+              Reçu Express (Saisie Libre)
             </Button>
 
             <Button
@@ -1172,7 +1172,7 @@ export function PosSection({
                           <p className="truncate text-xs font-medium">{l.label}</p>
                           {l.isCustom && (
                             <span className="shrink-0 rounded bg-amber-500/20 px-1 py-0.2 text-[9px] font-bold text-amber-700 dark:text-amber-300">
-                              ⚡ Libre
+                              Saisie libre
                             </span>
                           )}
                         </div>
@@ -1520,7 +1520,7 @@ export function PosSection({
                       <p className="truncate text-xs font-medium">{s.items?.map((it) => `${it.qty}× ${it.label}`).join(", ") || "Vente"}</p>
                       {s.items?.some((it) => it.customPriceReason || (!it.productId && !it.id)) && (
                         <Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-400 text-amber-700 dark:text-amber-400 bg-amber-500/10 font-bold">
-                          ⚡ Saisie libre
+                          Saisie libre
                         </Badge>
                       )}
                     </div>

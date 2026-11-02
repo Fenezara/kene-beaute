@@ -921,7 +921,7 @@ function ClientSheet({
                       type="button"
                       onClick={() => {
                         const inviteLink = `https://kene-beaute.com/?join=${tenantId}`;
-                        const msg = `Bonjour ${c.name} 🌸\nRetrouvez votre carnet de soins, votre diagnostic et vos ordonnances personnalisées préparés par notre équipe sur votre Portail Kènè :\n${inviteLink}\nVos 30 jours d'accès complet sont offerts ! ✨`;
+                        const msg = `Bonjour ${c.name} 🌸\nRetrouvez votre carnet de soins, votre diagnostic et vos ordonnances personnalisées préparés par notre équipe sur votre Portail Kènè :\n${inviteLink}\nVos 30 jours d'accès complet sont offerts !`;
                         openWhatsApp(c.phone, msg);
                       }}
                       className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-gold text-[#18120C] text-xs font-bold hover:brightness-105 transition-all shadow-xs shrink-0 cursor-pointer"

@@ -63,9 +63,9 @@ export function KeneMirrorKioskModal({
   const zoneQuestions = getQuestionsForZone(zone).slice(0, 3);
   const selectedZoneMeta = BODY_ZONES.find((z) => z.id === zone) ?? BODY_ZONES[0];
   const ZONE_EMOJIS: Record<BodyZone, string> = {
-    visage: "✨",
+    visage: "",
     dos: "🌿",
-    cuir_chevelu: "👑",
+    cuir_chevelu: "",
     mains: "🤲",
     barbe: "🪒",
     naevi: "🔬",

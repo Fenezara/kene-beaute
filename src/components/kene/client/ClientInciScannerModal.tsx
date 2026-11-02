@@ -376,7 +376,7 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
               {analysis.actionPlan && (
                 <div className="p-3.5 rounded-xl border border-border/80 bg-card text-xs space-y-2">
                   <p className="font-bold text-foreground text-xs uppercase tracking-wide">
-                    💡 Conseils &amp; Précautions d&apos;usage :
+                    Conseils &amp; Précautions d&apos;usage :
                   </p>
                   {analysis.actionPlan.weaningProtocol && (
                     <ul className="space-y-1 pl-4 list-disc text-muted-foreground text-xs">

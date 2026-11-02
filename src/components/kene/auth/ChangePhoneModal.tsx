@@ -66,7 +66,7 @@ export function ChangePhoneModal({ open, onOpenChange, currentPhone }: ChangePho
         setDevCode(res.devCode || "");
         setStep("code");
         if (res.devCode) {
-          toast.info("Code de vérification généré ⚡");
+          toast.info("Code de vérification généré");
         } else {
           toast.success("Code de sécurité envoyé par SMS");
         }

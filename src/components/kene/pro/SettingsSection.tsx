@@ -263,7 +263,7 @@ export function SettingsSection({
                 : "bg-primary/10 text-primary border-primary/20 font-bold"
             }
           >
-            {isOwner ? "👑 Direction & Gérance" : `✨ ${sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice"}`}
+            {isOwner ? "Direction & Gérance" : `✨ ${sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice"}`}
           </Badge>
         }
       />
@@ -296,7 +296,7 @@ export function SettingsSection({
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-heading text-lg sm:text-xl font-bold text-[#FFF9EC]">{managerName}</p>
                 <span className="rounded-full bg-[#D49A24]/25 border border-[#D49A24]/50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#F5D37E]">
-                  {isOwner ? "👑 Fondatrice & Gérante" : (sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice")}
+                  {isOwner ? "Direction Générale" : (sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice")}
                 </span>
               </div>
               <p className="text-xs text-[#F5ECDD]/75 mt-1 flex items-center gap-1.5">
@@ -814,7 +814,7 @@ export function SettingsSection({
                     <div className="flex items-center gap-2">
                       <p className="text-xs font-bold text-foreground">Régime fiscal &amp; Encaissement</p>
                       <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 text-gold-text border border-gold/30 px-2 py-0.5 text-[10px] font-bold">
-                        👑 Patronne
+                        Gérante
                       </span>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">

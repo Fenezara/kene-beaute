@@ -344,7 +344,7 @@ export function PlanScreen() {
                     <p className="font-bold flex items-center gap-1 text-foreground">
                       <CauriIcon size={13} className="text-gold-text" /> Bilans de peau
                     </p>
-                    <p className="text-xs font-bold text-success">⚡ Illimités</p>
+                    <p className="text-xs font-bold text-success">Illimité</p>
                     <p className="text-[10px] text-muted-foreground">Analyses photo sans restriction</p>
                   </div>
 
@@ -352,7 +352,7 @@ export function PlanScreen() {
                     <p className="font-bold flex items-center gap-1 text-foreground">
                       <ShieldAlert size={13} className="text-rose-500" /> Scanner INCI
                     </p>
-                    <p className="text-xs font-bold text-success">⚡ Illimité</p>
+                    <p className="text-xs font-bold text-success">Illimité</p>
                     <p className="text-[10px] text-muted-foreground">Toute la trousse cosmétique</p>
                   </div>
 
@@ -360,7 +360,7 @@ export function PlanScreen() {
                     <p className="font-bold flex items-center gap-1 text-foreground">
                       <Zap size={13} className="text-gold-text" /> Orbe 3D Vocale
                     </p>
-                    <p className="text-xs font-bold text-success">👑 Illimité 24/7</p>
+                    <p className="text-xs font-bold text-success">Illimité 24/7</p>
                     <p className="text-[10px] text-muted-foreground">Échanges audio &amp; vocaux en direct</p>
                   </div>
 
@@ -491,7 +491,7 @@ export function PlanScreen() {
                     <p className="font-bold flex items-center gap-1 text-foreground">
                       <CauriIcon size={13} className="text-gold-text" /> Bilans de peau
                     </p>
-                    <p className="text-xs font-bold text-success">⚡ Illimités</p>
+                    <p className="text-xs font-bold text-success">Illimité</p>
                     <p className="text-[10px] text-muted-foreground">vs 1 seul scan / mois en gratuit</p>
                   </div>
 
@@ -499,7 +499,7 @@ export function PlanScreen() {
                     <p className="font-bold flex items-center gap-1 text-foreground">
                       <ShieldAlert size={13} className="text-rose-500" /> Scanner INCI
                     </p>
-                    <p className="text-xs font-bold text-success">⚡ Illimité</p>
+                    <p className="text-xs font-bold text-success">Illimité</p>
                     <p className="text-[10px] text-muted-foreground">vs 3 produits / mois en gratuit</p>
                   </div>
 
@@ -507,7 +507,7 @@ export function PlanScreen() {
                     <p className="font-bold flex items-center gap-1 text-foreground">
                       <Zap size={13} className="text-gold-text" /> Orbe 3D Vocale
                     </p>
-                    <p className="text-xs font-bold text-success">👑 Illimité 24/7</p>
+                    <p className="text-xs font-bold text-success">Illimité 24/7</p>
                     <p className="text-[10px] text-muted-foreground">vs 5 vocaux / mois en gratuit</p>
                   </div>
 
@@ -611,17 +611,17 @@ export function PlanScreen() {
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Bilan de peau par photo</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">1 scan / mois</td>
-                  <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">Illimité</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Scanner INCI toxicologique (flacons &amp; cosmétiques)</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">3 produits / mois</td>
-                  <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité (toute la trousse)</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">Illimité (toute la trousse)</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Orbe 3D &amp; Consultations vocales Dermo Kènè</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">5 vocaux / mois (texte libre)</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Illimité 24h/24 &amp; 7j/7</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">Illimité 24h/24 &amp; 7j/7</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Fil SMS &amp; WhatsApp : Coaching routine &amp; ordonnance</td>

@@ -142,7 +142,7 @@ const NAV: ProNavItem[] = [
   // 4. Relation & Fidélité
   { id: "crm", label: "CRM Clientes", icon: OsramIcon, hint: "Clientes, fiches & fidélité", category: "relation" },
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole & rappels", category: "relation" },
-  { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Rappels WhatsApp 24/7 & Débriefing", category: "relation" },
+  { id: "assistant", label: "Secrétariat & Rappels", icon: Crown, hint: "Rappels WhatsApp 24/7 & Débriefing", category: "relation" },
 
   // 5. Gestion & Administration (Gérance / RH / Paie / Compta — strictly exclusive)
   { id: "equipe", label: "Équipe & Pointage", icon: NkonsonkonsonIcon, hint: "Personnel, planning & présences", category: "gestion" },
@@ -264,7 +264,7 @@ export function resolveCategoryDef(
     if (hasAssistant && !hasCrmOrRelances) {
       return {
         id: "relation",
-        emoji: "👑",
+        emoji: "",
         label: "Secrétaire IA de Direction",
         shortLabel: "Secrétaire IA",
       };
@@ -847,7 +847,7 @@ export function ProEnterpriseShell() {
       : "Collaboratrice";
 
   const chipRole = isAdmin
-    ? "👑 Patronne / Admin"
+    ? "Gérante / Admin"
     : employeeRole
     ? formatRole(employeeRole)
     : isOwner
@@ -1561,7 +1561,7 @@ export function ProEnterpriseShell() {
             {sidebarExpanded && (
               <div className="pt-2 space-y-1.5">
                 <p className="px-2 text-[10px] font-black uppercase tracking-wider text-[#E5A93C]/80">
-                  ⚡ Outils Cabine Express
+                  Outils Cabine Express
                 </p>
                 <button
                   type="button"

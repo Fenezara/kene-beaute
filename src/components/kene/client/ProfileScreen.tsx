@@ -227,7 +227,7 @@ export function ProfileScreen() {
       setUser({ ...user, ...r.user } as SessionUser);
       setAutoSaveStatus("saved");
       if (showNotification) {
-        toast.success("Profil complet mis à jour avec succès ✨", {
+        toast.success("Profil complet mis à jour avec succès", {
           description: "Tes informations d'identité, de privilèges et de routine sont sauvegardées.",
         });
       }

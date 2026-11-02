@@ -204,12 +204,12 @@ export function ClientApp() {
                 });
                 void apiPatch("/api/auth/profile", { userId: curUser.id, selectedTenantId: inst.id }).catch(() => null);
               }
-              toast.success(`Portail relié à ${inst.name} ✨`, {
+              toast.success(`Portail relié à ${inst.name}`, {
                 description: "Votre salon partenaire a été configuré comme votre Institut Référent.",
                 duration: 6000,
               });
             } else if (salonParam) {
-              toast.success(`Bienvenue chez ${decodeURIComponent(salonParam)} ✨`, {
+              toast.success(`Bienvenue chez ${decodeURIComponent(salonParam)}`, {
                 description: "Votre diagnostic de peau offert et vos avantages exclusifs sont activés !",
                 duration: 6000,
               });
@@ -217,7 +217,7 @@ export function ClientApp() {
           })
           .catch(() => {
             if (salonParam) {
-              toast.success(`Bienvenue chez ${decodeURIComponent(salonParam)} ✨`, { duration: 6000 });
+              toast.success(`Bienvenue chez ${decodeURIComponent(salonParam)}`, { duration: 6000 });
             }
           });
       }

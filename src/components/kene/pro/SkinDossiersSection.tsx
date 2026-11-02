@@ -1780,7 +1780,7 @@ function ClientSkinDossierDetail({
                           )}
                           {item.transitionStatus === "new" && (
                             <Badge variant="outline" className="bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30 text-[10px] font-bold shrink-0">
-                              ✨ Nouveau
+                              Nouveau
                             </Badge>
                           )}
                           {/* Détection si ce produit d'ordonnance a été commandé par la cliente */}
@@ -1828,7 +1828,7 @@ function ClientSkinDossierDetail({
                             <option value="matin">☀️ Matin</option>
                             <option value="soir">🌙 Soir</option>
                             <option value="matin_soir">☀️🌙 Matin &amp; Soir</option>
-                            <option value="hebdo">✨ Hebdomadaire (1 à 2x)</option>
+                            <option value="hebdo">Hebdomadaire (1 à 2x)</option>
                           </select>
                         </div>
 

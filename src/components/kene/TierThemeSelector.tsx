@@ -206,7 +206,7 @@ export function TierThemeSelector({
     toast.success(
       effectiveAudience === "pro"
         ? `Parure « ${theme.name} » appliquée à tout l'institut 🏛️`
-        : `Parure « ${theme.name} » appliquée 👑`,
+        : `Parure « ${theme.name} » appliquée`,
       {
         description:
           effectiveAudience === "pro"
@@ -232,7 +232,7 @@ export function TierThemeSelector({
     }, 5 * 60 * 1000); // 5 minutes d'aperçu
     setPreviewTimer(timer);
 
-    toast.success(`Aperçu Royal activé (5 min) ✨`, {
+    toast.success(`Aperçu Royal activé (5 min)`, {
       description: `Admirez la parure ${theme.name} sur toute votre application.`,
     });
   }
@@ -249,7 +249,7 @@ export function TierThemeSelector({
     setIsManualOverride(false);
     applyTierThemeToDom(def);
     const defObj = TIER_THEMES.find((t) => t.id === def);
-    toast.success("Ambiance royale automatique synchronisée ✨", {
+    toast.success("Ambiance royale automatique synchronisée", {
       description: `Parure alignée sur votre statut officiel : ${defObj?.name ?? "Kènè"}`,
     });
   }

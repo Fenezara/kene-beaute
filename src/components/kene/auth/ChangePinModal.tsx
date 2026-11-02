@@ -84,7 +84,7 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin }: Cha
       const codeOrDev = await requestOtp(targetPhone);
       if (codeOrDev) {
         setDevCode(codeOrDev);
-        toast.info("Code de secours généré ⚡");
+        toast.info("Code de secours généré");
       } else {
         toast.success("Code de vérification envoyé par SMS");
       }

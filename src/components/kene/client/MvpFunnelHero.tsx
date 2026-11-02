@@ -275,7 +275,7 @@ export function MvpFunnelHero({
             </button>
           </div>
           <p className="text-[11px] text-center text-muted-foreground mt-2">
-            💡 Contrôle recommandé tous les 14 jours pour mesurer l&apos;évolution de votre grain de peau.
+            Contrôle recommandé tous les 14 jours pour mesurer l&apos;évolution de votre grain de peau.
           </p>
         </section>
       )}

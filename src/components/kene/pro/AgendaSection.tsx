@@ -441,7 +441,7 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
                     variant="outline"
                     className="h-8 text-xs text-[#25D366] border-[#25D366]/40 hover:bg-[#25D366]/10"
                     onClick={() => {
-                      const msg = `Bonjour ${appt.clientName} ! 🌸\nNous avons bien reçu votre demande de rendez-vous pour *${appt.service?.name || "votre soin"}* prévu le ${formatDate(appt.startAt)} à ${formatTime(appt.startAt)}.\nNous vous confirmons la réservation en cabine ! ✨`;
+                      const msg = `Bonjour ${appt.clientName} ! 🌸\nNous avons bien reçu votre demande de rendez-vous pour *${appt.service?.name || "votre soin"}* prévu le ${formatDate(appt.startAt)} à ${formatTime(appt.startAt)}.\nNous vous confirmons la réservation en cabine !`;
                       openWhatsApp(appt.clientPhone, msg);
                     }}
                   >

@@ -120,7 +120,7 @@ export default function Page() {
 
     const handleOnline = () => {
       console.info("[kene] Connexion réseau rétablie !");
-      toast.success("Connexion rétablie ⚡", {
+      toast.success("Connexion rétablie", {
         description: "Synchronisation automatique des données...",
         duration: 4000,
       });

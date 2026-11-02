@@ -2231,7 +2231,7 @@ export function ResultView({
                 {rec.conseils_hygiene_vie?.length > 0 && (
                   <div className="rounded-xl border border-border bg-muted/40 p-3 shadow-2xs">
                     <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
-                      💡 Conseils d&apos;Hygiène de Vie &amp; Environnement
+                      Conseils d&apos;Hygiène de Vie &amp; Environnement
                     </p>
                     <ul className="space-y-1">
                       {rec.conseils_hygiene_vie.map((s, i) => (

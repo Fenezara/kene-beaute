@@ -1103,7 +1103,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-heading text-[17px] font-black text-[#FFF9EC]">Pro Complexe</span>
                                 <span className="rounded-full bg-[#D49A24]/25 border border-[#D49A24]/50 text-[#F3D98A] px-2.5 py-0.5 text-[10px] font-bold">
-                                  👑 Excellence
+                                  Excellence
                                 </span>
                               </div>
                               <p className="text-[11.5px] text-[#E6D5B8]/80 leading-snug">
@@ -1202,13 +1202,13 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                           {/* Carte Kènè+ */}
                           <div className="rounded-[22px] border-2 border-gold/60 bg-gradient-to-b from-gold/15 via-gold/5 to-card/90 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 relative shadow-lg shadow-gold/10">
                             <span className="absolute -top-3 right-4 rounded-full bg-gradient-to-r from-gold to-terre text-primary-foreground px-3 py-0.5 text-[10px] font-black uppercase tracking-wider shadow">
-                              ✨ 30j offerts (0 FCFA)
+                              30 jours offerts (0 FCFA)
                             </span>
                             <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-heading text-[18px] font-black text-foreground">Pass Kènè+</span>
                                 <span className="rounded-full bg-gold/20 border border-gold/40 px-2.5 py-0.5 text-[10px] font-black text-gold-text">
-                                  👑 Membre Privilège
+                                  Membre Privilège
                                 </span>
                               </div>
                               <p className="text-[12px] text-muted-foreground leading-snug">

@@ -908,7 +908,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                             ? { label: "🌙 Soir", bg: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" }
                             : prod.moment === "matin_soir"
                             ? { label: "☀️🌙 Matin & Soir", bg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" }
-                            : { label: "✨ Hebdo", bg: "bg-pink-500/20 text-pink-300 border-pink-500/30" };
+                            : { label: "Hebdo", bg: "bg-pink-500/20 text-pink-300 border-pink-500/30" };
 
                         return (
                           <div
@@ -936,7 +936,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                               )}
                               {prod.transitionStatus === "new" && (
                                 <div className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/25">
-                                  <span>✨ Nouveau soin</span>
+                                  <span>Nouveau soin</span>
                                 </div>
                               )}
                               <p className="text-[11px] text-[#F5ECDD]/80 leading-relaxed font-sans">

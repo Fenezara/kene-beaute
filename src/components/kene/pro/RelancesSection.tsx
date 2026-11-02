@@ -242,7 +242,7 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
             {
               step: "J+30 · Bilan Time-Lapse",
               desc: "Invite la cliente à scanner son évolution Avant/Après J+30 et renouveler sa cure.",
-              sample: `Bonjour 💛 Cela fait 30 jours depuis ton bilan chez ${tenantName} ! Viens faire ton scan Time-Lapse Avant/Après pour mesurer tes progrès (-% taches PIH) ✨`,
+              sample: `Bonjour 💛 Cela fait 30 jours depuis ton bilan chez ${tenantName} ! Viens faire ton scan Time-Lapse Avant/Après pour mesurer tes progrès (-% taches PIH)`,
             },
           ].map((seq) => (
             <div

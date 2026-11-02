@@ -100,7 +100,7 @@ export function SmartAppInstallModal({
   function handleManualConfirm() {
     haptic(HAPTIC.success);
     setCompleted(true);
-    toast.success("Bienvenue dans l'application Kènè VIP ! ✨", {
+    toast.success("Bienvenue dans l'application Kènè VIP !", {
       description: "Profitez de votre expérience fluide et sécurisée.",
     });
     snoozeInstallPrompt(30);
@@ -251,7 +251,7 @@ export function SmartAppInstallModal({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                🤖 Android / Chrome
+                Android / Chrome
               </button>
             </div>
 
