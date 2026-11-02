@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { ApiError, apiGet, apiPatch, apiPost } from "@/lib/kene/api";
 import { rememberAccount } from "@/lib/kene/last-account";
 import { xof } from "@/lib/kene/format";
-import { FILLEUL_GIFT } from "@/lib/kene/referral";
+import { FILLEUL_GIFT_DAYS } from "@/lib/kene/referral";
 import { AuroraBackdrop, Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem } from "@/components/kene/ui2026";
 import { CauriIcon, KeneEmblemLockup } from "@/components/kene/icons";
 import { useT } from "@/lib/kene/use-t";
@@ -660,7 +660,7 @@ export function Onboarding({
                       aria-describedby="parrain-hint"
                     />
                     <p id="parrain-hint" className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                      {xof(FILLEUL_GIFT)} de bienvenue offerts dès ton inscription — et ta parraine reçoit sa récompense à ta première commande.
+                      {FILLEUL_GIFT_DAYS} jours d&apos;abonnement Kènè+ offerts dès ton inscription pour faire ton diagnostic de peau.
                     </p>
                   </div>
                 </RevealItem>

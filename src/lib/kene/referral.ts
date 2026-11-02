@@ -1,38 +1,133 @@
 // Kènè — « Le Fil du Parrainage »: lib PURE partagée serveur + client (zéro dépendance)
-// Le fil qui relie les amies: la filleule échange un code, le parrain est récompensé
-// à la première commande PAYÉE de sa filleule (boucle de croissance honnête).
+// Zéro argent liquide, zéro produit physique. 100% logiciel & santé de la peau:
+// - Filleule: 30 jours de Kènè+ offerts dès l'activation de son compte
+// - Marraine: Paliers de mois d'abonnements Kènè+ offerts (Initié à 5 amies = 1 mois, etc.)
 import { waLink } from "./followups";
 
-// ─────────────── Constantes métier (source unique) ───────────────
-/** Cadeau de bienvenue crédité immédiatement à la filleule qui valide un code */
-export const FILLEUL_GIFT = 2_000;
-/** Bonus crédité au parrain à la première commande PAYÉE de sa filleule */
-export const PARRAIN_REWARD = 2_500;
+// ─────────────── Paliers de Parrainage Kènè 2026 ───────────────
+export interface ReferralTier {
+  id: "debutante" | "initie" | "ambassadrice" | "cercle_dor" | "icone";
+  name: string;
+  minInvitees: number;
+  monthsGranted: number;
+  perks: string;
+}
 
-// ─────────────── Clés de déduplication (WalletTransaction.refId) ───────────────
-/** refId du bonus parrain — une seule récompense par filleule */
-export function parrainRewardRefId(filleulId: string): string {
-  return `parrain:${filleulId}`;
+export const REFERRAL_TIERS: ReferralTier[] = [
+  {
+    id: "initie",
+    name: "Initié",
+    minInvitees: 5,
+    monthsGranted: 1,
+    perks: "1 mois Kènè+ offert (30 jours)",
+  },
+  {
+    id: "ambassadrice",
+    name: "Ambassadrice",
+    minInvitees: 15,
+    monthsGranted: 3,
+    perks: "3 mois Kènè+ offerts + Module Évolution Cutanée HD (Time-Lapse)",
+  },
+  {
+    id: "cercle_dor",
+    name: "Cercle d'Or",
+    minInvitees: 30,
+    monthsGranted: 6,
+    perks: "6 mois Kènè+ offerts + Accès Bêta IA Prioritaire",
+  },
+  {
+    id: "icone",
+    name: "Icône Beauté",
+    minInvitees: 50,
+    monthsGranted: 12,
+    perks: "1 an complet Kènè+ offert (12 mois) + Badge Privilège à vie",
+  },
+];
+
+/** Calcule le nombre total de mois Kènè+ mérités selon le nombre d'amies actives */
+export function calculateGrantedMonths(activeInvitees: number): number {
+  if (activeInvitees < 5) return 0;
+  if (activeInvitees < 15) return 1;
+  if (activeInvitees < 30) return 3;
+  if (activeInvitees < 50) return 6;
+  // 50 amies = 12 mois (1 an complet). Au-delà, +1 mois tous les 5 amies
+  return 12 + Math.floor((activeInvitees - 50) / 5);
 }
-/** refId du cadeau filleule */
-export function filleulGiftRefId(filleulId: string): string {
-  return `gift:${filleulId}`;
+
+/** Identifie le palier actuel et le prochain palier à atteindre */
+export function getReferralProgress(activeInvitees: number) {
+  const currentMonths = calculateGrantedMonths(activeInvitees);
+  
+  if (activeInvitees < 5) {
+    return {
+      tierName: "En route vers Initié",
+      currentTier: null,
+      nextTier: REFERRAL_TIERS[0],
+      neededForNext: 5 - activeInvitees,
+      progressPct: Math.round((activeInvitees / 5) * 100),
+      currentMonths: 0,
+    };
+  }
+  if (activeInvitees < 15) {
+    return {
+      tierName: "Initié",
+      currentTier: REFERRAL_TIERS[0],
+      nextTier: REFERRAL_TIERS[1],
+      neededForNext: 15 - activeInvitees,
+      progressPct: Math.round(((activeInvitees - 5) / (15 - 5)) * 100),
+      currentMonths,
+    };
+  }
+  if (activeInvitees < 30) {
+    return {
+      tierName: "Ambassadrice",
+      currentTier: REFERRAL_TIERS[1],
+      nextTier: REFERRAL_TIERS[2],
+      neededForNext: 30 - activeInvitees,
+      progressPct: Math.round(((activeInvitees - 15) / (30 - 15)) * 100),
+      currentMonths,
+    };
+  }
+  if (activeInvitees < 50) {
+    return {
+      tierName: "Cercle d'Or",
+      currentTier: REFERRAL_TIERS[2],
+      nextTier: REFERRAL_TIERS[3],
+      neededForNext: 50 - activeInvitees,
+      progressPct: Math.round(((activeInvitees - 30) / (50 - 30)) * 100),
+      currentMonths,
+    };
+  }
+  return {
+    tierName: "Icône Beauté",
+    currentTier: REFERRAL_TIERS[3],
+    nextTier: null,
+    neededForNext: 0,
+    progressPct: 100,
+    currentMonths,
+  };
 }
+
+/** Cadeau de bienvenue pour la filleule (en jours d'abonnement Kènè+) */
+export const FILLEUL_GIFT_DAYS = 30;
+
+/** @deprecated Ancien bonus cash conservé pour compatibilité — Kènè est 100% abonnements */
+export const FILLEUL_GIFT = 0;
+export const PARRAIN_REWARD = 0;
 
 // ─────────────── Partage WhatsApp ───────────────
-/** Message de partage du code parrain (≤ 300 caractères, ton Kènè chaleureux) */
-export function referralShareMessage(code: string, firstName: string, giftAmount: number): string {
-  const gift = `${giftAmount.toLocaleString("fr-FR")} FCFA`;
+/** Message de partage du code parrain orienté santé de la peau et mois offerts */
+export function referralShareMessage(code: string, firstName: string): string {
   return (
-    `Salut ! 🧡 C'est ${firstName} — je t'invite sur Kènè, l'app de soins pensée pour nos peaux. ` +
-    `Scanne ton visage, reçois ta routine botanique et ${gift} de bienvenue ` +
-    `avec mon code : ${code}`
+    `Coucou ! 🌿 C'est ${firstName}. J'analyse ma peau avec l'intelligence artificielle de Kènè. ` +
+    `Je t'offre 1 mois d'abonnement Kènè+ gratuit pour faire ton diagnostic facial et découvrir ta routine sur-mesure ! ` +
+    `Utilise mon code : ${code}`
   );
 }
 
-/** Lien WhatsApp pré-rempli pour partager son code (sans numéro = choisir le contact) */
-export function referralWaLink(code: string, firstName: string, giftAmount: number): string {
-  return waLink("", referralShareMessage(code, firstName, giftAmount));
+/** Lien WhatsApp pré-rempli pour inviter une ou plusieurs amies */
+export function referralWaLink(code: string, firstName: string): string {
+  return waLink("", referralShareMessage(code, firstName));
 }
 
 // ─────────────── Types du contrat API ───────────────
@@ -40,20 +135,19 @@ export interface ReferralInvitee {
   id: string;
   name: string;
   joinedAt: string; // ISO
-  firstOrderAt: string | null; // ISO — première commande PAYÉE
-  rewarded: boolean; // parrain a touché son bonus grâce à elle
+  hasScanned: boolean; // A fait son diagnostic de peau
 }
 
 export interface ReferralSummary {
   code: string;
- /** Filleul: son parrain (null si pas encore parrainée) */
-  referredBy: { id: string; name: string; rewarded: boolean } | null;
+  referredBy: { id: string; name: string } | null;
   invitees: ReferralInvitee[];
-  stats: { invitees: number; rewarded: number; earnings: number }; // gains = bonus parrains cumulés
+  stats: {
+    totalInvitees: number;
+    activeInvitees: number; // ont scanné leur peau
+    monthsGranted: number; // mois kènè+ débloqués
+    nextTierGoal: number; // prochain seuil (5, 15, 30, 50)
+    currentTier: string;
+    progressPct: number;
+  };
 }
-
-// ─────────────── Labels UI (partagés) ───────────────
-export const REFERRAL_LABELS = {
-  gift: (amount: number) => `Cadeau de bienvenue +${amount.toLocaleString("fr-FR")} FCFA`,
-  reward: (amount: number) => `Bonus parrain +${amount.toLocaleString("fr-FR")} FCFA`,
-} as const;

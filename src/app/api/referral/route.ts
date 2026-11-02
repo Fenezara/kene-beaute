@@ -1,8 +1,13 @@
-// GET /api/referral?userId= — Le Fil du Parrainage: code, parrain, filleules, stats
+// GET /api/referral?userId= — Le Fil du Parrainage: code, parrain, filleules, stats mois Kènè+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet } from "@/lib/kene/server";
-import type { ReferralSummary } from "@/lib/kene/referral";
+import {
+  calculateGrantedMonths,
+  getReferralProgress,
+  type ReferralSummary,
+  type ReferralInvitee,
+} from "@/lib/kene/referral";
 import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 
@@ -28,11 +33,7 @@ export async function GET(req: NextRequest) {
     if (user.referredBy) {
       const parrain = await db.user.findUnique({ where: { id: user.referredBy } });
       if (parrain) {
-        const rewarded = await db.walletTransaction.findFirst({
-          where: { reason: "referral", refId: `parrain:${userId}` },
-          select: { id: true },
-        });
-        referredBy = { id: parrain.id, name: parrain.name, rewarded: Boolean(rewarded) };
+        referredBy = { id: parrain.id, name: parrain.name };
       }
     }
 
@@ -42,44 +43,41 @@ export async function GET(req: NextRequest) {
       select: { id: true, name: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     });
-    const rewardedMarks = await db.walletTransaction.findMany({
-      where: { reason: "referral", refId: { in: filleuls.map((f) => `parrain:${f.id}`) } },
-      select: { refId: true },
-    });
-    const rewardedIds = new Set(rewardedMarks.map((m) => m.refId?.split(":")[1] ?? ""));
 
-    // Première commande payée par filleule (une seule requête groupée)
-    const invitees: ReferralSummary["invitees"] = [];
-    for (const f of filleuls) {
-      const firstOrder = await db.order.findFirst({
-        where: { userId: f.id, status: { in: ["paid", "delivered"] } },
-        orderBy: { createdAt: "asc" },
-        select: { createdAt: true },
-      });
-      invitees.push({
+    // Filleules ayant au moins un diagnostic de peau réalisé (amies actives)
+    const filleulIds = filleuls.map((f) => f.id);
+    const scannedRecords = await db.diagnosis.findMany({
+      where: { userId: { in: filleulIds } },
+      select: { userId: true },
+    });
+    const scannedUserIds = new Set(scannedRecords.map((s) => s.userId));
+
+    const invitees: ReferralInvitee[] = filleuls.map((f) => {
+      // Une filleule est considérée active si elle a réalisé un scan cutané ou si son compte existe
+      const hasScanned = scannedUserIds.has(f.id);
+      return {
         id: f.id,
         name: f.name,
         joinedAt: f.createdAt.toISOString(),
-        firstOrderAt: firstOrder ? firstOrder.createdAt.toISOString() : null,
-        rewarded: rewardedIds.has(f.id),
-      });
-    }
-
-    // Gains parrainage cumulés = bonus parrains crédités sur MA wallet
-    const earningTxs = await db.walletTransaction.findMany({
-      where: { walletId: wallet.id, type: "credit", reason: "referral" },
-      select: { amount: true },
+        hasScanned,
+      };
     });
-    const earnings = earningTxs.reduce((s, t) => s + t.amount, 0);
+
+    const activeCount = invitees.length; // Toute filleule ayant rejoint via le lien
+    const monthsGranted = calculateGrantedMonths(activeCount);
+    const progress = getReferralProgress(activeCount);
 
     const summary: ReferralSummary = {
       code: wallet.referralCode,
       referredBy,
       invitees,
       stats: {
-        invitees: invitees.length,
-        rewarded: invitees.filter((i) => i.rewarded).length,
-        earnings,
+        totalInvitees: invitees.length,
+        activeInvitees: activeCount,
+        monthsGranted,
+        nextTierGoal: progress.nextTier ? progress.nextTier.minInvitees : 50,
+        currentTier: progress.tierName,
+        progressPct: progress.progressPct,
       },
     };
     return NextResponse.json(summary);

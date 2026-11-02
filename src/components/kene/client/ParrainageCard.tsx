@@ -1,16 +1,20 @@
 "use client";
-// Kènè Cliente — « Le Fil du Parrainage »: partage ton code, suis tes filleules,
-// échange le code d'une amie (cadeau de bienvenue immédiat, bonus parrain à sa 1ʳᵉ commande).
+// Kènè Cliente — « Le Fil du Parrainage »: partage ton code, cumule tes mois d'abonnement
+// Kènè+ et débloque les paliers exclusifs (Initié: 5 amies = 1 mois Kènè+).
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Copy, Gift, HeartHandshake, Loader2, Send } from "lucide-react";
+import { Check, Copy, Gift, HeartHandshake, Loader2, Send, Sparkles, Trophy, Users } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
-import { formatDate, xof } from "@/lib/kene/format";
-import { FILLEUL_GIFT, PARRAIN_REWARD, referralWaLink, type ReferralSummary } from "@/lib/kene/referral";
+import { formatDate } from "@/lib/kene/format";
+import {
+  referralWaLink,
+  REFERRAL_TIERS,
+  FILLEUL_GIFT_DAYS,
+  type ReferralSummary,
+} from "@/lib/kene/referral";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CauriIcon } from "@/components/kene/icons";
 import { SectionTitle } from "./bits";
 
 export function ParrainageCard({ userId, userName, onRedeemed }: { userId: string; userName: string; onRedeemed?: () => void }) {
@@ -37,7 +41,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
     try {
       await navigator.clipboard.writeText(data.code);
       setCopied(true);
-      toast.success("Code copié — colle-le à ton amie 🧡");
+      toast.success("Code copié — partage-le à tes amies 🌿");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Copie impossible — note le code à la main");
@@ -46,7 +50,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
 
   function shareWhatsapp() {
     if (!data) return;
-    window.open(referralWaLink(data.code, userName.split(" ")[0], FILLEUL_GIFT), "_blank", "noopener");
+    window.open(referralWaLink(data.code, userName.split(" ")[0]), "_blank", "noopener");
   }
 
   async function submitCode() {
@@ -57,8 +61,8 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
     }
     setBusy(true);
     try {
-      const r = await apiPost<{ gift: number; parrain: { name: string } }>("/api/referral/redeem", { userId, code: trimmed });
-      toast.success(`Bienvenue dans le fil ! Cadeau de ${xof(r.gift)} crédité 💛`);
+      const r = await apiPost<{ giftDays: number; parrain: { name: string } }>("/api/referral/redeem", { userId, code: trimmed });
+      toast.success(`Bienvenue ! ${r.giftDays} jours de Kènè+ viennent d'être activés sur ton compte 💛`);
       setRedeemOpen(false);
       setCode("");
       load();
@@ -71,7 +75,6 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
   }
 
   const firstName = userName.split(" ")[0];
-  const shareLead = /^nouvelle/i.test(userName) || !firstName ? "Ton fil à partager" : `${firstName} partage son fil`;
 
   return (
     <section aria-labelledby="par-t">
@@ -79,8 +82,8 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
 
       {data === null && !failed && (
         <div className="space-y-2">
-          <Skeleton className="h-36 rounded-3xl" />
-          <Skeleton className="h-16 rounded-2xl" />
+          <Skeleton className="h-44 rounded-3xl" />
+          <Skeleton className="h-20 rounded-2xl" />
         </div>
       )}
 
@@ -94,83 +97,134 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
       )}
 
       {data && (
-        <div className="space-y-3">
-          {/* Carte code — le fil à partager */}
+        <div className="space-y-4">
+          {/* Carte Code & Partage WhatsApp */}
           <div className="rounded-3xl bg-[#1A1410] text-[#F8F1E4] p-5 shadow-md relative overflow-hidden">
-            <div aria-hidden="true" className="absolute inset-0 kente-band-soft opacity-25" />
+            <div aria-hidden="true" className="absolute inset-0 kente-band-soft opacity-20" />
             <div className="relative">
-              <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Ton code à tisser entre amies</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <p className="font-mono font-black text-2xl tracking-wide flex-1 truncate" aria-label={`Code parrain ${data.code}`}>{data.code}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[#C8951E] font-bold">Ton Cercle de Beauté</p>
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-[#C8951E]/20 text-[#E3B454] border border-[#C8951E]/30">
+                  <Sparkles size={10} /> {data.stats.currentTier}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <p className="font-mono font-black text-2xl tracking-wide flex-1 truncate text-[#FFF9EC]" aria-label={`Code parrain ${data.code}`}>{data.code}</p>
                 <button onClick={copyCode} aria-label="Copier mon code parrain" className="h-11 w-11 shrink-0 grid place-items-center rounded-xl bg-[#C8951E]/15 border border-[#C8951E]/50 text-[#E3B454] active:scale-90 transition-transform focus-visible:outline-2 focus-visible:outline-[#C8951E]">
                   {copied ? <Check size={17} /> : <Copy size={17} />}
                 </button>
               </div>
-              <p className="text-[11px] opacity-80 mt-2 leading-relaxed">
-                <CauriIcon size={11} className="inline -mt-0.5 mr-1 text-[#C8951E]" aria-hidden="true" />
-                {shareLead} : ton amie reçoit <span className="font-bold text-[#E3B454]">{xof(FILLEUL_GIFT)}</span> à l&apos;inscription, toi <span className="font-bold text-[#E3B454]">{xof(PARRAIN_REWARD)}</span> dès sa 1ʳᵉ commande <strong className="text-[#E3B454] font-bold">+ 1 Fil d&apos;Or</strong> tissé sur ton Kente.
+
+              <p className="text-[12px] opacity-90 mt-2.5 leading-relaxed">
+                Offre <strong className="text-[#E3B454] font-bold">30 jours de Kènè+</strong> à tes amies. 
+                Dès <strong className="text-[#E3B454] font-bold">5 amies inscrites</strong>, gagne <strong className="text-[#E3B454] font-bold">1 mois d&apos;abonnement Kènè+ offert</strong> (et jusqu&apos;à 1 an complet !).
               </p>
-              <button onClick={shareWhatsapp} className="mt-4 h-11 w-full rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#25D366]">
-                <Send size={16} /> Inviter une amie sur WhatsApp
+
+              <button onClick={shareWhatsapp} className="mt-4 h-12 w-full rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-md focus-visible:outline-2 focus-visible:outline-[#25D366]">
+                <Send size={16} /> Inviter mes amies sur WhatsApp
               </button>
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-2xl border border-border bg-card p-3 text-center">
-              <p className="font-mono font-black text-lg" aria-label={`${data.stats.invitees} filleules`}>{data.stats.invitees}</p>
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mt-0.5">Filleules</p>
+          {/* Jauge de Progression des Paliers */}
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trophy size={16} className="text-[#C8951E]" />
+                <span className="text-xs font-bold text-foreground">Objectif : {data.stats.nextTierGoal} amies</span>
+              </div>
+              <span className="text-xs font-mono font-bold text-primary">{data.stats.totalInvitees} / {data.stats.nextTierGoal} amies</span>
             </div>
-            <div className="rounded-2xl border border-border bg-card p-3 text-center">
-              <p className="font-mono font-black text-lg text-[#3F7D3F]" aria-label={`${data.stats.rewarded} récompensées`}>{data.stats.rewarded}</p>
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mt-0.5">Récompensées</p>
+
+            <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-[#C8951E] to-[#25D366] rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, data.stats.progressPct)}%` }}
+              />
             </div>
-            <div className="rounded-2xl border border-border bg-card p-3 text-center">
-              <p className="font-mono font-black text-base sm:text-lg text-gold-text truncate" title={`${data.stats.earnings.toLocaleString("fr-FR")} FCFA`} aria-label={`Gains ${data.stats.earnings} FCFA`}>{data.stats.earnings.toLocaleString("fr-FR")}</p>
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mt-0.5">Gains FCFA</p>
+
+            {/* Statistiques clés */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="rounded-xl bg-muted/50 p-2.5 text-center">
+                <p className="font-mono font-black text-xl text-primary">{data.stats.totalInvitees}</p>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Amies Réunies</p>
+              </div>
+              <div className="rounded-xl bg-muted/50 p-2.5 text-center">
+                <p className="font-mono font-black text-xl text-[#25D366]">{data.stats.monthsGranted} mois</p>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Kènè+ Gagnés</p>
+              </div>
             </div>
           </div>
 
-          {/* Filleules */}
+          {/* Grille des Paliers Kènè */}
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Paliers de privilèges</p>
+            <div className="space-y-2">
+              {REFERRAL_TIERS.map((tier) => {
+                const unlocked = data.stats.totalInvitees >= tier.minInvitees;
+                return (
+                  <div 
+                    key={tier.id}
+                    className={`flex items-start gap-3 p-2.5 rounded-xl border text-xs transition-colors ${
+                      unlocked 
+                        ? "border-[#25D366]/40 bg-[#25D366]/5 text-foreground font-medium" 
+                        : "border-border/60 bg-muted/20 text-muted-foreground"
+                    }`}
+                  >
+                    <span className={`grid place-items-center h-6 w-6 rounded-full shrink-0 text-[11px] font-bold ${
+                      unlocked ? "bg-[#25D366] text-white" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {unlocked ? "✓" : tier.minInvitees}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className={`font-bold ${unlocked ? "text-[#1b8742]" : "text-foreground"}`}>{tier.name} ({tier.minInvitees} amies)</p>
+                        <span className="text-[10px] font-bold">{tier.monthsGranted} {tier.monthsGranted > 1 ? "mois" : "mois"}</span>
+                      </div>
+                      <p className="text-[11px] opacity-80 mt-0.5">{tier.perks}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Liste des amies ayant rejoint */}
           {data.invitees.length > 0 && (
-            <div className="rounded-2xl border border-border bg-card divide-y divide-border max-h-44 overflow-y-auto scrollbar-thin" role="list" aria-label="Mes filleules">
+            <div className="rounded-2xl border border-border bg-card divide-y divide-border max-h-48 overflow-y-auto scrollbar-thin" role="list" aria-label="Mes amies">
               {data.invitees.map((f) => (
                 <div key={f.id} role="listitem" className="flex items-center gap-3 px-4 py-3">
-                  <span className="grid place-items-center h-9 w-9 rounded-full shrink-0 bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-heading font-black text-sm" aria-hidden="true">
+                  <span className="grid place-items-center h-8 w-8 rounded-full shrink-0 bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-bold text-xs" aria-hidden="true">
                     {f.name.charAt(0)}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold truncate">{f.name}</p>
-                    <p className="text-[10px] text-muted-foreground">Rejointe le {formatDate(f.joinedAt, { day: "numeric", month: "short" })}</p>
+                    <p className="text-[10px] text-muted-foreground">Inscrite le {formatDate(f.joinedAt, { day: "numeric", month: "short" })}</p>
                   </div>
-                  {f.rewarded ? (
-                    <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-[#3F7D3F]/15 text-[#3F7D3F] whitespace-nowrap">+{xof(PARRAIN_REWARD)} ✓</span>
-                  ) : (
-                    <span className="rounded-full px-2.5 py-1 text-[10px] font-bold bg-muted text-muted-foreground whitespace-nowrap">1ʳᵉ commande…</span>
-                  )}
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-[#25D366]/15 text-[#1b8742] whitespace-nowrap">
+                    30j Kènè+ activés ✓
+                  </span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Parrain (le fil qui m'a reliée) OU échange de code */}
+          {/* Parrain / Marraine OU échange de code */}
           {data.referredBy ? (
-            <div className="rounded-2xl border border-[#C8951E]/40 bg-[#C8951E]/5 p-4 flex items-center gap-3">
-              <span className="grid place-items-center h-10 w-10 rounded-full bg-[#C8951E]/15 text-[#C8951E] shrink-0"><Gift size={18} /></span>
+            <div className="rounded-2xl border border-[#C8951E]/40 bg-[#C8951E]/5 p-3.5 flex items-center gap-3">
+              <span className="grid place-items-center h-9 w-9 rounded-full bg-[#C8951E]/15 text-[#C8951E] shrink-0"><Gift size={16} /></span>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold">Parrainée par {data.referredBy.name}</p>
+                <p className="text-xs font-semibold">Invitée par {data.referredBy.name}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {data.referredBy.rewarded
-                    ? "Ton bonus lui a été offert grâce à ta première commande 💛"
-                    : `Elle recevra ${xof(PARRAIN_REWARD)} dès ta première commande.`}
+                  Tu as bénéficié de 30 jours de Kènè+ offerts grâce à son invitation.
                 </p>
               </div>
             </div>
           ) : (
             <button onClick={() => setRedeemOpen(true)} className="w-full rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
-              <p className="flex items-center gap-2 font-heading font-bold text-sm text-primary"><Gift size={16} /> Une amie t&apos;a donné son code ?</p>
-              <p className="text-xs text-muted-foreground mt-1">Échange-le et reçois {xof(FILLEUL_GIFT)} de réduction de bienvenue.</p>
+              <p className="flex items-center gap-2 font-heading font-bold text-sm text-primary"><Gift size={16} /> Une amie t&apos;a partagé son code ?</p>
+              <p className="text-xs text-muted-foreground mt-1">Saisis-le pour activer immédiatement 30 jours d&apos;abonnement Kènè+ offerts.</p>
             </button>
           )}
         </div>
@@ -180,14 +234,14 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
       <Sheet open={redeemOpen} onOpenChange={(o) => { setRedeemOpen(o); if (!o) setCode(""); }}>
         <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
           <SheetHeader className="text-left">
-            <SheetTitle className="font-heading font-black">Le code de ton amie</SheetTitle>
+            <SheetTitle className="font-heading font-black">Activer le code d&apos;une amie</SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-6 space-y-4">
             <p className="text-xs text-muted-foreground -mt-1">
-              Demande-le à celle qui t&apos;a invitée — tu recevras <span className="font-bold text-foreground">{xof(FILLEUL_GIFT)}</span> de bienvenue, et elle <span className="font-bold text-foreground">{xof(PARRAIN_REWARD)}</span> dès ta première commande.
+              Saisis le code partagé par ton amie pour débloquer <span className="font-bold text-foreground">30 jours de Kènè+ offerts</span> et accéder à ton diagnostic facial complet.
             </p>
             <div>
-              <label htmlFor="par-code" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Code parrain</label>
+              <label htmlFor="par-code" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Code Kènè</label>
               <input
                 id="par-code"
                 value={code}
@@ -204,7 +258,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
               disabled={busy}
               className="h-12 w-full rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              {busy ? <Loader2 size={16} className="animate-spin" /> : <Gift size={16} />} Échanger mon code
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Gift size={16} />} Activer mes 30 jours offerts
             </motion.button>
           </div>
         </SheetContent>

@@ -1,17 +1,14 @@
 // POST /api/referral/redeem — { userId, code }: échange du code d'une amie
-// GET /api/referral/redeem?_g=… — pont (même payload JSON en query):
-// le parrainage fait partie du questionnaire d'inscription d'une nouvelle
-// cliente — il doit passer même chez les préviews qui bloquent les POST.
-// Effets: filleule reçoit son cadeau de bienvenue immédiatement, parrain notifié,
-// le parrain sera récompensé à la première commande PAYÉE de la filleule.
+// Zéro cash, zéro produit physique. 100% logiciel et abonnements santé Kènè+:
+// - La filleule reçoit immédiatement 30 jours de Kènè+ offerts.
+// - La marraine progresse sur ses paliers (5 amies = 1 mois offert, etc.).
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
-import { FILLEUL_GIFT, PARRAIN_REWARD, filleulGiftRefId } from "@/lib/kene/referral";
+import { jsonError, serverError, ensureWallet, notify } from "@/lib/kene/server";
+import { FILLEUL_GIFT_DAYS, calculateGrantedMonths, getReferralProgress } from "@/lib/kene/referral";
 import { grantGiftDays } from "@/lib/kene/plans";
 import { guardUserClaim } from "@/lib/kene/session";
-import { xof } from "@/lib/kene/format";
 import { rateLimit, rlKey, rateLimitResponse, REFERRAL_REDEEM } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 
@@ -37,8 +34,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous
-// (rate-limit, session signée via cookie, validations zod).
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "referral:redeem"), REFERRAL_REDEEM);
   if (!rl.ok) {
@@ -61,8 +56,6 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const { userId, code: rawCode } = data;
   const code = rawCode.toUpperCase().trim();
 
-  // Session signée (migration douce): avec cookie, le code ne
-  // s'échange que pour le compte de la session; sans cookie → legacy.
   const guard = guardUserClaim(req, "referral:redeem", userId);
   if (guard) return guard;
 
@@ -76,7 +69,6 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
     return jsonError("Ce code est le tien — partage-le à une amie ! 💛", 400);
   }
 
-  // Codes stockés en casse variable (seed « MARIAM-KENE », générés « KENE-XXXX ») → essais exacts
   let parrainWallet =
     (await db.wallet.findUnique({ where: { referralCode: code } })) ??
     (await db.wallet.findUnique({ where: { referralCode: rawCode.trim() } }));
@@ -86,60 +78,81 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
   if (!parrain) return jsonError("Code inconnu — vérifie auprès de ton amie", 404);
   if (parrain.referredBy === user.id) return jsonError("Ce code ne peut pas être utilisé (échange croisé)", 400);
 
-  // Enregistre le fil + cadeau de bienvenue filleule (une seule fois via referredBy)
+  // 1. Enregistre le rattachement
   await db.user.update({ where: { id: user.id }, data: { referredBy: parrain.id } });
-  const wallet = await creditWallet(myWallet.id, FILLEUL_GIFT, "referral", filleulGiftRefId(user.id));
 
-  //  — AMBASSADRICES: la marraine CLIENTE reçoit 30 jours de Kènè+
-  // offerts dès que sa filleule rejoint (geste 0 F TRACÉ source
-  // "referral_gift" — jamais d'écrasement, IFRS 15 comme l'offre Console).
-  // Les comptes pro/admin ne reçoivent pas le cadeau (leur plan vit dans
-  // l'espace Pro) ; l'échec « plan différent actif » (impossible pour une
-  // cliente en pratique) est absorbé sans casser l'échange.
-  let referralGift: { until: string } | null = null;
-  if (parrain.role === "client") {
+  // 2. Offre 30 jours de Kènè+ à la FILLEULE
+  let filleulGiftDays = 0;
+  try {
+    const filleulGift = await grantGiftDays(user.id, "kene_plus", FILLEUL_GIFT_DAYS, "filleul_welcome");
+    filleulGiftDays = FILLEUL_GIFT_DAYS;
+  } catch (e) {
+    // Si la filleule a déjà un abonnement spécifique
+  }
+
+  // 3. Calcul du nouveau total d'amies pour la marraine
+  const priorFilleulsCount = await db.user.count({ where: { referredBy: parrain.id } });
+  const previousMonths = calculateGrantedMonths(priorFilleulsCount - 1);
+  const newMonths = calculateGrantedMonths(priorFilleulsCount);
+
+  let parrainBonusDays = 0;
+  // Si le nouveau total franchit un palier de mois (ex: 5 amies = 1er mois, etc.)
+  if (newMonths > previousMonths && parrain.role === "client") {
+    const monthsDiff = newMonths - previousMonths;
+    parrainBonusDays = monthsDiff * 30;
     try {
-      const gift = await grantGiftDays(parrain.id, "kene_plus", 30, "referral_gift");
-      referralGift = { until: gift.subscription.expiresAt.toISOString() };
+      const parrainGift = await grantGiftDays(parrain.id, "kene_plus", parrainBonusDays, "referral_tier_reward");
+      const progress = getReferralProgress(priorFilleulsCount);
       await notify({
         userId: parrain.id,
         channel: "whatsapp",
         toPhone: parrain.phone,
-        message: `Kènè : ${user.name} a rejoint avec ton code 🎁 30 jours de Kènè+ offerts — actifs jusqu'au ${gift.subscription.expiresAt.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} 💛`,
+        message: `Félicitations ${parrain.name} ! 🌟 Grâce à l'arrivée de ${user.name}, tu as réuni ${priorFilleulsCount} amies et débloqué le palier ${progress.tierName} ! +${parrainBonusDays} jours d'abonnement Kènè+ viennent d'être ajoutés à ton compte 💛`,
       });
     } catch {
-      // Pas de cadeau (plan différent actif) — l'échange reste valide.
+      // Ignorer si déjà sur un plan supérieur
     }
+  } else {
+    // Notification de progression sans palier
+    const progress = getReferralProgress(priorFilleulsCount);
+    const needed = progress.neededForNext;
+    await notify({
+      userId: parrain.id,
+      channel: "whatsapp",
+      toPhone: parrain.phone,
+      message: `Kènè : ${user.name} a rejoint avec ton code ! 🌸 Tu as maintenant ${priorFilleulsCount} amie(s) dans ton cercle. Plus que ${needed} pour débloquer votre prochain mois Kènè+ offert !`,
+    });
   }
 
-  await notify({
-    userId: parrain.id,
-    channel: "whatsapp",
-    toPhone: parrain.phone,
-    message: `Kènè : ${user.name} a rejoint la communauté avec ton code 🧡 Tu recevras ${xof(PARRAIN_REWARD)} dès sa première commande.`,
-  });
+  // 4. Notification bienvenue filleule
   await notify({
     userId: user.id,
     channel: "sms",
     toPhone: user.phone,
-    message: `Kènè : bienvenue ${user.name} ! Cadeau de bienvenue de ${xof(FILLEUL_GIFT)} crédité sur ton wallet 💛`,
+    message: `Bienvenue sur Kènè ${user.name} ! 30 jours d'abonnement Kènè+ te sont offerts par ${parrain.name} pour réaliser ton diagnostic de peau 🌿`,
   });
+
   await db.auditLog.create({
     data: {
       userId: user.id,
       action: "referral_redeem",
-      entity: "wallet",
-      entityId: myWallet.id,
-      detailsJson: JSON.stringify({ parrainId: parrain.id, filleulId: user.id, code, gift: FILLEUL_GIFT, kenePlusGiftDays: referralGift ? 30 : 0 }),
+      entity: "subscription",
+      entityId: user.id,
+      detailsJson: JSON.stringify({
+        parrainId: parrain.id,
+        filleulId: user.id,
+        code,
+        filleulGiftDays,
+        parrainBonusDays,
+        totalInvitees: priorFilleulsCount,
+      }),
     },
   });
 
   return NextResponse.json({
     ok: true,
-    gift: FILLEUL_GIFT,
-    wallet,
+    giftDays: FILLEUL_GIFT_DAYS,
     parrain: { id: parrain.id, name: parrain.name },
-    // Mention du cadeau Kènè+ pour l'écran de confirmation filleule.
-    parrainGiftDays: referralGift ? 30 : 0,
+    parrainGiftDays: parrainBonusDays,
   });
 }
