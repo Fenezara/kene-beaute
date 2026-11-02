@@ -359,6 +359,8 @@ model InventoryMovement {
   qty       Int
   reason    String
   createdAt DateTime @default(now())
+
+  @@index([tenantId, productId, createdAt])
 }
 
 // ─────────────────────────── Wallet & Paiements ───────────────────────────
@@ -438,6 +440,9 @@ model OrderItem {
   qty       Int     @default(1)
   unitPrice Int
   total     Int
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 // ───────────────────── Coupons boutique (Sprint 6) ─────────────────────
@@ -673,6 +678,8 @@ model JournalEntry {
   sourceId   String?
   lines      JournalLine[]
   createdAt  DateTime @default(now())
+
+  @@index([tenantId, journalCode, date])
 }
 
 model JournalLine {

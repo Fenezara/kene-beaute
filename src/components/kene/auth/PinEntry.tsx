@@ -160,76 +160,9 @@ export function PinEntry() {
       navigateToHome();
       return true;
     } catch (e) {
-      const isNetwork = typeof navigator !== "undefined" && !navigator.onLine;
-      if ((isNetwork || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message))) && mode === "pro") {
-        const offlineUser: SessionUser = {
-          id: "pro_offline_manager",
-          name: name || "Gérante (Hors-ligne)",
-          phone: phone || "+2250100000000",
-          role: "pro",
-          employeeRole: "manager",
-          tenantId: DEFAULT_FALLBACK_TENANT_ID,
-        };
-        rememberAccount({
-          phone: offlineUser.phone,
-          name: offlineUser.name,
-          role: "pro",
-        });
-        try {
-          localStorage.setItem("kene-store", JSON.stringify({
-            state: {
-              space: "pro",
-              user: offlineUser,
-              proTenantId: DEFAULT_FALLBACK_TENANT_ID,
-              clientTab: "accueil",
-              cart: [],
-            },
-            version: 1,
-          }));
-        } catch {}
-        setUser(offlineUser);
-        setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
-        setSpace("pro");
-        toast.success("Mode Hors-ligne activé : Espace Institut & Caisse ouverts 📴");
-        navigateToHome();
-        return true;
-      }
       toast.error(e instanceof Error ? e.message : "Code secret incorrect");
       return false;
     }
-  }
-
-  function handleOfflineBypass() {
-    const offlineUser: SessionUser = {
-      id: "pro_offline_manager",
-      name: name || "Gérante (Hors-ligne)",
-      phone: phone || "+2250100000000",
-      role: "pro",
-      employeeRole: "manager",
-      tenantId: DEFAULT_FALLBACK_TENANT_ID,
-    };
-    rememberAccount({
-      phone: offlineUser.phone,
-      name: offlineUser.name,
-      role: "pro",
-    });
-    try {
-      localStorage.setItem("kene-store", JSON.stringify({
-        state: {
-          space: "pro",
-          user: offlineUser,
-          proTenantId: DEFAULT_FALLBACK_TENANT_ID,
-          clientTab: "accueil",
-          cart: [],
-        },
-        version: 1,
-      }));
-    } catch {}
-    setUser(offlineUser);
-    setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
-    setSpace("pro");
-    toast.success("Mode Hors-ligne activé : Espace Institut & Caisse ouverts 📴");
-    navigateToHome();
   }
 
   async function handleForgotPin() {
@@ -264,7 +197,6 @@ export function PinEntry() {
       <div className="min-h-dvh flex flex-col justify-center">
         <PhoneKeypad
           mode={mode}
-          onOfflineBypass={mode === "pro" ? handleOfflineBypass : undefined}
           onNewClient={handleNewClientGuest}
           onConfirm={async (digits) => {
             const fullPhone = `+225${digits}`;
@@ -303,7 +235,6 @@ export function PinEntry() {
       onConfirm={handlePinConfirm}
       onBack={navigateToBack}
       onForgotPin={handleForgotPin}
-      onOfflineBypass={mode === "pro" ? handleOfflineBypass : undefined}
       onNewClient={handleNewClientGuest}
       onSwitchSpace={() => setMode((m) => (m === "pro" ? "client" : "pro"))}
       onSwitchAccount={() => setNeedsPhone(true)}

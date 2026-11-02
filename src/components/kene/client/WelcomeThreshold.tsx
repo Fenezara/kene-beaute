@@ -184,38 +184,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
     };
   }, []);
 
-  function activateOfflineProSession(phoneNum?: string) {
-    const offlineUser: SessionUser = {
-      id: "pro_offline_manager",
-      name: last?.name || "Gérante (Hors-ligne)",
-      phone: phoneNum || last?.phone || "+2250100000000",
-      role: "pro",
-      employeeRole: "manager",
-      tenantId: DEFAULT_FALLBACK_TENANT_ID,
-    };
-    rememberAccount({
-      phone: offlineUser.phone,
-      name: offlineUser.name,
-      role: "pro",
-    });
-    try {
-      localStorage.setItem("kene-store", JSON.stringify({
-        state: {
-          space: "pro",
-          user: offlineUser,
-          proTenantId: DEFAULT_FALLBACK_TENANT_ID,
-          clientTab: "accueil",
-          cart: [],
-        },
-        version: 1,
-      }));
-    } catch {}
-    setUser(offlineUser);
-    setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
-    setSpace("pro");
-    toast.success("Mode Hors-ligne activé : Espace Institut & Caisse POS ouverts 📴");
-  }
-
   function activateOfflineClientSession() {
     const offlineClient: SessionUser = {
       id: last?.phone ? `client_${last.phone.replace(/\D/g, "")}` : "guest_offline",
@@ -233,10 +201,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
 
   function enterPortal(mode: "client" | "pro") {
     if (entering) return;
-    if (mode === "pro" && !isOnline()) {
-      activateOfflineProSession();
-      return;
-    }
     if (mode === "client" && !isOnline()) {
       activateOfflineClientSession();
       return;
@@ -301,11 +265,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
       setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name, isSetup });
       return;
     } catch (e) {
-      const isNetwork = !isOnline() || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message));
-      if (isNetwork && keypadMode === "pro") {
-        activateOfflineProSession(phone);
-        return;
-      }
       // Même en cas d'erreur de pré-vérification, on ouvre le pavé PIN pour permettre la connexion directe
       setStage({ phase: "pin", mode: keypadMode, phone, isSetup: false });
     }
@@ -364,12 +323,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
       if (onBackToApp) onBackToApp();
       return true;
     } catch (e) {
-      const isNetwork = !isOnline() || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message));
-      if (isNetwork && (mode === "pro" || keypadMode === "pro")) {
-        activateOfflineProSession(phone);
-        if (onBackToApp) onBackToApp();
-        return true;
-      }
       toast.error(e instanceof Error ? e.message : "Code secret incorrect");
       return false;
     }
@@ -1480,7 +1433,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
               onConfirm={onKeypadConfirm}
               onBack={() => setStage({ phase: "landing" })}
               onSwitchSpace={() => setStage({ phase: "landing" })}
-              onOfflineBypass={() => activateOfflineProSession(keypadDigits ? `+225${keypadDigits}` : undefined)}
               onNewClient={startExploration}
             />
           </motion.div>
@@ -1496,7 +1448,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
               onConfirm={(pin) => handlePinConfirm(pin, stage.phone, stage.mode)}
               onBack={() => setStage({ phase: "keypad", mode: stage.mode })}
               onForgotPin={() => handleForgotPin(stage.phone, stage.mode)}
-              onOfflineBypass={() => activateOfflineProSession(stage.phone)}
               onNewClient={startExploration}
               onSwitchAccount={() => setStage({ phase: "keypad", mode: stage.mode })}
               onSwitchSpace={() => setStage((prev) => prev.phase === "pin" ? { ...prev, mode: prev.mode === "pro" ? "client" : "pro" } : prev)}

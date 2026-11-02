@@ -11,7 +11,7 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v72";
+const VERSION = "kene-sw-v73";
 const PRECACHE = "kene-precache-v71";
 const DATA_CACHE = "kene-data-v71";
 const IMG_CACHE = "kene-img-v71";
@@ -252,46 +252,11 @@ const OFFLINE_TEAM_FALLBACK = {
 };
 
 function getOfflineApiFallback(pathname) {
-  if (pathname.startsWith("/api/auth/session")) {
-    return {
-      ok: true,
-      user: {
-        id: "pro_offline_manager",
-        name: "Gérante (Hors-ligne)",
-        phone: "+2250100000000",
-        role: "pro",
-        employeeRole: "manager",
-        tenantId: "cmts1w5ui0008oww7hm3v18oo",
-      },
-      tenantId: "cmts1w5ui0008oww7hm3v18oo",
-      employeeRole: "manager",
-    };
+  if (pathname.startsWith("/api/auth/session") || pathname.startsWith("/api/auth/login")) {
+    return { ok: false, error: "Connexion requise" };
   }
   if (pathname.startsWith("/api/auth/check-phone")) {
-    return {
-      ok: true,
-      exists: true,
-      hasPin: true,
-      name: "Gérante",
-      role: "pro",
-      isEmployee: false,
-      tenant: { id: "cmts1w5ui0008oww7hm3v18oo", name: "Cabinet LA DERMO" },
-    };
-  }
-  if (pathname.startsWith("/api/auth/login")) {
-    return {
-      ok: true,
-      user: {
-        id: "pro_offline_manager",
-        name: "Gérante (Hors-ligne)",
-        phone: "+2250100000000",
-        role: "pro",
-        employeeRole: "manager",
-        tenantId: "cmts1w5ui0008oww7hm3v18oo",
-      },
-      tenant: { id: "cmts1w5ui0008oww7hm3v18oo", name: "Cabinet LA DERMO" },
-      employeeRole: "manager",
-    };
+    return { ok: false, error: "Connexion requise" };
   }
   if (pathname.startsWith("/api/pro/overview")) return OFFLINE_OVERVIEW_FALLBACK;
   if (pathname.startsWith("/api/pro/catalog")) return OFFLINE_CATALOG_FALLBACK;
