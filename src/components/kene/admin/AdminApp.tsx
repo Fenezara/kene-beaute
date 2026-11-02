@@ -9,7 +9,7 @@
 // confirmation d'identité fraîche (AdminGate) et est audité. Les routes
 // de gestion exigent une session admin stricte.
 import { useState, useRef } from "react";
-import { ArrowLeft, Building2, Calendar, CreditCard, ExternalLink, KeyRound, LayoutDashboard, LogOut, ShieldCheck, ShoppingBag, Users } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, CreditCard, ExternalLink, HeartHandshake, KeyRound, LayoutDashboard, LogOut, ShieldCheck, ShoppingBag, Users } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { cn } from "@/lib/utils";
 import { useApi } from "@/components/kene/pro/useApi";
@@ -23,6 +23,7 @@ import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { KeneEmblem } from "@/components/kene/icons";
 import { AdminGateProvider } from "./admin-gate";
 import { AdminOverview } from "./AdminOverview";
+import { AdminReferrals } from "./AdminReferrals";
 import { AdminOrders } from "./AdminOrders";
 import { AdminAppointments } from "./AdminAppointments";
 import { AdminBackupAndShieldCard } from "./AdminBackupAndShieldCard";
@@ -32,7 +33,7 @@ import { AdminSubscriptions } from "./AdminSubscriptions";
 import { AdminTenants } from "./AdminTenants";
 import { AdminUsers } from "./AdminUsers";
 
-type AdminTab = "overview" | "orders" | "appointments" | "tenants" | "users" | "subs" | "security";
+type AdminTab = "overview" | "orders" | "appointments" | "tenants" | "users" | "subs" | "referrals" | "security";
 
 const TABS: { key: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
@@ -41,6 +42,7 @@ const TABS: { key: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "tenants", label: "Instituts", icon: Building2 },
   { key: "users", label: "Utilisatrices", icon: Users },
   { key: "subs", label: "Abonnements", icon: CreditCard },
+  { key: "referrals", label: "Parrainages", icon: HeartHandshake },
   { key: "security", label: "Sécurité & Santé", icon: ShieldCheck },
 ];
 
@@ -175,6 +177,7 @@ export function AdminApp() {
           {tab === "tenants" && <AdminTenants />}
           {tab === "users" && <AdminUsers />}
           {tab === "subs" && <AdminSubscriptions />}
+          {tab === "referrals" && <AdminReferrals />}
           {tab === "security" && (
             <div className="space-y-5">
               <AdminBackupAndShieldCard />
