@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
-import { sanitizeUser } from "@/lib/kene/session";
+import { sanitizeUser, guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 
@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
+    const denied = guardUserClaim(req, "/api/auth/consent", parsed.data.userId);
+    if (denied) return denied;
     return await runConsent(parsed.data, req);
   } catch (err) {
     return serverError("auth/consent", err);
@@ -38,6 +40,8 @@ export async function GET(req: NextRequest) {
   try {
     const bridged = decodeBridge(req, Body);
     if (!bridged.ok) return jsonError(`Corps de requête invalide — ${bridged.error}`, 400);
+    const denied = guardUserClaim(req, "/api/auth/consent", bridged.data.userId);
+    if (denied) return denied;
     return await runConsent(bridged.data, req);
   } catch (err) {
     return serverError("auth/consent", err);

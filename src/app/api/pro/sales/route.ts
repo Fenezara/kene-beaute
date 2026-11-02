@@ -9,8 +9,12 @@ import { guardProRole } from "@/lib/kene/session";
 import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 import { sanitizePayload } from "@/lib/kene/security-sanitize";
 import { audit, clientIp } from "@/lib/kene/audit";
+import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 
 export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "pro:sales:get"), { limit: 100, windowMs: 60_000 });
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes caisse");
+
   try {
     // Session signée (, migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
@@ -64,6 +68,9 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "pro:sales:post"), AUTH_MUTATION);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop d'enregistrements de vente consécutifs");
+
   try {
     // Session signée (, migration douce): avec cookie, la vente
     // caisse exige un compte pro/admin; sans cookie → legacy.

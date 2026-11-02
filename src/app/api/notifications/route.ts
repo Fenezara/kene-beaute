@@ -14,6 +14,8 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, ddMM } from "@/lib/kene/server";
 import { readMeta, scheduledStillRelevant } from "@/lib/kene/reminders";
 import { getActiveSubscription, subPlanLabel } from "@/lib/kene/plans";
+import { guardUserClaim } from "@/lib/kene/session";
+import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -21,9 +23,15 @@ const DAY = 86_400_000;
 const HOUR = 3_600_000;
 
 export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "notifications:list"), { limit: 60, windowMs: 60_000 });
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes — patiente quelques secondes");
+
   try {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
+
+    const denied = guardUserClaim(req, "/api/notifications", userId);
+    if (denied) return denied;
 
     const user = await db.user.findUnique({ where: { id: userId }, select: { phone: true, name: true } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);

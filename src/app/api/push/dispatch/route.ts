@@ -39,8 +39,19 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("secret et userId requis", 400);
 
     const { userId } = parsed.data;
-    const secret = process.env.PUSH_SECRET?.trim() || "kene-push-secret";
-    if (parsed.data.secret !== secret) return jsonError("Interdit", 403);
+    const secret = process.env.PUSH_SECRET?.trim();
+    if (!secret) {
+      if (process.env.NODE_ENV === "production") {
+        console.error("[push:dispatch] PUSH_SECRET non configuré en production");
+        return jsonError("Configuration manquante", 500);
+      }
+    }
+    const expectedSecret = secret || "kene-push-secret";
+    const bufA = Buffer.from(parsed.data.secret);
+    const bufB = Buffer.from(expectedSecret);
+    if (bufA.length !== bufB.length || !crypto.timingSafeEqual(bufA, bufB)) {
+      return jsonError("Interdit", 403);
+    }
 
     const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
     const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();

@@ -8,6 +8,7 @@ import { guardProRole } from "@/lib/kene/session";
 import { ensureClientProfile } from "@/lib/kene/client-link";
 import { canonicalPhone, arePhonesMatching, phoneMatchKey } from "@/lib/kene/phone-normalize";
 import { matchesSearch } from "@/lib/kene/search";
+import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 
 // Validation zod (, remplace le cast manuel): bornes calquées sur
 // l'ancien contrat (nom ≤ 80, téléphone raisonnablement borné en longueur —
@@ -24,6 +25,9 @@ const Body = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "pro:clients:get"), { limit: 120, windowMs: 60_000 });
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes CRM");
+
   try {
     // Session signée (, migration douce): GET navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
@@ -233,6 +237,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "pro:clients:post"), AUTH_MUTATION);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de créations de clientes consécutives");
+
   try {
     // Session signée (, migration douce): avec cookie, la fiche
     // express exige un compte pro/admin; sans cookie → legacy.

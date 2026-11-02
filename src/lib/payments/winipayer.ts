@@ -146,8 +146,19 @@ export async function verifyWiniPayerTransaction(
   const merchantUuid = process.env.WINIPAYER_MERCHANT_UUID?.trim();
   const merchantToken = process.env.WINIPAYER_MERCHANT_TOKEN?.trim();
 
-  // Si clés absentes ou transaction de simulation
-  if (!merchantUuid || !merchantToken || invoiceUuid.startsWith("wini_sim_")) {
+  // Si clés absentes ou transaction de simulation (UNIQUEMENT hors production)
+  const isProd = process.env.NODE_ENV === "production";
+  if (!merchantUuid || !merchantToken || (!isProd && invoiceUuid.startsWith("wini_sim_"))) {
+    if (isProd && merchantUuid && merchantToken) {
+      return {
+        success: false,
+        isPaid: false,
+        status: "invalid_in_production",
+        amount: 0,
+        paymentId: invoiceUuid,
+        paymentMethod: "Rejeté (Simulation interdite en production)",
+      };
+    }
     return {
       success: true,
       isPaid: true,

@@ -138,8 +138,19 @@ export async function verifySaspayPayment(
     apiKey = apiKey.slice(0, -6).trim();
   }
 
-  // Mode simulation
-  if (!apiKey || sessionIdOrPaymentId.startsWith("sas_sim_")) {
+  // Mode simulation UNIQUEMENT hors production et sans clé API
+  const isProd = process.env.NODE_ENV === "production";
+  if (!apiKey || (!isProd && sessionIdOrPaymentId.startsWith("sas_sim_"))) {
+    if (isProd && apiKey) {
+      return {
+        success: false,
+        isPaid: false,
+        status: "invalid_in_production",
+        amount: 0,
+        paymentId: sessionIdOrPaymentId,
+        paymentMethod: "Rejeté (Simulation interdite en production)",
+      };
+    }
     return {
       success: true,
       isPaid: true,

@@ -4,8 +4,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { computePayroll } from "@/lib/payroll";
 import { payrollJournalLines } from "@/lib/accounting/syscohada";
-import { jsonError, serverError, genRef, createJournalEntry } from "@/lib/kene/server";
+import { jsonError, serverError, genRef, createJournalEntry, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
+import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
   tenantId: z.string().min(1),
@@ -13,9 +14,10 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "pro:payroll:run"), AUTH_MUTATION);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de traitements paie consécutifs");
+
   try {
-    // Session signée (, migration douce): avec cookie, la validation
-    // de paie exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:payroll:run");
     if (guard) return guard;
 
@@ -23,8 +25,8 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("Corps de requête invalide (period YYYY-MM)", 400);
     const { tenantId, period } = parsed.data;
 
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) return jsonError("Institut introuvable", 404);
+    const tenant = await resolveTenant(req, tenantId);
+    if (!tenant) return jsonError("Institut introuvable ou non autorisé", 404);
 
     const existing = await db.payPeriod.findFirst({ where: { tenantId, period } });
     if (existing) return jsonError("Période déjà validée", 400);

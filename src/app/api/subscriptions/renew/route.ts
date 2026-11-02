@@ -10,6 +10,7 @@ import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { createSaspayCheckoutSession } from "@/lib/payments/saspay";
 import { createWiniPayerPaymentSession } from "@/lib/payments/winipayer";
+import { guardUserClaim } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide (userId)", 400);
+    const denied = guardUserClaim(req, "/api/subscriptions/renew", parsed.data.userId);
+    if (denied) return denied;
     return await runRenew(parsed.data);
   } catch (err) {
     return serverError("subscriptions/renew", err);
@@ -41,6 +44,8 @@ export async function GET(req: NextRequest) {
   try {
     const bridged = decodeBridge(req, Body);
     if (!bridged.ok) return jsonError(`Requête invalide — ${bridged.error}`, 400);
+    const denied = guardUserClaim(req, "/api/subscriptions/renew", bridged.data.userId);
+    if (denied) return denied;
     return await runRenew(bridged.data);
   } catch (err) {
     return serverError("subscriptions/renew", err);
@@ -142,6 +147,11 @@ async function runRenew(data: z.infer<typeof Body>): Promise<NextResponse> {
         winipayerLaunchUrl,
         mode: "redirect",
       });
+    }
+
+    // Si le renouvellement est payant et qu'on est en production (ou avec passerelle configurée), ne jamais renouveler gratuitement sur échec
+    if (priceToCharge > 0 && (process.env.NODE_ENV === "production" || hasSaspay || hasWiniPayer)) {
+      return jsonError("Passerelle de paiement momentanément indisponible. Merci de réessayer dans un instant.", 502);
     }
   }
 

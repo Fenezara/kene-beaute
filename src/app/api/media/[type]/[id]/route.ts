@@ -9,12 +9,16 @@
 // identifiants sont des cuids non énumérables. 404 net si pas de photo.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
 
 const DATA_URL_RE = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/;
 
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ type: string; id: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ type: string; id: string }> }) {
+  const rl = rateLimit(rlKey(req, "media:get"), { limit: 200, windowMs: 60_000 });
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes médias");
+
   const { type, id } = await ctx.params;
   try {
     if (!/^[a-z]+$/.test(type) || !/^[a-zA-Z0-9]+$/.test(id)) {

@@ -3,11 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet } from "@/lib/kene/server";
 import type { ReferralSummary } from "@/lib/kene/referral";
+import { guardUserClaim } from "@/lib/kene/session";
+import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 
 export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "referral:get"), { limit: 60, windowMs: 60_000 });
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes — patiente quelques secondes");
+
   try {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
+
+    const denied = guardUserClaim(req, "/api/referral", userId);
+    if (denied) return denied;
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);

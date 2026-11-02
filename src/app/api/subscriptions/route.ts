@@ -13,6 +13,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveUserProContext } from "@/lib/kene/server";
 import { PLAN_DEFS, diagQuotaFor, getActiveSubscription, grantClientWelcomeTrial, grantProWelcomeTrial, getLoyaltyStatus } from "@/lib/kene/plans";
 import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
+import { guardUserClaim } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   // Lecture tolérante d'abonnement (utilisé par TierThemeBoot, Header, PlanScreen).
@@ -23,6 +24,9 @@ export async function GET(req: NextRequest) {
   try {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("Identifiant de session requis", 400);
+
+    const denied = guardUserClaim(req, "/api/subscriptions", userId);
+    if (denied) return denied;
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Compte introuvable — reconnecte-toi", 404);

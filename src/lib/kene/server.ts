@@ -181,29 +181,27 @@ export async function resolveUserProContext(user: {
   });
 
   // 3) Si non rattachée par userId et que ce n'est PAS la propriétaire d'un institut,
-  // vérifier si son prénom/nom correspond à une fiche employée active (ex. double compte employée).
-  if (!employeeLink && !ownerTenant && user.role !== "admin") {
-    const normUser = normalizePersonName(user.name);
-    if (normUser && normUser !== "nouvelle cliente" && normUser !== "membre kene" && normUser !== "gerante kene") {
-      const userTokens = normUser.split(" ").filter((w) => w.length >= 3);
-      const activeEmps = await db.employee.findMany({
-        where: { active: true },
-        include: {
-          tenant: {
-            select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true, themeTier: true },
-          },
+  // vérifier si son numéro de téléphone correspond à une fiche employée active (liaison stricte et sécurisée).
+  if (!employeeLink && !ownerTenant && user.role !== "admin" && user.phone) {
+    const activeEmps = await db.employee.findMany({
+      where: { active: true },
+      include: {
+        tenant: {
+          select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true, themeTier: true },
         },
-      });
-      const matchedEmp = activeEmps.find((e) => {
-        const normEmp = normalizePersonName(e.name);
-        if (!normEmp) return false;
-        if (normEmp === normUser) return true;
-        const empTokens = normEmp.split(" ").filter((w) => w.length >= 3);
-        return empTokens.length > 0 && empTokens.every((t) => userTokens.includes(t));
-      });
-      if (matchedEmp) {
-        employeeLink = matchedEmp;
-      }
+      },
+    });
+    const matchedEmp = activeEmps.find((e) => {
+      if (!e.phone) return false;
+      return e.phone === user.phone || (userSuffix && phoneSuffix(e.phone) === userSuffix);
+    });
+    if (matchedEmp) {
+      employeeLink = matchedEmp;
+      // Lier formellement le userId à la fiche employée pour accélérer les prochaines résolutions
+      void db.employee.update({
+        where: { id: matchedEmp.id },
+        data: { userId: user.id },
+      }).catch(() => null);
     }
   }
 
@@ -276,27 +274,18 @@ export async function resolveTenant(req: NextRequest, tenantId?: string | null) 
 
     // 2) Établissements où l'utilisatrice est employée active
     let empTenantIds: string[] = [];
-    let userSelectedTenantId: string | null = null;
     if (sess.userId) {
-      const [emps, userRec] = await Promise.all([
-        db.employee.findMany({
-          where: { userId: sess.userId, active: true },
-          select: { tenantId: true },
-        }),
-        db.user.findUnique({
-          where: { id: sess.userId },
-          select: { selectedTenantId: true },
-        }),
-      ]);
+      const emps = await db.employee.findMany({
+        where: { userId: sess.userId, active: true },
+        select: { tenantId: true },
+      });
       empTenantIds = emps.map((e) => e.tenantId);
-      userSelectedTenantId = userRec?.selectedTenantId ?? null;
     }
 
     const sessSuffix = phoneSuffix(sess.phone);
 
-    // Filtrage résilient (tolérance formats de téléphone + multi-succursales)
+    // Filtrage strict : l'utilisatrice doit être propriétaire (ownerPhone/phone) ou employée active de l'institut
     const allMine = allActive.filter((t) => {
-      if (userSelectedTenantId && t.id === userSelectedTenantId) return true;
       if (empTenantIds.includes(t.id)) return true;
       if (t.ownerPhone && (t.ownerPhone === sess.phone || (sessSuffix && phoneSuffix(t.ownerPhone) === sessSuffix))) return true;
       if (t.phone && (t.phone === sess.phone || (sessSuffix && phoneSuffix(t.phone) === sessSuffix))) return true;
@@ -304,25 +293,19 @@ export async function resolveTenant(req: NextRequest, tenantId?: string | null) 
     });
 
     if (allMine.length === 0) {
-      // Fallback gracieux vers l'institut demandé ou par défaut
-      if (tenantId) {
-        const found = await db.tenant.findUnique({ where: { id: tenantId } });
-        if (found) return await syncTenantPlan(found);
-      }
-      const def = await defaultTenant();
-      return def ? await syncTenantPlan(def) : null;
+      // Aucun institut lié légitimement à ce compte Pro : refuser l'accès inter-instituts
+      return null;
     }
 
-    // Si une succursale spécifique est demandée
+    // Si une succursale spécifique est demandée, vérifier STRICTEMENT qu'elle fait partie de allMine
     if (tenantId) {
       const match = allMine.find((t) => t.id === tenantId);
       if (match) return await syncTenantPlan(match);
-      // Si l'institut existe en base, on l'autorise si la gérante est connectée
-      const anyMatch = allActive.find((t) => t.id === tenantId);
-      if (anyMatch) return await syncTenantPlan(anyMatch);
+      // Institut demandé non autorisé pour cette gérante : repli sur sa première succursale autorisée
+      return await syncTenantPlan(allMine[0]);
     }
 
-    // Par défaut, retourner la première succursale active
+    // Par défaut, retourner la première succursale active autorisée
     return await syncTenantPlan(allMine[0]);
   }
 
@@ -355,30 +338,19 @@ export async function resolveProTenants(req: NextRequest) {
     const allActive = await db.tenant.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } });
 
     let empTenantIds: string[] = [];
-    let userSelectedTenantId: string | null = null;
-    let userName = "";
     if (sess.userId) {
-      const [emps, userRec] = await Promise.all([
-        db.employee.findMany({
-          where: { userId: sess.userId, active: true },
-          select: { tenantId: true },
-        }),
-        db.user.findUnique({
-          where: { id: sess.userId },
-          select: { selectedTenantId: true, name: true },
-        }),
-      ]);
+      const emps = await db.employee.findMany({
+        where: { userId: sess.userId, active: true },
+        select: { tenantId: true },
+      });
       empTenantIds = emps.map((e) => e.tenantId);
-      userSelectedTenantId = userRec?.selectedTenantId ?? null;
-      userName = userRec?.name?.trim().toLowerCase() ?? "";
     }
 
     const sessDigits = sess.phone ? sess.phone.replace(/\D/g, "") : "";
     const sessSuffix = phoneSuffix(sess.phone);
 
-    // Filtrage résilient pour multi-succursales créées par le même fondateur
+    // Filtrage strict : employée légitime ou propriétaire reconnue
     const allMine = allActive.filter((t) => {
-      if (userSelectedTenantId && t.id === userSelectedTenantId) return true;
       if (empTenantIds.includes(t.id)) return true;
 
       // Normalisation des numéros (indicatif +225, 07, suffixe 8 chiffres)
@@ -388,15 +360,11 @@ export async function resolveProTenants(req: NextRequest) {
       if (sessDigits && (tOwnerDigits === sessDigits || tPhoneDigits === sessDigits)) return true;
       if (sessSuffix && (phoneSuffix(t.ownerPhone) === sessSuffix || phoneSuffix(t.phone) === sessSuffix)) return true;
 
-      // Match par nom de gérante/fondatrice
-      if (userName && t.ownerName && t.ownerName.trim().toLowerCase() === userName) return true;
-
       return false;
     });
 
     if (allMine.length === 0) {
-      const def = await defaultTenant();
-      return def ? [await syncTenantPlan(def)] : await Promise.all(allActive.map((t) => syncTenantPlan(t)));
+      return [];
     }
 
     return await Promise.all(allMine.map((t) => syncTenantPlan(t)));

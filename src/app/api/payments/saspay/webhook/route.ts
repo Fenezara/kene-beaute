@@ -8,9 +8,15 @@ import { executePaymentSuccess } from "@/lib/kene/payment-core";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { claimWebhookEvent } from "@/lib/payments/idempotency";
 import { verifySaspayPayment } from "@/lib/payments/saspay";
+import { rateLimit, rateLimitResponse, rlKey } from "@/lib/kene/rate-limit";
 import { db } from "@/lib/db";
 
+const RL_WEBHOOK = { limit: 120, windowMs: 60_000 };
+
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "saspay:webhook"), RL_WEBHOOK);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes webhook");
+
   const ip = clientIp(req);
 
   let payload: Record<string, unknown>;
@@ -77,6 +83,10 @@ export async function POST(req: NextRequest) {
       if (!verification.isPaid) {
         console.warn(`[SasPay Webhook] Rejet de confirmation non certifiée par l'API pour ${paymentId}`);
         return NextResponse.json({ error: "Transaction unverified by provider" }, { status: 403 });
+      }
+      if (verification.amount > 0 && Math.abs(verification.amount - payment.amount) > 10) {
+        console.warn(`[SasPay Webhook] Montant discordant: attendu ${payment.amount}, reçu ${verification.amount}`);
+        return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
       }
     }
   }

@@ -20,6 +20,7 @@ import {
 } from "@/lib/accounting/csv";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
+import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 
 /** "2026-08-01" | ISO → Date; undefined si absent, null si présent mais invalide */
 function parseDay(v: string | null): Date | undefined | null {
@@ -35,6 +36,9 @@ function endOfDay(d: Date): Date {
 }
 
 export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "pro:accounting:export"), { limit: 30, windowMs: 60_000 });
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop d'exports demandés — patiente quelques secondes");
+
   try {
     // Session signée (, migration douce): export navigateur — avec
     // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
