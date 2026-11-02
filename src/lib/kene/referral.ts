@@ -17,28 +17,28 @@ export const REFERRAL_TIERS: ReferralTier[] = [
   {
     id: "initie",
     name: "Initié",
-    minInvitees: 5,
+    minInvitees: 10,
     monthsGranted: 1,
     perks: "1 mois Kènè+ offert (30 jours)",
   },
   {
     id: "ambassadrice",
     name: "Ambassadrice",
-    minInvitees: 15,
+    minInvitees: 25,
     monthsGranted: 3,
     perks: "3 mois Kènè+ offerts + Module Évolution Cutanée HD (Time-Lapse)",
   },
   {
     id: "cercle_dor",
     name: "Cercle d'Or",
-    minInvitees: 30,
+    minInvitees: 50,
     monthsGranted: 6,
     perks: "6 mois Kènè+ offerts + Accès Bêta IA Prioritaire",
   },
   {
     id: "icone",
     name: "Icône Beauté",
-    minInvitees: 50,
+    minInvitees: 100,
     monthsGranted: 12,
     perks: "1 an complet Kènè+ offert (12 mois) + Badge Privilège à vie",
   },
@@ -46,55 +46,55 @@ export const REFERRAL_TIERS: ReferralTier[] = [
 
 /** Calcule le nombre total de mois Kènè+ mérités selon le nombre d'amies actives */
 export function calculateGrantedMonths(activeInvitees: number): number {
-  if (activeInvitees < 5) return 0;
-  if (activeInvitees < 15) return 1;
-  if (activeInvitees < 30) return 3;
-  if (activeInvitees < 50) return 6;
-  // 50 amies = 12 mois (1 an complet). Au-delà, +1 mois tous les 5 amies
-  return 12 + Math.floor((activeInvitees - 50) / 5);
+  if (activeInvitees < 10) return 0;
+  if (activeInvitees < 25) return 1;
+  if (activeInvitees < 50) return 3;
+  if (activeInvitees < 100) return 6;
+  // 100 amies = 12 mois (1 an complet). Au-delà, +1 mois tous les 10 amies
+  return 12 + Math.floor((activeInvitees - 100) / 10);
 }
 
 /** Identifie le palier actuel et le prochain palier à atteindre */
 export function getReferralProgress(activeInvitees: number) {
   const currentMonths = calculateGrantedMonths(activeInvitees);
   
-  if (activeInvitees < 5) {
+  if (activeInvitees < 10) {
     return {
       tierName: "En route vers Initié",
       currentTier: null,
       nextTier: REFERRAL_TIERS[0],
-      neededForNext: 5 - activeInvitees,
-      progressPct: Math.round((activeInvitees / 5) * 100),
+      neededForNext: 10 - activeInvitees,
+      progressPct: Math.round((activeInvitees / 10) * 100),
       currentMonths: 0,
     };
   }
-  if (activeInvitees < 15) {
+  if (activeInvitees < 25) {
     return {
       tierName: "Initié",
       currentTier: REFERRAL_TIERS[0],
       nextTier: REFERRAL_TIERS[1],
-      neededForNext: 15 - activeInvitees,
-      progressPct: Math.round(((activeInvitees - 5) / (15 - 5)) * 100),
-      currentMonths,
-    };
-  }
-  if (activeInvitees < 30) {
-    return {
-      tierName: "Ambassadrice",
-      currentTier: REFERRAL_TIERS[1],
-      nextTier: REFERRAL_TIERS[2],
-      neededForNext: 30 - activeInvitees,
-      progressPct: Math.round(((activeInvitees - 15) / (30 - 15)) * 100),
+      neededForNext: 25 - activeInvitees,
+      progressPct: Math.round(((activeInvitees - 10) / (25 - 10)) * 100),
       currentMonths,
     };
   }
   if (activeInvitees < 50) {
     return {
+      tierName: "Ambassadrice",
+      currentTier: REFERRAL_TIERS[1],
+      nextTier: REFERRAL_TIERS[2],
+      neededForNext: 50 - activeInvitees,
+      progressPct: Math.round(((activeInvitees - 25) / (50 - 25)) * 100),
+      currentMonths,
+    };
+  }
+  if (activeInvitees < 100) {
+    return {
       tierName: "Cercle d'Or",
       currentTier: REFERRAL_TIERS[2],
       nextTier: REFERRAL_TIERS[3],
-      neededForNext: 50 - activeInvitees,
-      progressPct: Math.round(((activeInvitees - 30) / (50 - 30)) * 100),
+      neededForNext: 100 - activeInvitees,
+      progressPct: Math.round(((activeInvitees - 50) / (100 - 50)) * 100),
       currentMonths,
     };
   }

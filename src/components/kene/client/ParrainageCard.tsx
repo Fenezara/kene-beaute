@@ -118,7 +118,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
 
               <p className="text-[12px] opacity-90 mt-2.5 leading-relaxed">
                 Offre <strong className="text-[#E3B454] font-bold">30 jours de Kènè+</strong> à tes amies. 
-                Dès <strong className="text-[#E3B454] font-bold">5 amies inscrites</strong>, gagne <strong className="text-[#E3B454] font-bold">1 mois d&apos;abonnement Kènè+ offert</strong> (et jusqu&apos;à 1 an complet !).
+                Dès <strong className="text-[#E3B454] font-bold">10 amies inscrites</strong>, gagne <strong className="text-[#E3B454] font-bold">1 mois d&apos;abonnement Kènè+ offert</strong> (et jusqu&apos;à 1 an complet !).
               </p>
 
               <button onClick={shareWhatsapp} className="mt-4 h-12 w-full rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-md focus-visible:outline-2 focus-visible:outline-[#25D366]">

@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
         totalInvitees: invitees.length,
         activeInvitees: activeCount,
         monthsGranted,
-        nextTierGoal: progress.nextTier ? progress.nextTier.minInvitees : 50,
+        nextTierGoal: progress.nextTier ? progress.nextTier.minInvitees : 100,
         currentTier: progress.tierName,
         progressPct: progress.progressPct,
       },
