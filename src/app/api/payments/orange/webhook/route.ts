@@ -26,14 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Paiement introuvable" }, { status: 404 });
     }
 
-    // Verrou d'idempotence strict (anti-rejeu automatique Orange Money)
-    const eventId = String(body.txnid || body.notif_token || `om_${paymentId}`);
-    const { isDuplicate } = await claimWebhookEvent("orange", eventId);
-    if (isDuplicate) {
-      return NextResponse.json({ status: "ok", note: "idempotent_duplicate" }, { status: 200 });
-    }
-
-    // Vérification cryptographique en temps constant si un secret de webhook est configuré
+    // Vérification cryptographique en temps constant AVANT tout verrou d'idempotence
     const webhookSecret = process.env.ORANGE_MONEY_WEBHOOK_SECRET?.trim();
     if (webhookSecret) {
       const authHeader = req.headers.get("authorization") || req.headers.get("x-orange-token") || "";
@@ -43,6 +36,16 @@ export async function POST(req: NextRequest) {
       if (!isMatch) {
         return NextResponse.json({ error: "Invalid webhook credentials" }, { status: 401 });
       }
+    } else if (process.env.NODE_ENV === "production") {
+      console.error("[Orange Money Webhook] ORANGE_MONEY_WEBHOOK_SECRET non configuré en production");
+      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+    }
+
+    // Verrou d'idempotence strict (anti-rejeu automatique Orange Money)
+    const eventId = String(body.txnid || body.notif_token || `om_${paymentId}`);
+    const { isDuplicate } = await claimWebhookEvent("orange", eventId);
+    if (isDuplicate) {
+      return NextResponse.json({ status: "ok", note: "idempotent_duplicate" }, { status: 200 });
     }
 
     // Le statut doit être EXPLICITEMENT valide (interdiction formelle du fallback !body.status)

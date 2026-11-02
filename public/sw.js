@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v68";
-const PRECACHE = "kene-precache-v68";
-const DATA_CACHE = "kene-data-v68";
-const IMG_CACHE = "kene-img-v68";
-const STATIC_CACHE = "kene-static-v68";
+const VERSION = "kene-sw-v69";
+const PRECACHE = "kene-precache-v69";
+const DATA_CACHE = "kene-data-v69";
+const IMG_CACHE = "kene-img-v69";
+const STATIC_CACHE = "kene-static-v69";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -760,7 +760,7 @@ async function networkFirstNavigation(req) {
 
   // 2. Détection réseau avec timeout réactif de 2000ms (filet anti-attente infinie)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000);
+  const timeoutId = setTimeout(() => controller.abort(), 4500);
   try {
     const networkRes = await fetch(new Request(req.url, { cache: "no-store", credentials: "same-origin", signal: controller.signal }));
     clearTimeout(timeoutId);

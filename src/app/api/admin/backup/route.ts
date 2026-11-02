@@ -12,7 +12,7 @@ import fs from "fs";
 import path from "path";
 import { db } from "@/lib/db";
 import { serverError } from "@/lib/kene/server";
-import { sessionFromRequest } from "@/lib/kene/session";
+import { sessionFromRequest, sanitizeUser } from "@/lib/kene/session";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 
@@ -25,16 +25,16 @@ function resolveDbPath(): string {
     "/app/db/custom.db",
   ];
   for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
+    if (fs.existsSync(/*turbopackIgnore: true*/ p)) return p;
   }
   return candidates[0];
 }
 
 function resolveBackupDir(): string {
   const dir = path.join(path.dirname(resolveDbPath()), "backups");
-  if (!fs.existsSync(dir)) {
+  if (!fs.existsSync(/*turbopackIgnore: true*/ dir)) {
     try {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(/*turbopackIgnore: true*/ dir, { recursive: true });
     } catch {
       // ignore if read-only
     }
@@ -62,19 +62,19 @@ export async function GET(req: NextRequest) {
     if (infoOnly) {
       let sizeBytes = 0;
       let updatedAt = new Date().toISOString();
-      if (fs.existsSync(dbPath)) {
-        const stat = fs.statSync(dbPath);
+      if (fs.existsSync(/*turbopackIgnore: true*/ dbPath)) {
+        const stat = fs.statSync(/*turbopackIgnore: true*/ dbPath);
         sizeBytes = stat.size;
         updatedAt = stat.mtime.toISOString();
       }
 
       const backupDir = resolveBackupDir();
       let snapshots: Array<{ name: string; sizeBytes: number; createdAt: string }> = [];
-      if (fs.existsSync(backupDir)) {
-        const files = fs.readdirSync(backupDir).filter((f) => f.endsWith(".db") || f.endsWith(".gz") || f.endsWith(".json"));
+      if (fs.existsSync(/*turbopackIgnore: true*/ backupDir)) {
+        const files = fs.readdirSync(/*turbopackIgnore: true*/ backupDir).filter((f) => f.endsWith(".db") || f.endsWith(".gz") || f.endsWith(".json"));
         snapshots = files
           .map((name) => {
-            const st = fs.statSync(path.join(backupDir, name));
+            const st = fs.statSync(/*turbopackIgnore: true*/ path.join(backupDir, name));
             return { name, sizeBytes: st.size, createdAt: st.mtime.toISOString() };
           })
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -119,11 +119,12 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
+      const safeUsers = users.map((u) => sanitizeUser(u));
       const dump = {
         exportedAt: new Date().toISOString(),
         platform: "Kènè — Dermo TIC",
         counts: {
-          users: users.length,
+          users: safeUsers.length,
           tenants: tenants.length,
           products: products.length,
           services: services.length,
@@ -132,7 +133,7 @@ export async function GET(req: NextRequest) {
           sales: sales.length,
           diagnoses: diagnoses.length,
         },
-        data: { users, tenants, products, services, orders, appointments, sales, diagnoses },
+        data: { users: safeUsers, tenants, products, services, orders, appointments, sales, diagnoses },
       };
 
       const body = JSON.stringify(dump, null, 2);
@@ -147,14 +148,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Format par défaut : base SQLite binaire (.db)
-    if (!fs.existsSync(dbPath)) {
+    if (!fs.existsSync(/*turbopackIgnore: true*/ dbPath)) {
       return NextResponse.json({ error: "Fichier de base de données introuvable" }, { status: 404 });
     }
 
     // Force un checkpoint WAL avant lecture pour garantir que toutes les transactions récentes sont dans le fichier
     await db.$executeRawUnsafe("PRAGMA wal_checkpoint(TRUNCATE);").catch(() => null);
 
-    const buffer = fs.readFileSync(dbPath);
+    const buffer = fs.readFileSync(/*turbopackIgnore: true*/ dbPath);
     return new NextResponse(buffer, {
       status: 200,
       headers: {
@@ -182,7 +183,7 @@ export async function POST(req: NextRequest) {
     }
 
     const dbPath = resolveDbPath();
-    if (!fs.existsSync(dbPath)) {
+    if (!fs.existsSync(/*turbopackIgnore: true*/ dbPath)) {
       return NextResponse.json({ error: "Base de données introuvable" }, { status: 404 });
     }
 
@@ -194,28 +195,28 @@ export async function POST(req: NextRequest) {
     const fileName = `kene-snapshot-${ts}.db`;
     const targetPath = path.join(backupDir, fileName);
 
-    fs.copyFileSync(dbPath, targetPath);
+    fs.copyFileSync(/*turbopackIgnore: true*/ dbPath, /*turbopackIgnore: true*/ targetPath);
 
     // Rotation automatique : garder les 30 snapshots les plus récents
     const allFiles = fs
-      .readdirSync(backupDir)
+      .readdirSync(/*turbopackIgnore: true*/ backupDir)
       .filter((f) => f.startsWith("kene-snapshot-") && f.endsWith(".db"))
       .map((name) => ({
         name,
         fullPath: path.join(backupDir, name),
-        mtime: fs.statSync(path.join(backupDir, name)).mtime.getTime(),
+        mtime: fs.statSync(/*turbopackIgnore: true*/ path.join(backupDir, name)).mtime.getTime(),
       }))
       .sort((a, b) => b.mtime - a.mtime);
 
     for (const old of allFiles.slice(30)) {
       try {
-        fs.unlinkSync(old.fullPath);
+        fs.unlinkSync(/*turbopackIgnore: true*/ old.fullPath);
       } catch {
         // ignore
       }
     }
 
-    const stat = fs.statSync(targetPath);
+    const stat = fs.statSync(/*turbopackIgnore: true*/ targetPath);
     void audit({
       kind: "admin_access",
       ip: clientIp(req),
