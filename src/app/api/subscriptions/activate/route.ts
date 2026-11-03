@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { genRef, jsonError, serverError } from "@/lib/kene/server";
-import { activatePlan, diagQuotaFor, planDefById, computeConsecutiveMonths, getPlanTierPrice } from "@/lib/kene/plans";
+import { activatePlan, diagQuotaFor, planDefById, computeConsecutiveMonths, getLoyaltyStatus } from "@/lib/kene/plans";
 import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { createSaspayCheckoutSession } from "@/lib/payments/saspay";
@@ -92,8 +92,9 @@ async function runActivate(data: z.infer<typeof Body>): Promise<NextResponse> {
   const hasSaspay = Boolean(process.env.SASPAY_API_KEY?.trim());
   const hasWiniPayer = Boolean(process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN);
 
-  const consecutiveMonths = await computeConsecutiveMonths(user.id, def.id);
-  const priceToCharge = getPlanTierPrice(def.id, consecutiveMonths);
+  const loyalty = await getLoyaltyStatus(user.id, def.id);
+  const priceToCharge = loyalty.nextTierPrice;
+  const consecutiveMonths = loyalty.consecutiveMonths;
 
   // Si le plan est payant et qu'une passerelle est configurée
   if (priceToCharge > 0 && (hasSaspay || hasWiniPayer)) {

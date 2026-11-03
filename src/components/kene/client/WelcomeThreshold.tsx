@@ -1012,7 +1012,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                   <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
                                 </div>
                                 <p className="text-[10px] text-gold-text/90 font-medium mt-0.5">
-                                  Descend à <strong>5 000 F/mois à vie</strong> après fidélité
+                                  Descend à <strong>5 000 F/mois à vie</strong> · Régression douce anti-impayé &amp; repli Gratuit
                                 </p>
                               </div>
                               <ul className="space-y-2 text-xs pt-1">
@@ -1065,7 +1065,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                   <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
                                 </div>
                                 <p className="text-[10px] text-gold-text/90 font-medium mt-0.5">
-                                  Descend à <strong>10 000 F/mois à vie</strong> après fidélité
+                                  Descend à <strong>10 000 F/mois à vie</strong> · Régression élastique bienveillante
                                 </p>
                               </div>
                               <ul className="space-y-2 text-xs pt-1">
@@ -1115,7 +1115,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                   <span className="text-[11px] text-[#E6D5B8]/75 font-semibold">FCFA / mois</span>
                                 </div>
                                 <p className="text-[10px] text-[#F3D98A] font-medium mt-0.5">
-                                  Descend à <strong>20 000 F/mois à vie</strong>
+                                  Descend à <strong>20 000 F/mois à vie</strong> · Régression élastique bienveillante
                                 </p>
                               </div>
                               <ul className="space-y-2 text-xs pt-1 text-[#FFF9EC]/90">
@@ -1359,12 +1359,20 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                     )}
 
                     {/* Garantie de réassurance sous les tarifs */}
-                    <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground pt-1">
-                      <ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-500" aria-hidden="true" />
-                      <span>
-                        <strong>Garantie sans engagement :</strong> Tous les paiements s&apos;effectuent par Mobile Money direct (Wave, Orange Money, MTN MoMo). Aucun numéro de carte bancaire n&apos;est enregistré et aucun débit automatique n&apos;est effectué sans votre confirmation expresse.
-                      </span>
-                    </p>
+                    <div className="space-y-2 pt-1">
+                      <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                        <ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-500" aria-hidden="true" />
+                        <span>
+                          <strong>Garantie sans engagement :</strong> Tous les paiements s&apos;effectuent par Mobile Money direct (Wave, Orange Money, MTN MoMo). Aucun numéro de carte bancaire n&apos;est enregistré et aucun débit automatique n&apos;est effectué sans votre confirmation expresse.
+                        </span>
+                      </p>
+                      <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                        <Crown size={14} className="mt-0.5 shrink-0 text-gold-text" aria-hidden="true" />
+                        <span>
+                          <strong>Fidélité élastique bienveillante (Entreprises) :</strong> Chaque mois d&apos;abonnement à temps fait baisser votre facture jusqu&apos;au tarif plancher à vie (ex: Starter de 10k à 5k). Si vous sautez un mois, vous régressez simplement d&apos;un palier (+1 000 F). Si les impayés persistent après avoir régressé à 10 000 F, votre compte bascule automatiquement en mode Gratuit sans jamais effacer vos données clientes.
+                        </span>
+                      </p>
+                    </div>
                   </GlassCard>
                 </section>
               </div>

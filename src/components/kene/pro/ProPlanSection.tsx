@@ -60,12 +60,17 @@ interface LoyaltyInfo {
   isTrial: boolean;
   trialDaysLeft: number;
   consecutiveMonths: number;
+  missedMonths?: number;
   currentTierMonth: number;
   nextTierMonth: number;
   currentTierPrice: number;
   nextTierPrice: number;
   floorPrice: number;
   graceDays: number;
+  isGracePeriod?: boolean;
+  graceDaysLeft?: number;
+  isRegressing?: boolean;
+  isFallenToFree?: boolean;
 }
 
 interface SubsData {
@@ -239,14 +244,26 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
             <div>
               <p className="text-xs font-bold text-muted-foreground">Formule active de l'établissement</p>
               <p className="font-heading text-lg font-black leading-tight flex items-center gap-2 flex-wrap">
-                {activePlan === "pro_complexe"
-                  ? "Pro Complexe"
-                  : activePlan === "pro_starter"
-                  ? "Pro Starter"
-                  : "Pro Institut"}
+                {data.loyalty?.isFallenToFree ? (
+                  "Compte Gratuit (Freemium)"
+                ) : activePlan === "pro_complexe" ? (
+                  "Pro Complexe"
+                ) : activePlan === "pro_starter" ? (
+                  "Pro Starter"
+                ) : (
+                  "Pro Institut"
+                )}
                 {isTrialActive ? (
                   <span className="rounded-full bg-gold/15 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
                     Pass Découverte 30j (0 FCFA)
+                  </span>
+                ) : data.loyalty?.isFallenToFree ? (
+                  <span className="rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-[10px] font-bold">
+                    Basculé sur Gratuit (Impayé)
+                  </span>
+                ) : data.loyalty?.isRegressing ? (
+                  <span className="rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-2.5 py-0.5 text-[10px] font-bold">
+                    ⚠️ Tarif Régressé (+{((data.loyalty?.missedMonths ?? 0) * (activePlan === "pro_starter" ? 1000 : 2000)).toLocaleString("fr-FR")} F)
                   </span>
                 ) : activeSub ? (
                   <span className="rounded-full bg-success/15 text-success px-2.5 py-0.5 text-[10px] font-bold">
@@ -277,19 +294,35 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
         </div>
       ))}
 
-      {/* Règle du tarif dégressif à la fidélité */}
-      <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2">
+      {/* Règle du tarif dégressif à la fidélité & Régression bienveillante */}
+      <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2.5">
         <div className="flex items-center gap-2">
           <Crown size={15} className="text-gold-text" />
           <h4 className="font-heading text-xs font-bold text-foreground">
-            Principe de l'Abonnement Dégressif à la Fidélité
+            Tarif Fidélité Élastique &amp; Régression Bienveillante
           </h4>
         </div>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          Chaque mois d'abonnement renouvelé sans interruption réduit automatiquement votre mensualité jusqu'à son <strong>tarif plancher à vie</strong> (Mois 6+).
-          <br />
-          ⚠️ <strong>Règle du mois sauté :</strong> Si vous sautez un mois sans payer, une période de grâce de <strong>5 jours (J+5)</strong> est tolérée pour votre réapprovisionnement Mobile Money. Au-delà, le tarif de fidélité se réinitialise au prix de départ du Mois 1.
+        <p className="text-[11.5px] text-muted-foreground leading-relaxed">
+          Chaque mois d&apos;abonnement renouvelé sans interruption réduit automatiquement votre mensualité jusqu&apos;à son <strong>tarif plancher à vie</strong> (Mois 6+ : 5 000 F en Starter, 10 000 F en Institut, 20 000 F en Complexe).
         </p>
+        <div className="grid sm:grid-cols-2 gap-2 pt-1 text-[11px] text-muted-foreground">
+          <div className="bg-background/80 rounded-xl p-2.5 border border-border/50 space-y-1">
+            <p className="font-bold text-foreground flex items-center gap-1.5">
+              <span>📉</span> En payant chaque mois (Fidélité)
+            </p>
+            <p className="text-[10.5px]">
+              Vous gagnez un palier chaque mois. Par exemple en Starter : 10 000 F → 9 000 F → 8 000 F → 7 000 F → 6 000 F → <strong>5 000 F à vie</strong>.
+            </p>
+          </div>
+          <div className="bg-background/80 rounded-xl p-2.5 border border-border/50 space-y-1">
+            <p className="font-bold text-foreground flex items-center gap-1.5">
+              <span>⚠️</span> Si vous sautez un mois (Régression douce)
+            </p>
+            <p className="text-[10.5px]">
+              Tolérance de grâce de 5 jours. Si le mois reste impayé, vous régressez simplement d&apos;un palier (ex: de 6k à 7k, puis 8k...). Si les impayés persistent au-delà du tarif initial (10k), le salon passe automatiquement sur <strong>Gratuit</strong> sans jamais perdre ses données.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Grille des 3 offres Pro */}
@@ -788,9 +821,15 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
           </div>
 
           <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-            <p className="font-bold text-foreground">⚠️ Que se passe-t-il si un mois est sauté sans payer ?</p>
+            <p className="font-bold text-foreground">⚠️ Que se passe-t-il si un mois est sauté sans payer (Régression bienveillante) ?</p>
             <p className="text-muted-foreground leading-relaxed">
-              Pour tenir compte des réalités Mobile Money locales, nous accordons une <strong>période de grâce de 5 jours</strong> après l'échéance. Si vous renouvelez dans ces 5 jours, votre continuité de fidélité est préservée. Au-delà de ces 5 jours sans renouvellement, la continuité est rompue et le tarif redémarre au tarif du Mois 1 lors de votre réactivation. Vos données ne sont jamais supprimées.
+              Pour tenir compte des réalités Mobile Money locales, nous accordons une <strong>période de grâce de 5 jours</strong> après l'échéance.
+              <br />
+              Si vous sautez un mois sans payer, vous ne perdez pas tout brutalement : vous régressez simplement d'un palier (+1 000 F pour Starter, +2 000 F pour Institut/Complexe).
+              <br />
+              <em>Exemple Starter :</em> Si vous étiez à 6 000 F et manquez un mois, votre prochain paiement passe à 7 000 F. Si vous ne payez toujours pas, 8 000 F, 9 000 F, puis 10 000 F.
+              <br />
+              Si les impayés persistent après avoir régressé jusqu'au montant initial (10 000 F), votre salon bascule automatiquement en <strong>mode Gratuit</strong> sans aucune perte de vos clientes ni de votre historique.
             </p>
           </div>
         </div>

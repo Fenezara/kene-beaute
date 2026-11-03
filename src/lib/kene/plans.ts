@@ -12,6 +12,7 @@
 import type { Subscription } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ddMM, notify, resolveUserProContext } from "@/lib/kene/server";
+import { calculateElasticLoyaltyPrice, PLAN_STEP_CONFIG } from "./loyalty-pricing";
 
 // ─────────────── Définitions des plans payants ───────────────
 
@@ -299,11 +300,21 @@ export function canonicalPlanId(planId: string): string {
 }
 
 /**
- * Calcule le nombre de mois consécutifs payés sans rupture pour un plan donné.
- * Si le délai entre l'échéance et le renouvellement dépasse 5 jours (mois sauté),
- * la continuité est rompue et le compteur redémarre à 0 (Mois 1).
+ * Calcule l'historique de fidélité et la régression progressive :
+ * - consecutivePaidMonths : nombre de mois payés consécutifs
+ * - missedMonths : nombre de mois sautés / impayés après expiration (+5 jours de grâce)
+ * - regressionPrice : le tarif régénéré (ex: Starter à 6k qui saute 1 mois monte à 7k, 2 mois à 8k...)
+ * - isFallenToFree : si l'entreprise a accumulé trop d'impayés au-delà du prix initial (10k) -> tombe sur gratuit.
  */
-export async function computeConsecutiveMonths(userId: string, planId: string): Promise<number> {
+export async function computeLoyaltyRegression(userId: string, planId: string): Promise<{
+  consecutivePaidMonths: number;
+  missedMonths: number;
+  effectivePrice: number;
+  effectiveTierMonth: number;
+  isFallenToFree: boolean;
+  isGracePeriod: boolean;
+  graceDaysLeft: number;
+}> {
   const canonicalId = canonicalPlanId(planId);
   const planFilter = canonicalId === "pro_institut" ? ["pro_institut", "pro_essentiel"] : [canonicalId];
 
@@ -316,10 +327,42 @@ export async function computeConsecutiveMonths(userId: string, planId: string): 
     orderBy: { createdAt: "desc" },
   });
 
-  if (subs.length === 0) return 0;
+  if (subs.length === 0) {
+    const cfg = PLAN_STEP_CONFIG[canonicalId] || { basePrice: 10000, floorPrice: 5000, stepPrice: 1000 };
+    return {
+      consecutivePaidMonths: 0,
+      missedMonths: 0,
+      effectivePrice: cfg.basePrice,
+      effectiveTierMonth: 1,
+      isFallenToFree: false,
+      isGracePeriod: false,
+      graceDaysLeft: 0,
+    };
+  }
 
   const now = new Date();
-  let consecutive = 0;
+  const lastSub = subs[0];
+  const lastExpiry = lastSub.expiresAt;
+  const msSinceExpiry = now.getTime() - lastExpiry.getTime();
+
+  let isGracePeriod = false;
+  let graceDaysLeft = 0;
+  let missedMonths = 0;
+
+  if (msSinceExpiry > 0) {
+    if (msSinceExpiry <= GRACE_PERIOD_MS) {
+      isGracePeriod = true;
+      graceDaysLeft = Math.max(0, Math.ceil((GRACE_PERIOD_MS - msSinceExpiry) / (24 * 3600 * 1000)));
+      missedMonths = 0;
+    } else {
+      // Temps au-delà de la grâce (en mois calendaires de 30 jours)
+      const overdueMs = msSinceExpiry - GRACE_PERIOD_MS;
+      missedMonths = Math.max(1, Math.ceil(overdueMs / (30 * 24 * 3600 * 1000)));
+    }
+  }
+
+  // Calcul des mois consécutifs historisés
+  let consecutivePaidMonths = 0;
   let lastStart = now;
 
   for (let i = 0; i < subs.length; i++) {
@@ -327,33 +370,49 @@ export async function computeConsecutiveMonths(userId: string, planId: string): 
     const subExpiry = sub.expiresAt;
 
     if (i === 0) {
-      // Pour la souscription la plus récente :
-      // Si la date d'expiration + 5 jours de grâce est dépassée, rupture de fidélité.
-      if (now.getTime() - subExpiry.getTime() > GRACE_PERIOD_MS) {
-        return 0;
-      }
-      consecutive++;
+      consecutivePaidMonths++;
       lastStart = sub.startedAt || sub.createdAt;
     } else {
-      // Pour les souscriptions antérieures :
       const gap = lastStart.getTime() - subExpiry.getTime();
-      if (gap > GRACE_PERIOD_MS) {
+      // On tolère la période de renouvellement standard
+      if (gap > (30 * 24 * 3600 * 1000 + GRACE_PERIOD_MS)) {
         break;
       }
-      consecutive++;
+      consecutivePaidMonths++;
       lastStart = sub.startedAt || sub.createdAt;
     }
   }
 
-  return consecutive;
+  const elastic = calculateElasticLoyaltyPrice({
+    planId: canonicalId,
+    consecutivePaidMonths,
+    missedMonths,
+  });
+
+  return {
+    consecutivePaidMonths,
+    missedMonths,
+    effectivePrice: elastic.effectivePrice,
+    effectiveTierMonth: elastic.effectiveTierMonth,
+    isFallenToFree: elastic.isFallenToFree,
+    isGracePeriod,
+    graceDaysLeft,
+  };
 }
 
 /**
- * Renvoie le tarif dynamique du prochain mois selon la progression de fidélité.
- * consecutiveMonths: 0 -> Mois 1 (plein tarif)
- * consecutiveMonths: 1 -> Mois 2 (-500 F client, -1 000 F starter, -2 000 F institut/complexe)
- * ...
- * consecutiveMonths: >= 5 -> Mois 6+ (tarif plancher à vie)
+ * Calcule le nombre de mois consécutifs payés sans rupture pour un plan donné.
+ */
+export async function computeConsecutiveMonths(userId: string, planId: string): Promise<number> {
+  const reg = await computeLoyaltyRegression(userId, planId);
+  return Math.max(0, reg.consecutivePaidMonths - reg.missedMonths);
+}
+
+/**
+ * Renvoie le tarif dynamique du prochain mois selon la progression de fidélité et la régression.
+ * Ex: Starter :
+ * - Normal : 10k -> 9k -> 8k -> 7k -> 6k -> 5k
+ * - Si saut d'un mois : régression de +1k (+2k sur institut/complexe)
  */
 export function getPlanTierPrice(planId: string, consecutiveMonths: number): number {
   const def = planDefById(planId);
@@ -367,20 +426,25 @@ export interface PlanLoyaltyInfo {
   isTrial: boolean;
   trialDaysLeft: number;
   consecutiveMonths: number;
+  missedMonths: number;
   currentTierMonth: number;
   nextTierMonth: number;
   currentTierPrice: number;
   nextTierPrice: number;
   floorPrice: number;
   graceDays: number;
+  isGracePeriod: boolean;
+  graceDaysLeft: number;
+  isRegressing: boolean;
+  isFallenToFree: boolean;
 }
 
 /**
- * Analyse complète de l'état de fidélité d'une utilisatrice pour un plan.
+ * Analyse complète de l'état de fidélité et de régression d'une utilisatrice/entreprise pour un plan.
  */
 export async function getLoyaltyStatus(userId: string, planId: string): Promise<PlanLoyaltyInfo> {
   const def = planDefById(planId);
-  const consecutiveMonths = await computeConsecutiveMonths(userId, planId);
+  const reg = await computeLoyaltyRegression(userId, planId);
   const activeSub = await getActiveSubscription(userId);
 
   const isTrial = Boolean(
@@ -397,21 +461,29 @@ export async function getLoyaltyStatus(userId: string, planId: string): Promise<
     trialDaysLeft = Math.max(0, Math.ceil(msLeft / (24 * 3600 * 1000)));
   }
 
-  const currentTierMonth = isTrial ? 0 : Math.min(Math.max(1, consecutiveMonths), 6);
-  const nextTierMonth = Math.min(consecutiveMonths + 1, 6);
-  const nextTierPrice = getPlanTierPrice(planId, consecutiveMonths);
+  const effectiveConsecutive = Math.max(0, reg.consecutivePaidMonths - reg.missedMonths);
+  const currentTierMonth = isTrial ? 0 : reg.effectiveTierMonth;
+  const nextTierMonth = Math.min(effectiveConsecutive + 1, 6);
+  
+  // Le tarif du renouvellement est le tarif élastique (qui régressera de +1k par mois sauté)
+  const nextTierPrice = reg.effectivePrice;
   const currentTierPrice = isTrial ? 0 : (def?.tiers.find((t) => t.month === currentTierMonth)?.priceFcfa ?? def?.priceFcfa ?? 0);
 
   return {
     isTrial,
     trialDaysLeft,
-    consecutiveMonths,
+    consecutiveMonths: reg.consecutivePaidMonths,
+    missedMonths: reg.missedMonths,
     currentTierMonth,
     nextTierMonth,
     currentTierPrice,
     nextTierPrice,
     floorPrice: def?.minPriceFcfa ?? 0,
     graceDays: 5,
+    isGracePeriod: reg.isGracePeriod,
+    graceDaysLeft: reg.graceDaysLeft,
+    isRegressing: reg.missedMonths > 0,
+    isFallenToFree: reg.isFallenToFree,
   };
 }
 
@@ -659,8 +731,8 @@ export async function activatePlan(userId: string, planId: string, source: strin
     return { subscription: renewed.subscription, created: false };
   }
 
-  const consecutiveMonths = await computeConsecutiveMonths(userId, def.id);
-  const tierPrice = getPlanTierPrice(def.id, consecutiveMonths);
+  const loyalty = await getLoyaltyStatus(userId, def.id);
+  const tierPrice = loyalty.nextTierPrice;
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
@@ -732,8 +804,8 @@ export async function renewPlan(userId: string, source: string = "winipayer", pl
   const def = planDefById(targetPlan);
   if (!def) throw new Error("Plan inconnu");
 
-  const consecutiveMonths = await computeConsecutiveMonths(userId, def.id);
-  const tierPrice = getPlanTierPrice(def.id, consecutiveMonths);
+  const loyalty = await getLoyaltyStatus(userId, def.id);
+  const tierPrice = loyalty.nextTierPrice;
 
   const now = new Date();
   // Les jours restants se raccordent: la nouvelle échéance part de la fin

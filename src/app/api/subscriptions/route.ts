@@ -105,16 +105,24 @@ export async function GET(req: NextRequest) {
     const activePlanId = sub?.plan ?? (audience === "pro" ? "pro_starter" : "kene_plus");
     const activeLoyalty = await getLoyaltyStatus(userId, activePlanId);
 
+    // Si l'entreprise ou l'utilisatrice a régressé au-delà de son palier de départ et est passée sur gratuit :
+    const effectivePlan = activeLoyalty.isFallenToFree ? "gratuit" : (sub?.plan ?? (audience === "pro" ? "pro_starter" : "gratuit"));
+
     const plansWithLoyalty = await Promise.all(
       PLAN_DEFS.filter((p) => p.audience === audience).map(async (p) => {
         const loyalty = await getLoyaltyStatus(userId, p.id);
         return {
           ...p,
           consecutiveMonths: loyalty.consecutiveMonths,
+          missedMonths: loyalty.missedMonths,
           currentTierPrice: loyalty.currentTierPrice,
           nextTierPrice: loyalty.nextTierPrice,
           isTrial: loyalty.isTrial,
           trialDaysLeft: loyalty.trialDaysLeft,
+          isRegressing: loyalty.isRegressing,
+          isFallenToFree: loyalty.isFallenToFree,
+          isGracePeriod: loyalty.isGracePeriod,
+          graceDaysLeft: loyalty.graceDaysLeft,
         };
       })
     );
@@ -127,7 +135,7 @@ export async function GET(req: NextRequest) {
       : 0;
 
     return NextResponse.json({
-      plan: sub?.plan ?? (audience === "pro" ? "pro_starter" : "gratuit"),
+      plan: effectivePlan,
       plans: plansWithLoyalty,
       quota,
       loyalty: activeLoyalty,
