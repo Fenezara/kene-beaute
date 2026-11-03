@@ -10,6 +10,8 @@ export interface TenantPosSettings {
     cash: boolean;
     wave: boolean;
     orange: boolean;
+    mtn: boolean;
+    moov: boolean;
     card: boolean;
     wallet: boolean;
   };
@@ -21,6 +23,8 @@ export const DEFAULT_TENANT_SETTINGS: TenantPosSettings = {
     cash: true,
     wave: true,
     orange: true,
+    mtn: true,
+    moov: true,
     card: true,
     wallet: true,
   },
@@ -40,6 +44,8 @@ export function getTenantPosSettings(tenantId?: string | null): TenantPosSetting
         cash: parsed.allowedPaymentMethods?.cash ?? true,
         wave: parsed.allowedPaymentMethods?.wave ?? true,
         orange: parsed.allowedPaymentMethods?.orange ?? true,
+        mtn: parsed.allowedPaymentMethods?.mtn ?? true,
+        moov: parsed.allowedPaymentMethods?.moov ?? true,
         card: parsed.allowedPaymentMethods?.card ?? true,
         wallet: parsed.allowedPaymentMethods?.wallet ?? true,
       },

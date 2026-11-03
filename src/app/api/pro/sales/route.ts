@@ -56,7 +56,7 @@ const SaleItemInput = z.object({
 const Body = z.object({
   tenantId: z.string().min(1),
   items: z.array(SaleItemInput).min(1),
-  paymentMethod: z.enum(["wave", "orange", "cash", "card", "wallet"]),
+  paymentMethod: z.enum(["wave", "orange", "mtn", "moov", "cash", "card", "wallet"]),
   clientProfileId: z.string().optional(),
   walkInClientName: z.string().optional(),
   walkInClientPhone: z.string().optional(),

@@ -92,7 +92,7 @@ export function saleJournalLines(opts: {
   total: number;
   servicesAmount: number; // part prestations
   productsAmount: number; // part produits
-  method: "wave" | "orange" | "cash" | "card" | "wallet";
+  method: "wave" | "orange" | "mtn" | "moov" | "cash" | "card" | "wallet";
 }): SimpleLine[] {
   const { ht, tva } = splitTVA(opts.total);
   const treasCode =
@@ -111,7 +111,7 @@ export function refundSaleJournalLines(opts: {
   total: number;
   servicesAmount: number;
   productsAmount: number;
-  method: "wave" | "orange" | "cash" | "card" | "wallet";
+  method: "wave" | "orange" | "mtn" | "moov" | "cash" | "card" | "wallet";
 }): SimpleLine[] {
   const { ht, tva } = splitTVA(opts.total);
   const treasCode =

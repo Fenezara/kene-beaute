@@ -43,6 +43,8 @@ export async function GET(req: NextRequest) {
     let cashSales = 0;
     let waveSales = 0;
     let orangeSales = 0;
+    let mtnSales = 0;
+    let moovSales = 0;
     let cardSales = 0;
     let walletSales = 0;
 
@@ -50,6 +52,8 @@ export async function GET(req: NextRequest) {
       if (s.paymentMethod === "cash") cashSales += s.total;
       else if (s.paymentMethod === "wave") waveSales += s.total;
       else if (s.paymentMethod === "orange") orangeSales += s.total;
+      else if (s.paymentMethod === "mtn") mtnSales += s.total;
+      else if (s.paymentMethod === "moov") moovSales += s.total;
       else if (s.paymentMethod === "card") cardSales += s.total;
       else if (s.paymentMethod === "wallet") walletSales += s.total;
     }
@@ -164,6 +168,8 @@ export async function POST(req: NextRequest) {
     let cashSales = 0;
     let waveSales = 0;
     let orangeSales = 0;
+    let mtnSales = 0;
+    let moovSales = 0;
     let cardSales = 0;
     let walletSales = 0;
 
@@ -171,6 +177,8 @@ export async function POST(req: NextRequest) {
       if (s.paymentMethod === "cash") cashSales += s.total;
       else if (s.paymentMethod === "wave") waveSales += s.total;
       else if (s.paymentMethod === "orange") orangeSales += s.total;
+      else if (s.paymentMethod === "mtn") mtnSales += s.total;
+      else if (s.paymentMethod === "moov") moovSales += s.total;
       else if (s.paymentMethod === "card") cardSales += s.total;
       else if (s.paymentMethod === "wallet") walletSales += s.total;
     }

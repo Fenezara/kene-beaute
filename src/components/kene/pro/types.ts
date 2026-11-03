@@ -19,7 +19,7 @@ export interface ProTenant {
   [k: string]: unknown;
 }
 
-export type PaymentMethod = "wave" | "orange" | "cash" | "card";
+export type PaymentMethod = "wave" | "orange" | "mtn" | "moov" | "cash" | "card" | "wallet";
 
 // ─────────────── Flux temps réel institut (/api/pro/live) ───────────────
 export interface ProLiveEvent {
@@ -79,6 +79,7 @@ export interface ProKpis {
 export interface TodayAppointment {
   id: string;
   clientName: string;
+  clientPhone?: string | null;
   serviceName: string;
   resourceName: string;
   startAt: string;
@@ -108,6 +109,7 @@ export interface ProOverview {
   topServices: { name: string; count: number; total: number }[];
   topProducts?: { name: string; count: number; total: number }[];
   todayAppointments: TodayAppointment[];
+  tomorrowAppointments?: TodayAppointment[];
   stockAlerts: StockAlertItem[];
   recentReviews?: ProReviewView[];
   pendingOrders?: Array<{

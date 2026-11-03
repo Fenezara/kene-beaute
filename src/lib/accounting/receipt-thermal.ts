@@ -68,6 +68,8 @@ function formatDateTime(d: Date | string): { dateStr: string; timeStr: string } 
 const PAYMENT_LABELS: Record<string, string> = {
   wave: "Wave Mobile Money",
   orange: "Orange Money",
+  mtn: "MTN MoMo",
+  moov: "Moov Money",
   cash: "Espèces",
   card: "Carte bancaire",
   wallet: "Compte Kènè",

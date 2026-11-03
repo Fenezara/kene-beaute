@@ -44,6 +44,8 @@ export async function GET(req: NextRequest) {
 
     const now = new Date();
     const todayStart = dayStart();
+    const tomorrowStart = new Date(todayStart.getTime() + 86_400_000);
+    const tomorrowEnd = new Date(dayEnd().getTime() + 86_400_000);
     const since7 = new Date(now.getTime() - 7 * 86_400_000);
     const since14 = daysAgo(13);
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
@@ -60,6 +62,7 @@ export async function GET(req: NextRequest) {
       sales14,
       sales30d,
       todayAppts,
+      tomorrowAppts,
       appts14d,
       paidOrders30d,
       products,
@@ -102,6 +105,11 @@ export async function GET(req: NextRequest) {
       }),
       db.appointment.findMany({
         where: { tenantId: tenant.id, startAt: { gte: todayStart, lte: dayEnd() } },
+        include: { service: { select: { name: true } }, resource: { select: { name: true } } },
+        orderBy: { startAt: "asc" },
+      }),
+      db.appointment.findMany({
+        where: { tenantId: tenant.id, startAt: { gte: tomorrowStart, lte: tomorrowEnd }, status: { not: "cancelled" } },
         include: { service: { select: { name: true } }, resource: { select: { name: true } } },
         orderBy: { startAt: "asc" },
       }),
@@ -473,6 +481,19 @@ export async function GET(req: NextRequest) {
       todayAppointments: todayAppts.map((a) => ({
         id: a.id,
         clientName: a.clientName,
+        clientPhone: a.clientPhone,
+        service: a.service.name,
+        serviceName: a.service.name,
+        resource: a.resource.name,
+        resourceName: a.resource.name,
+        startAt: a.startAt,
+        status: a.status,
+        price: a.price,
+      })),
+      tomorrowAppointments: tomorrowAppts.map((a) => ({
+        id: a.id,
+        clientName: a.clientName,
+        clientPhone: a.clientPhone,
         service: a.service.name,
         serviceName: a.service.name,
         resource: a.resource.name,

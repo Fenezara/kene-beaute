@@ -105,6 +105,7 @@ export function DashboardSection({
   const [viewMode, setViewMode] = useState<"operations" | "finance">("operations");
   const [chartRange, setChartRange] = useState<"7d" | "14d">("14d");
   const [topCategory, setTopCategory] = useState<"services" | "products">("services");
+  const [timelineTab, setTimelineTab] = useState<"today" | "tomorrow">("today");
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [allReviews, setAllReviews] = useState<ProReviewView[]>([]);
   const [reviewsSummary, setReviewsSummary] = useState<ProReviewSummary | null>(null);
@@ -272,30 +273,47 @@ export function DashboardSection({
       )}
 
       {/* ── 🛡️ BOUCLIER FINANCIER & CENTRE D'ACTION TEMPS RÉEL (2026) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Tuile 1 : Bouclier Anti-Fuite & Caisse Réelle */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Tuile 1 : Espèces en Caisse (Tiroir) */}
         <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-gold" />
-              Espèces en Caisse (Tiroir)
+              <span className="size-2 rounded-full bg-emerald-500" />
+              Espèces (Tiroir)
             </span>
-            <span className="font-mono text-[11px] font-bold text-foreground">
+            <span className="font-mono text-[12px] font-bold text-foreground">
               {xof(k.cashInDrawerToday ?? k.caToday)}
             </span>
           </div>
           <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Recettes Cash : {xof(k.cashSalesToday ?? 0)}</span>
+            <span>Recettes : {xof(k.cashSalesToday ?? 0)}</span>
             <span className="text-amber-500 font-semibold">Sorties : -{xof(k.expensesToday ?? 0)}</span>
           </div>
         </div>
 
-        {/* Tuile 2 : Jauge d'Objectif & Pacing Mensuel */}
+        {/* Tuile 2 : Dépôts & Trésorerie Digitale (Mobile Money / Carte) */}
+        <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-[#1DC8FF]" />
+              Dépôts Digitaux (Aujourd&apos;hui)
+            </span>
+            <span className="font-mono text-[12px] font-bold text-[#1DC8FF]">
+              {xof(k.mobileMoneyToday ?? 0)}
+            </span>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Wave · Orange · MTN · Moov</span>
+            <span className="text-foreground font-semibold font-mono">100% sécurisé</span>
+          </div>
+        </div>
+
+        {/* Tuile 3 : Jauge d'Objectif & Pacing Mensuel */}
         <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <TrendingUp className="size-3 text-emerald-500" />
-              Pacing Objectif Mensuel
+              Pacing Mensuel
             </span>
             <span className="font-mono text-[11px] font-black text-emerald-600 dark:text-emerald-400">
               {k.pacingPercentage ?? 51} %
@@ -305,33 +323,33 @@ export function DashboardSection({
             <div className="bg-gradient-to-r from-gold to-emerald-500 h-full rounded-full" style={{ width: `${k.pacingPercentage ?? 51}%` }} />
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Réalisé : {xof(k.currentMonthRevenue ?? k.ca30d, { compact: true })}</span>
+            <span>Fait : {xof(k.currentMonthRevenue ?? k.ca30d, { compact: true })}</span>
             <span>Cible : {xof(k.monthlyRevenueTarget ?? 1500000, { compact: true })}</span>
           </div>
         </div>
 
-        {/* Tuile 3 : Radar Clientes Connectées au Portail */}
+        {/* Tuile 4 : Radar Clientes Connectées au Portail */}
         <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              Digitalisation Clientèle
+              Digitalisation
             </span>
             <span className="font-mono text-[11px] font-black text-primary">
               {k.connectedPct ?? 65} % connectées
             </span>
           </div>
           <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{k.connectedClientsCount ?? 0} liées au salon</span>
+            <span>{k.connectedClientsCount ?? 0} liées</span>
             <span className="text-amber-500 font-semibold">{k.offlineClientsCount ?? 0} à inviter</span>
           </div>
           <div className="mt-2 pt-1.5 border-t border-border/60 flex items-center justify-between">
             <button
               type="button"
               onClick={() => onNavigate("crm")}
-              className="text-[11px] font-bold text-gold-text hover:underline flex items-center gap-1"
+              className="text-[11px] font-bold text-gold-text hover:underline flex items-center gap-1 cursor-pointer"
             >
-              Inviter clientes hors-portail →
+              Inviter clientes →
             </button>
           </div>
         </div>
@@ -590,57 +608,141 @@ export function DashboardSection({
 
           {/* ── LIGNE 2 : TIMELINE DU JOUR & RÉPARTITION DES PAIEMENTS ── */}
           <div className="grid lg:grid-cols-12 gap-4">
-            {/* Timeline du jour (7 colonnes) */}
+            {/* Timeline du jour & Demain (7 colonnes) */}
             <Card className="lg:col-span-7 overflow-hidden pt-0 rounded-[22px] sm:rounded-[26px]">
               <KenteTop />
               <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="font-heading text-base flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <CalendarCheck className="size-4 text-primary" />
-                  Timeline du jour
-                </CardTitle>
+                  <div className="flex rounded-lg bg-muted p-0.5 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setTimelineTab("today")}
+                      className={cn(
+                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
+                        timelineTab === "today" ? "bg-background text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Aujourd&apos;hui ({data.todayAppointments.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimelineTab("tomorrow")}
+                      className={cn(
+                        "px-2.5 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1",
+                        timelineTab === "tomorrow" ? "bg-background text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span>Demain</span>
+                      {(data.tomorrowAppointments ?? []).length > 0 && (
+                        <span className="size-1.5 rounded-full bg-amber-500" />
+                      )}
+                      <span>({(data.tomorrowAppointments ?? []).length})</span>
+                    </button>
+                  </div>
+                </div>
                 <span className="text-xs font-mono text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">
-                  {data.todayAppointments.length} soin{data.todayAppointments.length > 1 ? "s" : ""}
+                  {timelineTab === "today" ? `${data.todayAppointments.length} soin(s)` : `${(data.tomorrowAppointments ?? []).length} prévu(s)`}
                 </span>
               </CardHeader>
               <CardContent className="p-0">
-                {data.todayAppointments.length === 0 ? (
-                  <div className="p-8 text-center flex flex-col items-center justify-center space-y-3">
-                    <div className="size-12 rounded-2xl bg-gold/10 border border-gold/25 grid place-items-center text-gold-text">
-                      <Calendar className="size-6" />
+                {timelineTab === "today" ? (
+                  data.todayAppointments.length === 0 ? (
+                    <div className="p-8 text-center flex flex-col items-center justify-center space-y-3">
+                      <div className="size-12 rounded-2xl bg-gold/10 border border-gold/25 grid place-items-center text-gold-text">
+                        <Calendar className="size-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-heading font-bold text-base text-foreground">Cabine prête · Aucun rendez-vous</h4>
+                        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                          Votre planning d&apos;aujourd&apos;hui est dégagé. Proposez un créneau à vos clientes fidèles ou enregistrez une vente directe.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap justify-center items-center gap-2 pt-1">
+                        <Button onClick={() => onNavigate("agenda")} size="sm" className="k-btn-gold text-xs font-bold gap-1.5 rounded-full cursor-pointer">
+                          <Plus className="size-3.5" /> Poser un soin à l&apos;agenda
+                        </Button>
+                        <Button onClick={() => onNavigate("caisse")} size="sm" variant="outline" className="text-xs font-semibold rounded-full cursor-pointer">
+                          Ouvrir la Caisse POS
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-heading font-bold text-base text-foreground">Cabine prête · Aucun rendez-vous</h4>
-                      <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                        Votre planning d&apos;aujourd&apos;hui est dégagé. Proposez un créneau à vos clientes fidèles ou enregistrez une vente directe.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap justify-center items-center gap-2 pt-1">
-                      <Button onClick={() => onNavigate("agenda")} size="sm" className="k-btn-gold text-xs font-bold gap-1.5 rounded-full">
-                        <Plus className="size-3.5" /> Poser un soin à l&apos;agenda
-                      </Button>
-                      <Button onClick={() => onNavigate("caisse")} size="sm" variant="outline" className="text-xs font-semibold rounded-full">
-                        Ouvrir la Caisse POS
-                      </Button>
-                    </div>
-                  </div>
+                  ) : (
+                    <ul className="max-h-80 overflow-y-auto pretty-scroll divide-y divide-border/70">
+                      {data.todayAppointments.map((a) => (
+                        <li key={a.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors">
+                          <span className="font-mono text-xs text-muted-foreground w-12 shrink-0 tabular-nums font-semibold bg-muted px-1.5 py-0.5 rounded-md text-center">
+                            {formatTime(a.startAt)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold">{a.clientName}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {a.serviceName} · {a.resourceName}
+                            </p>
+                          </div>
+                          <Money value={a.price} className="text-xs font-bold shrink-0" />
+                          <ApptStatusBadge status={a.status} />
+                        </li>
+                      ))}
+                    </ul>
+                  )
                 ) : (
-                  <ul className="max-h-80 overflow-y-auto pretty-scroll divide-y divide-border/70">
-                    {data.todayAppointments.map((a) => (
-                      <li key={a.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors">
-                        <span className="font-mono text-xs text-muted-foreground w-12 shrink-0 tabular-nums font-semibold bg-muted px-1.5 py-0.5 rounded-md text-center">
-                          {formatTime(a.startAt)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{a.clientName}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {a.serviceName} · {a.resourceName}
-                          </p>
+                  (data.tomorrowAppointments ?? []).length === 0 ? (
+                    <div className="p-8 text-center flex flex-col items-center justify-center space-y-3">
+                      <div className="size-12 rounded-2xl bg-muted/60 border grid place-items-center text-muted-foreground">
+                        <Calendar className="size-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-heading font-bold text-base text-foreground">Aucun RDV réservé pour demain</h4>
+                        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                          Vos cabines sont entièrement disponibles pour demain. Contactez vos clientes pour remplir la journée.
+                        </p>
+                      </div>
+                      <Button onClick={() => onNavigate("agenda")} size="sm" className="k-btn-gold text-xs font-bold gap-1.5 rounded-full mt-1 cursor-pointer">
+                        <Plus className="size-3.5" /> Ouvrir l&apos;agenda cabine
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="p-3">
+                      <div className="mb-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+                          <span><strong>{(data.tomorrowAppointments ?? []).length} RDV prévus demain.</strong> Confirmez leur venue dès aujourd&apos;hui.</span>
                         </div>
-                        <Money value={a.price} className="text-xs font-bold shrink-0" />
-                        <ApptStatusBadge status={a.status} />
-                      </li>
-                    ))}
-                  </ul>
+                      </div>
+                      <ul className="max-h-80 overflow-y-auto pretty-scroll divide-y divide-border/70 border rounded-xl">
+                        {(data.tomorrowAppointments ?? []).map((a) => (
+                          <li key={a.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40 transition-colors">
+                            <span className="font-mono text-xs text-foreground w-12 shrink-0 tabular-nums font-bold bg-muted px-1.5 py-0.5 rounded-md text-center">
+                              {formatTime(a.startAt)}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold">{a.clientName}</p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {a.serviceName} · {a.resourceName}
+                              </p>
+                            </div>
+                            <Money value={a.price} className="text-xs font-bold shrink-0" />
+                            {a.clientPhone ? (
+                              <a
+                                href={waLink(
+                                  a.clientPhone,
+                                  `Bonjour ${a.clientName} 🌿 Cabinet LA DERMO vous confirme votre rendez-vous de demain (${formatTime(a.startAt)}) pour votre soin « ${a.serviceName} ». Merci de nous confirmer votre disponibilité !`
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="h-8 px-2.5 rounded-lg bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/30 text-[11px] font-bold flex items-center gap-1 shrink-0"
+                                title="Envoyer rappel WhatsApp"
+                              >
+                                <MessageCircle className="size-3.5" />
+                                <span className="hidden sm:inline">Rappeler</span>
+                              </a>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -651,7 +753,7 @@ export function DashboardSection({
               <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="font-heading text-base flex items-center gap-2">
                   <Banknote className="size-4 text-gold-text" />
-                  Modes de paiement
+                  Modes de paiement (30j)
                 </CardTitle>
                 <span className="text-xs font-mono font-bold text-foreground">
                   {xof(pieTotal, { compact: true })}

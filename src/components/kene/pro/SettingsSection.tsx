@@ -863,6 +863,8 @@ export function SettingsSection({
                     { key: "cash", label: "Espèces (Tiroir-caisse)", note: "Monnaie physique" },
                     { key: "wave", label: "Wave Mobile Money", note: "Paiement 1% sans frais" },
                     { key: "orange", label: "Orange Money", note: "Paiement cellulaire" },
+                    { key: "mtn", label: "MTN MoMo", note: "Mobile Money MTN" },
+                    { key: "moov", label: "Moov Money", note: "Moov Africa Flooz" },
                     { key: "card", label: "Carte Bancaire (TPE)", note: "Visa, Mastercard" },
                     { key: "wallet", label: "Wallet Kènè", note: "Portefeuille cliente" },
                   ].map((m) => {

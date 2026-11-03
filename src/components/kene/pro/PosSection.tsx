@@ -57,11 +57,21 @@ interface TicketLine {
 const PAY_METHODS: { code: PaymentMethod; label: string; cls: string }[] = [
   { code: "wave", label: "Wave", cls: "bg-[#1DC8FF] text-[#032029] font-bold border border-[#0099cc]/40 hover:brightness-105 shadow-xs" },
   { code: "orange", label: "Orange Money", cls: "bg-[#FF7900] text-white font-bold border border-[#cc6000]/40 hover:brightness-105 shadow-xs" },
+  { code: "mtn", label: "MTN MoMo", cls: "bg-[#FFCC00] text-[#18120C] font-bold border border-[#e6b800]/50 hover:brightness-105 shadow-xs" },
+  { code: "moov", label: "Moov Money", cls: "bg-[#0066B3] text-white font-bold border border-[#005299]/50 hover:brightness-105 shadow-xs" },
   { code: "cash", label: "Espèces", cls: "bg-emerald-600 text-white font-bold border border-emerald-700/40 hover:brightness-105 shadow-xs" },
   { code: "card", label: "Carte bancaire", cls: "bg-slate-700 text-white font-bold border border-slate-800/40 hover:brightness-105 shadow-xs" },
 ];
 
-const METHOD_LABELS: Record<string, string> = { wave: "Wave", orange: "Orange Money", cash: "Espèces", card: "Carte bancaire", wallet: "Wallet Kènè" };
+const METHOD_LABELS: Record<string, string> = {
+  wave: "Wave",
+  orange: "Orange Money",
+  mtn: "MTN MoMo",
+  moov: "Moov Money",
+  cash: "Espèces",
+  card: "Carte bancaire",
+  wallet: "Wallet Kènè",
+};
 
 export function PosSection({
   tenantId,
