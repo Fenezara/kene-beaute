@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, notify } from "@/lib/kene/server";
+import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
@@ -84,7 +85,9 @@ export async function POST(req: NextRequest) {
         channel: "whatsapp",
         toPhone: tenant.phone,
         message: `⚠️ Kènè Stock : « ${updated.name} » est à ${updated.stock} unités (seuil d'alerte ${updated.stockAlert}). Pensez à réapprovisionner.`,
+        metaJson: JSON.stringify({ productId: updated.id, type: "stock_alert" }),
       });
+      pushTenantFeed(tenantId);
     }
 
     return NextResponse.json({ product: updated, movement }, { status: 201 });

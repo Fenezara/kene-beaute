@@ -34,8 +34,13 @@ export function protocolReminderAt(diagCreatedAt: Date): Date {
 
 export interface NotificationMeta {
   diagId?: string;
+  proDiagId?: string;
   apptId?: string;
+  orderId?: string;
+  productId?: string;
   dedupKey?: string;
+  type?: string;
+  status?: string;
 }
 
 export function readMeta(metaJson?: string | null): NotificationMeta {

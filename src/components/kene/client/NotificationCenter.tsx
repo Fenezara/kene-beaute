@@ -25,6 +25,7 @@ import {
   Leaf,
   Loader2,
   ScanFace,
+  ShoppingBag,
   Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -115,6 +116,19 @@ function classifyNotification(item: ApiReminder): NotifPresentation {
       iconBoxClass: "bg-primary/15 text-primary border border-primary/30",
       badgeClass: "bg-primary/12 text-primary border border-primary/25",
       channelDisplay: "Espace Kènè+",
+    };
+  }
+
+  // 4) Commandes boutique (préparation, expédition, livraison, annulation)
+  if (meta.orderId || msg.includes("commande") || msg.includes("expédiée") || msg.includes("livrée")) {
+    return {
+      categoryLabel: "Commande Boutique",
+      actionLabel: "Voir mes commandes",
+      targetTab: "agenda",
+      Icon: ShoppingBag,
+      iconBoxClass: "bg-[#D49A24]/15 text-[#D49A24] border border-[#D49A24]/30",
+      badgeClass: "bg-[#D49A24]/15 text-[#D49A24] border border-[#D49A24]/30",
+      channelDisplay: "Boutique & Livraison",
     };
   }
 

@@ -56,6 +56,7 @@ import { useApi } from "./useApi";
 import type { ProOverview, ProLive } from "./types";
 import { DEFAULT_FALLBACK_OVERVIEW, DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
+import { ProNotificationCenter } from "./ProNotificationCenter";
 import { unlockAudioContext } from "../client/ttsAudio";
 import { syncOfflineSales } from "@/lib/pos/offline-queue";
 import { CreateBranchDialog } from "./CreateBranchDialog";
@@ -655,6 +656,8 @@ export function ProEnterpriseShell() {
             toast.success("Commande boutique reçue", { description: f.last.label, duration: 6_000 });
           } else if (f.last.type === "review") {
             toast.success("Nouvel avis cliente", { description: f.last.label, duration: 6_000 });
+          } else if (f.last.type === "notification") {
+            toast.info("Alerte synchronisée", { description: f.last.label, duration: 6_000 });
           }
         }
       }
@@ -996,6 +999,15 @@ export function ProEnterpriseShell() {
 
             <SpaceSwitcher variant="compact" />
             <ThemeToggle />
+
+            {/* Centre de Notifications Établissement (Synchronisation Salon & Clientes) */}
+            {tid && (
+              <ProNotificationCenter
+                tenantId={tid}
+                unreadCount={live?.unreadNotifs ?? 0}
+                onNavigate={openSection}
+              />
+            )}
 
             {/* Bouton direct Paramètres dans le Header (Accès instantané universel) */}
             <button

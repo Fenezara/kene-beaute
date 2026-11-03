@@ -13,6 +13,7 @@ import type { BodyZone } from "@/lib/kene/types";
 import { scoreQuestionnaire, mergeResults, missingRequired, getQuestionsForZone, QUESTIONS } from "@/lib/kene/questionnaire";
 import type { QAnswers } from "@/lib/kene/questionnaire";
 import { jsonError, serverError, notify, resolveTenant } from "@/lib/kene/server";
+import { pushTenantFeed, pushFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, PRO_DIAGNOSES } from "@/lib/kene/rate-limit";
 import { checkImageDataUrl } from "@/lib/kene/upload";
@@ -260,9 +261,12 @@ export async function POST(req: NextRequest) {
             ? "Des points de vigilance ont été notés — ta praticienne te les expliquera."
             : "Ta praticienne a la routine détaillée pour toi."
         }`,
-        metaJson: JSON.stringify({ proDiagId: diagnosis.id }),
+        metaJson: JSON.stringify({ proDiagId: diagnosis.id, type: "pro_diagnosis" }),
       });
+      pushFeed(client.userId);
     }
+
+    pushTenantFeed(tenant.id);
 
     return NextResponse.json(
       { diagnosis: { ...diagnosis, clientName: client.name, reusedClient }, result },

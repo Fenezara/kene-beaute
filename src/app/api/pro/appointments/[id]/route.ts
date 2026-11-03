@@ -84,6 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           channel: "whatsapp",
           toPhone: appointment.clientPhone,
           message: `Kènè : votre rendez-vous pour le soin « ${appointment.service.name} » a été réajusté par l'institut ${tenant.name} 🗓️ Nouveau créneau confirmé : le ${new Date(newStart).toLocaleDateString("fr-FR")} à ${new Date(newStart).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`,
+          metaJson: JSON.stringify({ apptId: appointment.id, type: "appt_rescheduled" }),
         });
       }
       // Temps réel: autres postes/onglets Pro + dashboard + cliente rafraîchis
@@ -102,6 +103,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           channel: "whatsapp",
           toPhone: appointment.clientPhone,
           message: `Kènè : votre RDV pour le soin « ${appointment.service.name} » a été confirmé par l'institut ${tenant.name} ✅ Rendez-vous le ${new Date(appointment.startAt).toLocaleDateString("fr-FR")} à ${new Date(appointment.startAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`,
+          metaJson: JSON.stringify({ apptId: appointment.id, type: "appt_confirmed" }),
         });
       }
       pushTenantFeed(appointment.tenantId);
@@ -117,9 +119,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           channel: "whatsapp",
           toPhone: appointment.clientPhone,
           message: `Kènè : votre RDV « ${appointment.service.name} » chez ${tenant.name} a été annulé. Contactez l'institut ou reprogrammez un créneau sur votre espace Kènè.`,
+          metaJson: JSON.stringify({ apptId: appointment.id, type: "appt_cancelled" }),
         });
       }
       pushTenantFeed(appointment.tenantId);
+      pushFeed(appointment.userId);
       return NextResponse.json({ appointment: updated });
     }
     if (action === "no_show") {
@@ -131,9 +135,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           channel: "whatsapp",
           toPhone: appointment.clientPhone,
           message: `Kènè : nous avons constaté votre absence lors de votre RDV « ${appointment.service.name} » chez ${tenant.name}. Prenez soin de vous et recontactez l'institut pour convenir d'un nouveau créneau 🌿`,
+          metaJson: JSON.stringify({ apptId: appointment.id, type: "appt_no_show" }),
         });
       }
       pushTenantFeed(appointment.tenantId);
+      pushFeed(appointment.userId);
       return NextResponse.json({ appointment: updated });
     }
 

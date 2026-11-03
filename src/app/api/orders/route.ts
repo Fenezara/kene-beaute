@@ -264,6 +264,7 @@ export async function POST(req: NextRequest) {
         channel: "sms",
         toPhone: user.phone,
         message: `Kènè : commande ${order.id.slice(-6).toUpperCase()} enregistrée (${xof(total)}${discount ? `, remise ${xof(discount)} appliquée` : ""}${cashback ? `, ${xof(cashback)} de cashback` : ""}). Réf paiement ${paymentRef}.`,
+        metaJson: JSON.stringify({ orderId: order.id }),
       }, tx);
 
       return { orderId: order.id, paymentId, confirmToken, paid };

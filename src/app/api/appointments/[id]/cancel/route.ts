@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { cancellationRefund } from "@/lib/kene/rfm";
 import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
+import { pushTenantFeed, pushFeed } from "@/lib/kene/realtime";
 import { sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, APPOINTMENT_CANCEL } from "@/lib/kene/rate-limit";
 
@@ -70,7 +71,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         refundAmount > 0
           ? `Kènè : votre RDV « ${appointment.clientName} » a été annulé. ${label} : ${refundAmount} FCFA crédités sur votre wallet Kènè.`
           : `Kènè : votre RDV a été annulé. ${label}.`,
+      metaJson: JSON.stringify({ apptId: appointment.id, type: "appt_cancelled" }),
     });
+
+    if (appointment.tenantId) {
+      pushTenantFeed(appointment.tenantId);
+    }
+    if (appointment.userId) {
+      pushFeed(appointment.userId);
+    }
 
     return NextResponse.json({ appointment: updated, refund: { amount: refundAmount, label } });
   } catch (err) {

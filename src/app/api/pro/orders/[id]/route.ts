@@ -158,6 +158,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           channel: "whatsapp",
           toPhone: order.user.phone,
           message: statusMsg,
+          metaJson: JSON.stringify({ orderId: order.id, status: target }),
         });
       }
     }

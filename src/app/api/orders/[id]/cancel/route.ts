@@ -97,6 +97,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         channel: "whatsapp",
         toPhone: order.user?.phone ?? "",
         message: `La commande #${ref} (${order.total.toLocaleString("fr-FR")} FCFA) a été annulée par ${order.user?.name ?? "la cliente"}.`,
+        metaJson: JSON.stringify({ orderId: order.id, status: "cancelled_by_client" }),
       });
     }
 

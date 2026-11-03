@@ -23,7 +23,7 @@ export type PaymentMethod = "wave" | "orange" | "cash" | "card";
 
 // ─────────────── Flux temps réel institut (/api/pro/live) ───────────────
 export interface ProLiveEvent {
-  type: "appointment" | "order" | "sale" | "review";
+  type: "appointment" | "order" | "sale" | "review" | "notification";
   id: string;
   at: string;
   label: string;
@@ -36,6 +36,7 @@ export interface ProLive {
   apptsToday: number;
   salesToday: number; // CA POS du jour (KPI live)
   ordersToday: number; // commandes boutique contenant un produit de l'institut
+  unreadNotifs?: number; // notifications non lues de l'institut
   last: ProLiveEvent | null;
 }
 

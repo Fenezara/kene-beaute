@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, overlaps, dayEnd, notify, ddMM, hhmm } from "@/lib/kene/server";
+import { pushTenantFeed, pushFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
 import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 import { ensureClientProfile } from "@/lib/kene/client-link";
@@ -255,6 +256,11 @@ export async function POST(req: NextRequest) {
         metaJson: JSON.stringify({ apptId: appointment.id, type: "reminder_2h" }),
         message: `Kènè : Votre moment de bien-être approche ✨ Rendez-vous aujourd'hui à ${hhmm(start)} chez ${tenant.name} (${service.name} avec ${resource.name}).`,
       });
+    }
+
+    pushTenantFeed(tenantId);
+    if (resolvedUserId) {
+      pushFeed(resolvedUserId);
     }
 
     return NextResponse.json({ appointment }, { status: 201 });

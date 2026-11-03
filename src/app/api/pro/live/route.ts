@@ -12,7 +12,7 @@ import { sessionFromRequest } from "@/lib/kene/session";
 import { xof } from "@/lib/kene/format";
 
 interface LiveEvent {
-  type: "appointment" | "order" | "sale" | "review";
+  type: "appointment" | "order" | "sale" | "review" | "notification";
   id: string;
   at: string;
   label: string;
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     if (!tenant) return jsonError("Institut introuvable", 404);
     const now = new Date();
 
-    const [pendingAppts, apptsToday, aggToday, ordersToday, lastAppt, lastOrder, lastSale, lastReview] = await Promise.all([
+    const [pendingAppts, apptsToday, aggToday, ordersToday, unreadNotifs, lastAppt, lastOrder, lastSale, lastReview, lastNotif] = await Promise.all([
       // RDV réservés par des clientes, à confirmer par l'institut
       db.appointment.count({ where: { tenantId: tenant.id, status: "pending", startAt: { gte: now } } }),
       db.appointment.count({
@@ -46,6 +46,8 @@ export async function GET(req: NextRequest) {
       db.sale.aggregate({ where: { tenantId: tenant.id, status: "completed", createdAt: { gte: dayStart() } }, _sum: { total: true } }),
       // Commandes boutique du jour contenant au moins un produit de l'institut
       db.order.count({ where: { createdAt: { gte: dayStart() }, items: { some: { product: { tenantId: tenant.id } } } } }),
+      // Notifications non lues de l'institut
+      db.notification.count({ where: { tenantId: tenant.id, readAt: null } }),
       db.appointment.findFirst({
         where: { tenantId: tenant.id },
         orderBy: { createdAt: "desc" },
@@ -66,6 +68,12 @@ export async function GET(req: NextRequest) {
         where: { tenantId: tenant.id },
         orderBy: { createdAt: "desc" },
         select: { id: true, rating: true, createdAt: true, user: { select: { name: true } } },
+      }),
+      // Dernière notification reçue pour l'institut (annulation, partage de scan, stock, etc.)
+      db.notification.findFirst({
+        where: { tenantId: tenant.id },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, message: true, createdAt: true, channel: true },
       }),
     ]);
 
@@ -104,6 +112,14 @@ export async function GET(req: NextRequest) {
         label: `${"★".repeat(lastReview.rating)} (${lastReview.rating}/5) · ${lastReview.user?.name ?? "cliente"}`,
       });
     }
+    if (lastNotif) {
+      candidates.push({
+        type: "notification",
+        id: lastNotif.id,
+        at: lastNotif.createdAt.toISOString(),
+        label: lastNotif.message,
+      });
+    }
     candidates.sort((a, b) => (a.at < b.at ? 1 : -1));
 
     return NextResponse.json({
@@ -112,6 +128,7 @@ export async function GET(req: NextRequest) {
       apptsToday,
       salesToday: aggToday._sum.total ?? 0,
       ordersToday,
+      unreadNotifs,
       last: candidates[0] ?? null,
     });
   } catch (err) {
