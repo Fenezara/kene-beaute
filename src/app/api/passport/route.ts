@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
 import { seedOf } from "@/lib/kene/gold-threads";
+import { parseStructuredPrescription } from "@/lib/kene/prescription-schema";
 
 /** Jeton base32 lisible — 12 caractères, sans caractères ambigus. */
 function newToken(): string {
@@ -112,7 +113,35 @@ async function buildPassportData(userId: string) {
     } catch {}
   }
 
-  const prescribedRoutine = clientProfiles.find((cp) => cp.cosmeticsUsed?.trim())?.cosmeticsUsed?.trim() || null;
+  const rawCosmetics = clientProfiles.find((cp) => cp.cosmeticsUsed?.trim())?.cosmeticsUsed?.trim() || null;
+  let parsedPrescription: {
+    cureNumber?: number;
+    tenantName?: string;
+    notes?: string;
+    products?: { name: string; moment: string; posology: string }[];
+    cabineServices?: { name: string; frequency: string; durationMin?: number }[];
+  } | null = null;
+
+  if (rawCosmetics) {
+    const struct = parseStructuredPrescription(rawCosmetics);
+    if (struct.products.length > 0 || struct.cabineServices.length > 0 || struct.notes) {
+      parsedPrescription = {
+        cureNumber: struct.cureNumber || 1,
+        tenantName: struct.tenantName,
+        notes: struct.notes || undefined,
+        products: struct.products.map((p) => ({
+          name: p.name,
+          moment: p.moment,
+          posology: p.posology,
+        })),
+        cabineServices: struct.cabineServices.map((s) => ({
+          name: s.name,
+          frequency: s.frequency,
+          durationMin: s.durationMin,
+        })),
+      };
+    }
+  }
 
   return {
     name: shortName(user.name),
@@ -145,7 +174,7 @@ async function buildPassportData(userId: string) {
           instituteName: lastCompletedAppt.tenant.name,
         }
       : null,
-    prescribedRoutine,
+    prescription: parsedPrescription,
     threads,
     seed: seedOf(userId), // même graine que la vue privée → même pagne
     since: user.createdAt,

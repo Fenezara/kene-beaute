@@ -61,7 +61,13 @@ interface PassportData {
     serviceName: string;
     instituteName: string;
   } | null;
-  prescribedRoutine?: string | null;
+  prescription?: {
+    cureNumber?: number;
+    tenantName?: string;
+    notes?: string;
+    products?: { name: string; moment: string; posology: string }[];
+    cabineServices?: { name: string; frequency: string; durationMin?: number }[];
+  } | null;
   threads: number;
   seed: number;
   since: string;
@@ -472,21 +478,90 @@ export function PassportGate() {
                   )}
                 </div>
 
-                {/* Routine Prescrite ou Dernier Passage en Institut */}
-                {(data.prescribedRoutine || data.lastCabinVisit) && (
-                  <div className="rounded-[18px] bg-[#140E0A]/65 p-3.5 ring-1 ring-[#D49A24]/25 space-y-2">
-                    {data.prescribedRoutine && (
-                      <div>
-                        <p className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-[#F3D98A]">
-                          <Sun size={11} /> Routine Actuelle de la Cliente
-                        </p>
-                        <p className="mt-1 text-[11.5px] text-[#F8F1E4]/85 leading-relaxed">
-                          {data.prescribedRoutine}
-                        </p>
+                {/* Ordonnance Dermo-Esthétique Hybride (Produits & Soins Cabine) */}
+                {(data.prescription || data.lastCabinVisit) && (
+                  <div className="rounded-[20px] bg-[#140E0A]/80 p-4 ring-1 ring-[#D49A24]/30 space-y-3">
+                    {data.prescription ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2 border-b border-[#F8F1E4]/10 pb-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="grid size-7 place-items-center rounded-lg bg-[#D49A24]/20 text-[#F3D98A]">
+                              <Sun size={14} />
+                            </span>
+                            <div>
+                              <p className="text-[11px] font-black uppercase tracking-wider text-[#F3D98A] leading-tight">
+                                Ordonnance de Soins Active
+                              </p>
+                              {data.prescription.tenantName && (
+                                <p className="text-[10px] text-[#F8F1E4]/60">
+                                  Prescrite par {data.prescription.tenantName}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 text-[9.5px] font-bold text-emerald-300">
+                            Cure #{data.prescription.cureNumber || 1}
+                          </span>
+                        </div>
+
+                        {/* Produits prescrits */}
+                        {data.prescription.products && data.prescription.products.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#F8F1E4]/60">
+                              Cosmétiques Quotidiens :
+                            </p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {data.prescription.products.map((prod, idx) => (
+                                <div key={idx} className="bg-[#1E150D] rounded-xl p-2.5 border border-[#F8F1E4]/8 flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="text-[12px] font-black text-[#FFF9EC] leading-tight truncate">
+                                      {prod.name}
+                                    </p>
+                                    <p className="text-[10.5px] text-[#F8F1E4]/70 mt-0.5 leading-snug">
+                                      {prod.posology}
+                                    </p>
+                                  </div>
+                                  <span className="rounded-md bg-[#D49A24]/15 border border-[#D49A24]/30 px-1.5 py-0.5 text-[9px] font-bold text-[#F3D98A] shrink-0 uppercase">
+                                    {prod.moment === "matin" ? "Matin" : prod.moment === "soir" ? "Soir" : prod.moment === "matin_soir" ? "Matin & Soir" : "Hebdo"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Soins cabine prescrits */}
+                        {data.prescription.cabineServices && data.prescription.cabineServices.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#F8F1E4]/60">
+                              Protocole en Institut :
+                            </p>
+                            <div className="space-y-1.5">
+                              {data.prescription.cabineServices.map((srv, idx) => (
+                                <div key={idx} className="flex items-center justify-between gap-2 text-[11px] bg-[#1E150D]/60 rounded-lg px-2.5 py-1.5 border border-[#F8F1E4]/6">
+                                  <span className="font-semibold text-emerald-300 truncate">
+                                    ✦ {srv.name}
+                                  </span>
+                                  <span className="text-[10px] text-[#F8F1E4]/60 shrink-0 font-medium">
+                                    {srv.frequency}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Notes / Instructions spécifiques */}
+                        {data.prescription.notes && (
+                          <div className="bg-[#1E150D]/40 rounded-xl p-2.5 border border-dashed border-[#F8F1E4]/12 text-[11px] text-[#F8F1E4]/80 leading-relaxed italic">
+                            « {data.prescription.notes} »
+                          </div>
+                        )}
                       </div>
-                    )}
+                    ) : null}
+
                     {data.lastCabinVisit && (
-                      <div className="flex items-center justify-between gap-2 pt-1 text-[11px] text-[#F8F1E4]/75">
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#F8F1E4]/10 text-[11px] text-[#F8F1E4]/75">
                         <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-300">
                           <CalendarCheck2 size={12} />
                           Dernier soin : {data.lastCabinVisit.serviceName}
