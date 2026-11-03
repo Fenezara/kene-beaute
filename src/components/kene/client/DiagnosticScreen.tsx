@@ -976,18 +976,9 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                 </div>
 
                 {/* Faisceau laser spectral Or 24K en balayage vertical complet (Haut <-> Bas) */}
-                <motion.div
+                <div
                   aria-hidden="true"
-                  initial={{ top: "4%" }}
-                  animate={{
-                    top: ["4%", "88%", "4%"],
-                  }}
-                  transition={{
-                    duration: 2.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  className="absolute inset-x-2 pointer-events-none z-15"
+                  className="absolute inset-x-2 top-0 pointer-events-none z-15 animate-kene-mirror-laser"
                 >
                   {/* Ligne laser principale brillante avec double halo haute intensité */}
                   <div className="relative">
@@ -997,7 +988,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                     {/* Trait de retour inversé doux */}
                     <div className="h-6 w-full -mt-10 bg-gradient-to-t from-[#D49A24]/25 to-transparent blur-[1px]" />
                   </div>
-                </motion.div>
+                </div>
 
                 {/* Bas du miroir avec sélecteur 3 points d'angle et bouton d'action */}
                 <div className="absolute bottom-3 inset-x-3 flex items-center justify-between gap-2 z-20">

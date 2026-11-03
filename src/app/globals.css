@@ -943,6 +943,25 @@
     }
   }
 
+  .animate-kene-mirror-laser {
+    animation: kene-mirror-laser 2.8s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+  @keyframes kene-mirror-laser {
+    0% {
+      transform: translateY(8px);
+      opacity: 0.8;
+    }
+    50% {
+      transform: translateY(220px);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(8px);
+      opacity: 0.8;
+    }
+  }
+
   .animate-kene-photo-breathe {
     animation: kene-photo-breathe 5s ease-in-out infinite;
     will-change: transform, filter;
