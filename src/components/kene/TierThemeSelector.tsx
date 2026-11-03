@@ -261,13 +261,13 @@ export function TierThemeSelector({
   return (
     <div className={cn("k-card rounded-[26px] p-4 sm:p-5 space-y-4 sm:space-y-5 border border-gold/30 shadow-sm relative overflow-hidden", className)}>
       {/* En-tête de prestige */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-gold-text bg-gold/15 px-2.5 py-0.5 rounded-full border border-gold/30 inline-flex items-center gap-1.5">
-              <Crown size={12} className="text-gold-text" /> {effectiveAudience === "pro" ? "Spas & Palaces Mondiaux 2026" : "Haute Joaillerie Africaine"}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="space-y-1.5 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-gold-text bg-gold/15 px-2.5 py-1 rounded-full border border-gold/30 inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Crown size={12} className="text-gold-text shrink-0" /> {effectiveAudience === "pro" ? "Spas & Palaces Mondiaux 2026" : "Haute Joaillerie Africaine"}
             </span>
-            <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary bg-primary/10">
+            <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary bg-primary/10 whitespace-nowrap">
               {activeDef.rarityTag}
             </Badge>
           </div>
@@ -291,10 +291,10 @@ export function TierThemeSelector({
           <button
             type="button"
             onClick={handleResetAuto}
-            className="text-xs font-bold text-primary hover:underline shrink-0 inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl active:scale-95 transition-all shadow-xs"
+            className="text-xs font-bold text-primary hover:underline shrink-0 self-start inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl active:scale-95 transition-all shadow-xs whitespace-nowrap"
             title="Réaligner automatiquement sur l'abonnement actif"
           >
-            <RefreshCw size={13} /> Synchronisation Auto
+            <RefreshCw size={13} className="shrink-0" /> Synchronisation Auto
           </button>
         )}
       </div>

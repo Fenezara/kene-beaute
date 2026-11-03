@@ -1234,42 +1234,44 @@ export function ProEnterpriseShell() {
               })}
             </div>
 
-            <nav
-              aria-label="Sous-onglets du pôle actif (mobile)"
-              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 pb-0.5"
-            >
-              {activeCategoryItems.map((item) => {
-                const badge = navBadges[item.id];
-                return (
-                  <button
-                    key={item.id}
-                    ref={(el) => {
-                      chipRefs.current[item.id] = el;
-                    }}
-                    onClick={() => openSection(item.id)}
-                    aria-current={activeSection === item.id ? "page" : undefined}
-                    aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
-                    className={cn(
-                      "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 min-h-7 text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
-                      activeSection === item.id
-                        ? "k-btn-gold text-primary-foreground font-bold shadow-xs"
-                        : "k-chip text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="size-3" />
-                    <span>{item.label}</span>
-                    {badge ? (
-                      <span
-                        role="status"
-                        className="grid h-3.5 min-w-3.5 place-items-center rounded-full bg-bissap px-1 text-[9px] font-semibold text-white"
-                      >
-                        {badge}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </nav>
+            {activeCategoryItems.length > 1 && (
+              <nav
+                aria-label="Sous-onglets du pôle actif (mobile)"
+                className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 pb-0.5"
+              >
+                {activeCategoryItems.map((item) => {
+                  const badge = navBadges[item.id];
+                  return (
+                    <button
+                      key={item.id}
+                      ref={(el) => {
+                        chipRefs.current[item.id] = el;
+                      }}
+                      onClick={() => openSection(item.id)}
+                      aria-current={activeSection === item.id ? "page" : undefined}
+                      aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
+                      className={cn(
+                        "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 min-h-7 text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                        activeSection === item.id
+                          ? "k-btn-gold text-primary-foreground font-bold shadow-xs"
+                          : "k-chip text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <item.icon className="size-3" />
+                      <span>{item.label}</span>
+                      {badge ? (
+                        <span
+                          role="status"
+                          className="grid h-3.5 min-w-3.5 place-items-center rounded-full bg-bissap px-1 text-[9px] font-semibold text-white"
+                        >
+                          {badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
           </div>
         </div>
 
