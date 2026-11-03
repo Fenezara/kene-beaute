@@ -8,7 +8,6 @@ import {
   Camera,
   CheckCircle2,
   Loader2,
-  Sparkles,
   ScanFace,
   UserCheck,
   ArrowRight,
@@ -367,7 +366,7 @@ export function KeneMirrorKioskModal({
                   </>
                 ) : (
                   <>
-                    <Sparkles size={16} />
+                    <ScanFace size={16} />
                     <span>Envoyer mon bilan en cabine</span>
                   </>
                 )}

@@ -3,7 +3,7 @@
 // comportement inchangé): KPIs plateforme, courbe diagnostics 14 j,
 // top instituts par CA 30 j.
 import { useEffect, useState } from "react";
-import { Activity, AlertCircle, Building2, CheckCircle2, Cpu, CreditCard, Crown, Database, ExternalLink, HeartHandshake, MessageSquare, ReceiptText, RefreshCw, Server, ShoppingBag, Smartphone, Sparkles, BriefcaseBusiness, Users } from "lucide-react";
+import { Activity, AlertCircle, Building2, CheckCircle2, Cpu, CreditCard, Crown, Database, ExternalLink, HeartHandshake, MessageSquare, ReceiptText, RefreshCw, Server, ShoppingBag, Smartphone, ShieldCheck, BriefcaseBusiness, Users } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +134,7 @@ export function AdminOverview({
               className="h-8 gap-1.5 text-xs font-semibold rounded-full border-gold/50 bg-gold/10 text-gold hover:bg-gold/20"
             >
               <a href="/case-study" target="_blank" rel="noopener noreferrer">
-                <Sparkles className="size-3.5 text-amber-500" />
+                <ShieldCheck className="size-3.5 text-amber-500" />
                 <span>Case Study 3D</span>
               </a>
             </Button>

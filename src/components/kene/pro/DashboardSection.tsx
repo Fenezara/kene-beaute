@@ -15,8 +15,9 @@ import {
   MessageCircle,
   Loader2,
   BarChart3,
+  Calendar,
   LayoutDashboard,
-  Sparkles,
+  ScanFace,
   Zap,
   Plus,
   Crown,
@@ -381,7 +382,7 @@ export function DashboardSection({
           className="k-ceramic-tile group flex items-center gap-3 rounded-[20px] p-3 sm:p-3.5 text-left cursor-pointer"
         >
           <span className="grid size-10 shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-bissap/22 to-bissap/8 text-bissap shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_4px_8px_rgba(158,32,69,0.16)] transition-transform group-hover:scale-105">
-            <Sparkles className="size-5" />
+            <ScanFace className="size-5" />
           </span>
           <div className="min-w-0">
             <p className="font-heading text-xs sm:text-[13px] font-black text-foreground truncate">Diagnostic &amp; INCI</p>
@@ -605,7 +606,7 @@ export function DashboardSection({
                 {data.todayAppointments.length === 0 ? (
                   <div className="p-8 text-center flex flex-col items-center justify-center space-y-3">
                     <div className="size-12 rounded-2xl bg-gold/10 border border-gold/25 grid place-items-center text-gold-text">
-                      <Sparkles className="size-6" />
+                      <Calendar className="size-6" />
                     </div>
                     <div>
                       <h4 className="font-heading font-bold text-base text-foreground">Cabine prête · Aucun rendez-vous</h4>

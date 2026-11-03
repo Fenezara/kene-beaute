@@ -4,7 +4,7 @@
 // métalliques et botaniques des grands royaumes africains.
 
 import { useEffect, useState } from "react";
-import { Check, Crown, Eye, Lock, Sparkles, Wand2, Shield, Gem } from "lucide-react";
+import { Check, Crown, Eye, Lock, Wand2, Shield, Gem } from "lucide-react";
 import { toast } from "sonner";
 import {
   TIER_THEMES,

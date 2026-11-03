@@ -12,9 +12,11 @@ import {
   CloudSun,
   Crown,
   MapPin,
+  LayoutDashboard,
   MessageCircle,
   ScanFace,
   ShieldAlert,
+  ShieldCheck,
   SunMedium,
   Wind,
 } from "lucide-react";
@@ -22,7 +24,7 @@ import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { apiGet } from "@/lib/kene/api";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
-import { KeneEmblem, NsorommaIcon } from "@/components/kene/icons";
+import { KeneEmblem } from "@/components/kene/icons";
 import { Reveal, RevealItem } from "@/components/kene/ui2026";
 import { useT } from "@/lib/kene/use-t";
 import { useKene } from "@/store/kene";
@@ -238,7 +240,7 @@ export function HomeScreen({
               className="mb-1.5 block h-[3.5px] w-12 rounded-full bg-gradient-to-r from-[#D49A24] via-[#C93B62] to-[#9E2045] shadow-xs opacity-90"
             />
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gold/15 border border-gold/30 text-gold-text text-[10px] font-black uppercase tracking-wider mb-1.5">
-              <NsorommaIcon size={12} className="text-gold-text" />
+              <ShieldCheck size={12} className="text-gold-text" />
               <span>Espace Dermo Kènè · Conseils & Rituels</span>
             </div>
             <p className="text-xs uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
@@ -269,7 +271,7 @@ export function HomeScreen({
         {/* Commutateur Awwwards : Mon Tableau de Bord & Rituels vs Dermo Kènè 24/7 */}
         <div className="mt-4 flex p-1 rounded-2xl bg-card border border-gold/30 shadow-xs">
           <div className="flex-1 py-2 px-3 rounded-xl font-heading font-black text-xs bg-gold/15 text-gold-text shadow-2xs flex items-center justify-center gap-2 border border-gold/40">
-            <NsorommaIcon size={14} className="text-gold" />
+            <LayoutDashboard size={14} className="text-gold" />
             <span>Mon Espace &amp; Bilan Cutané</span>
           </div>
           <button
@@ -475,7 +477,7 @@ export function HomeScreen({
           <div className="relative z-10 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C8951E]/20 border border-[#C8951E]/40 px-2.5 py-0.5 text-[10.5px] font-black uppercase tracking-wider text-[#FFD875]">
-                <NsorommaIcon size={12} className="animate-pulse text-[#FFD875]" />
+                <ShieldCheck size={12} className="text-[#FFD875]" />
                 Dermo Kènè · Conseillère IA 24/7
               </span>
               <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
@@ -486,7 +488,7 @@ export function HomeScreen({
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] text-white shrink-0 shadow-md">
-                  <NsorommaIcon size={24} className="animate-pulse text-white" />
+                  <ScanFace size={24} className="text-white" />
                 </span>
                 <div className="min-w-0">
                   <h3 className="font-heading font-black text-base sm:text-lg text-[#FFF9EC] truncate">

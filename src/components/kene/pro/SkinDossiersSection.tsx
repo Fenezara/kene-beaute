@@ -4,12 +4,12 @@
 // imagerie spectrale HD, suivi d'évolution avant/après et formulation d'actifs sur-mesure.
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
-  FolderHeart, Search, Sparkles, Filter, ChevronRight, Baby, Leaf,
+  FolderHeart, Search, ScanFace, Filter, ChevronRight, Baby, Leaf,
   FlaskConical, Save, FileDown, MessageCircle, CheckCircle2, Phone,
   SlidersHorizontal, Eye, ShieldAlert, Sun, Moon, ArrowLeft,
   Calendar, Lock, Layers, Droplets, Camera, Check, Plus, AlertTriangle,
   Smartphone, Stethoscope, FileClock, Clock, UserCheck, Info, Users,
-  ShoppingBag, Sparkle, Trash2, CalendarCheck, RefreshCw, ArrowRight, History, CheckCircle, XCircle, Loader2
+  ShoppingBag, Trash2, CalendarCheck, RefreshCw, ArrowRight, History, CheckCircle, XCircle, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, CauriIcon, SankofaIcon } from "@/components/kene/icons";
@@ -177,7 +177,7 @@ export function SkinDossiersSection({
                 onClick={() => onStartDiagnostic(activeClientId || "")}
                 className="k-btn-gold text-primary-foreground font-semibold text-xs h-9 gap-1.5 shrink-0"
               >
-                <Sparkles className="size-3.5" />
+                <ScanFace className="size-3.5" />
                 <span>{activeClientId ? "Diagnostic de cette cliente" : "Nouveau diagnostic"}</span>
               </Button>
             )}
@@ -223,7 +223,7 @@ export function SkinDossiersSection({
             <Card className="border-border/80 bg-card p-3.5 space-y-1 k-card-awwwards shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="text-[10px] uppercase font-bold tracking-wider">Phototypes V &amp; VI</span>
-                <Sparkles className="size-3.5 text-gold-text" />
+                <ScanFace className="size-3.5 text-gold-text" />
               </div>
               <p className="font-mono text-xl font-black text-gold-text">{kpis.melanoVVI}</p>
               <p className="text-[10px] text-muted-foreground">Spécificité mélanoderme</p>
@@ -347,7 +347,7 @@ export function SkinDossiersSection({
                       className="k-btn-gold text-primary-foreground font-semibold text-xs gap-1.5"
                       onClick={() => onStartDiagnostic("")}
                     >
-                      <Sparkles className="size-3.5" /> Lancer un diagnostic cutané
+                      <ScanFace className="size-3.5" /> Lancer un diagnostic cutané
                     </Button>
                   )}
                 </div>
@@ -900,7 +900,7 @@ function ClientSkinDossierDetail({
                   onClick={() => onStartDiagnostic(c.id)}
                   className="k-btn-gold text-primary-foreground font-bold text-xs gap-1.5 shadow-xs"
                 >
-                  <Sparkles className="size-3.5" /> Lancer un diagnostic
+                  <ScanFace className="size-3.5" /> Lancer un diagnostic
                 </Button>
               )}
               <Button
@@ -1306,7 +1306,7 @@ function ClientSkinDossierDetail({
             <Card className="p-4 border-border bg-card/60 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Sparkles className="size-3.5 text-gold-text" /> Comparatif Bilan Cabine vs Auto-scan Cliente
+                  <ScanFace className="size-3.5 text-gold-text" /> Comparatif Bilan Cabine vs Auto-scan Cliente
                 </span>
                 {scoreDelta !== null && (
                   <Badge
@@ -1403,7 +1403,7 @@ function ClientSkinDossierDetail({
                 onClick={() => onStartDiagnostic(c.id)}
                 className="h-8 text-xs gap-1.5 k-btn-gold text-primary-foreground font-bold ml-auto"
               >
-                <Sparkles className="size-3.5" /> Nouveau diagnostic cabine
+                <ScanFace className="size-3.5" /> Nouveau diagnostic cabine
               </Button>
             )}
           </div>
@@ -1414,7 +1414,7 @@ function ClientSkinDossierDetail({
               <p className="text-xs text-muted-foreground">Aucun bilan cutané correspondant au filtre sélectionné.</p>
               {historyFilter === "cabine" && onStartDiagnostic && (
                 <Button size="sm" onClick={() => onStartDiagnostic(c.id)} className="text-xs gap-1.5 k-btn-gold text-primary-foreground font-semibold">
-                  <Sparkles className="size-3.5" /> Lancer le premier diagnostic cabine
+                  <ScanFace className="size-3.5" /> Lancer le premier diagnostic cabine
                 </Button>
               )}
             </Card>
@@ -2238,7 +2238,7 @@ function ClientSkinDossierDetail({
 
                       <div className="rounded-xl bg-background/60 p-2.5 border border-border/50">
                         <p className="font-bold text-foreground text-[11px] mb-1.5 flex items-center gap-1.5">
-                          <Sparkles className="size-3.5 text-indigo-500" />
+                          <ScanFace className="size-3.5 text-indigo-500" />
                           <span>Soins cabine de la cure ({past.cabineServices?.length || 0})</span>
                         </p>
                         <ul className="space-y-1">

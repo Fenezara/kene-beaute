@@ -10,7 +10,6 @@ import {
   Loader2,
   RefreshCw,
   Search,
-  Sparkles,
   Trophy,
   UserCheck,
   Users,
@@ -195,7 +194,7 @@ export function AdminReferrals() {
       {data && (
         <Card className="p-4 sm:p-5 border-border/70">
           <CardTitle className="text-sm font-bold flex items-center gap-2 mb-3">
-            <Sparkles className="size-4 text-[#C8951E]" /> Paliers d&apos;Éligibilité Kènè 2026 (Base 10 Amies)
+            <Trophy className="size-4 text-[#C8951E]" /> Paliers d&apos;Éligibilité Kènè 2026 (Base 10 Amies)
           </CardTitle>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
             <div className="p-3 rounded-xl border border-blue-500/30 bg-blue-500/5">

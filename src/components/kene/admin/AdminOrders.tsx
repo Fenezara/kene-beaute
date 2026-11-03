@@ -23,7 +23,6 @@ import {
   RefreshCw,
   Search,
   ShoppingBag,
-  Sparkles,
   Store,
   User,
   XCircle,

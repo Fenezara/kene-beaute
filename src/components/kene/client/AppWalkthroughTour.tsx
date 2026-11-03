@@ -9,7 +9,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ScanFace,
-  Sparkles,
   Leaf,
   CalendarCheck2,
   Mic,

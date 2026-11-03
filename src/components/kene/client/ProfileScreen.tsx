@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Baby, BadgeCheck, BriefcaseBusiness, Building2, Calendar, Camera, Check, ChevronRight, Crown, Gift, Heart, Loader2, MapPin,
-  MessageCircle, Pencil, Phone, Plus, Settings, Trash2, Sparkles, AlertCircle, ArrowRight, LogIn,
+  MessageCircle, Pencil, Phone, Plus, Settings, Trash2, ShieldCheck, AlertCircle, ArrowRight, LogIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
@@ -281,7 +281,7 @@ export function ProfileScreen() {
           <div className="relative overflow-hidden rounded-[24px] border-2 border-[#C8951E]/60 bg-gradient-to-br from-[#C8951E]/20 via-[#A0522D]/15 to-card p-4 sm:p-5 shadow-lg">
             <div className="flex items-start gap-3.5">
               <span className="grid size-11 place-items-center rounded-2xl bg-[#C8951E]/25 text-[#C8951E] shrink-0 shadow-xs">
-                <Sparkles size={22} className="animate-pulse" />
+                <ShieldCheck size={22} />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">

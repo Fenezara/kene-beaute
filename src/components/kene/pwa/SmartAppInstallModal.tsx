@@ -8,7 +8,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Sparkles,
   Smartphone,
   Share,
   PlusSquare,
@@ -149,7 +148,7 @@ export function SmartAppInstallModal({
               </div>
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gold/15 border border-gold/30 text-gold-text text-[10px] font-bold tracking-wide uppercase">
-                  <Sparkles size={11} className="animate-spin text-gold" />
+                  <ShieldCheck size={11} className="text-gold" />
                   Installation Recommandée
                 </div>
                 <h2 className="text-base sm:text-lg font-black text-foreground mt-0.5 tracking-tight">

@@ -29,7 +29,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   FolderHeart,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKene, type SessionUser } from "@/store/kene";
@@ -1355,7 +1354,7 @@ export function ProEnterpriseShell() {
                 className="h-8 px-2.5 rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-[#FFF9EC] text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
               >
-                <Sparkles size={13} className="text-[#E5A93C]" />
+                <ScanFace size={13} className="text-[#E5A93C]" />
                 <span className="hidden 2xl:inline">Kiosque Mirror</span>
                 <span className="2xl:hidden">Mirror</span>
               </button>

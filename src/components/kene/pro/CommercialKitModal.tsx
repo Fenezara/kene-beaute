@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import {
   Printer,
-  Sparkles,
   QrCode,
   MessageSquare,
   ShieldCheck,
@@ -20,7 +19,7 @@ import {
   Send,
   Heart,
   Calendar,
-  Sparkle,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -109,7 +108,7 @@ export function CommercialKitModal({
         <DialogHeader className="no-print">
           <div className="flex items-center gap-2">
             <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text">
-              <Sparkles size={18} />
+              <Award size={18} />
             </span>
             <div>
               <DialogTitle className="text-base font-bold font-heading">

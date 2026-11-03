@@ -3,7 +3,7 @@
 // Kènè+ et débloque les paliers exclusifs (Initié: 5 amies = 1 mois Kènè+).
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Copy, Gift, HeartHandshake, Loader2, Send, Sparkles, Trophy, Users } from "lucide-react";
+import { Check, Copy, Gift, HeartHandshake, Loader2, Send, Trophy, Users } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { formatDate } from "@/lib/kene/format";
@@ -105,7 +105,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
               <div className="flex items-center justify-between">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-[#C8951E] font-bold">Ton Cercle de Beauté</p>
                 <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-[#C8951E]/20 text-[#E3B454] border border-[#C8951E]/30">
-                  <Sparkles size={10} /> {data.stats.currentTier}
+                  <Trophy size={10} /> {data.stats.currentTier}
                 </span>
               </div>
 

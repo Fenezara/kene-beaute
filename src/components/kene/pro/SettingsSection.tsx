@@ -10,7 +10,7 @@
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Camera, Check, CheckCircle2, ChevronRight, Clock, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogIn, LogOut, MapPin, Moon, Phone, Receipt, ShieldCheck, Sparkles, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, CheckCircle2, ChevronRight, Clock, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogIn, LogOut, MapPin, Moon, Phone, Receipt, ShieldCheck, Award, SunMedium } from "lucide-react";
 import { DuafeIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -650,7 +650,7 @@ export function SettingsSection({
             {/* Présentation de l'établissement — description visible côté cliente */}
             <div className="k-card-awwwards p-5 space-y-3">
               <div className="flex items-center gap-3">
-                <IconBadge icon={<Sparkles size={18} />} tone="gold" />
+                <IconBadge icon={<Award size={18} />} tone="gold" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-xs font-bold text-foreground">Présentation &amp; Savoir-faire</p>
@@ -776,7 +776,7 @@ export function SettingsSection({
                   onClick={() => setCommercialKitOpen(true)}
                   className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
                 >
-                  <IconBadge icon={<Sparkles size={18} />} tone="gold" />
+                  <IconBadge icon={<Award size={18} />} tone="gold" />
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs font-bold text-foreground">Kit Commercial Cabine</span>
                     <span className="block text-[10px] text-muted-foreground mt-0.5">

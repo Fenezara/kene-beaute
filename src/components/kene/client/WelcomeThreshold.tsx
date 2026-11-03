@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Camera, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Droplets, Heart, Leaf, Loader2, LogIn, Play, ShieldCheck, Sparkles, Star, UserCheck, X,
+  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Camera, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Droplets, Heart, Leaf, Loader2, LogIn, Play, ShieldCheck, Star, UserCheck, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -27,7 +27,7 @@ import {
   firstNameOf, forgetAccount, maskPhone, readLastAccount, rememberAccount, type LastAccount,
 } from "@/lib/kene/last-account";
 import { AuroraBackdrop, Eyebrow, GlassCard, Reveal, RevealItem } from "@/components/kene/ui2026";
-import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon, NsorommaIcon, KeneSunIcon, BissapFlowerIcon } from "@/components/kene/icons";
+import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon, KeneSunIcon, BissapFlowerIcon } from "@/components/kene/icons";
 import { useKene, type SessionUser, type ClientTab } from "@/store/kene";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { isOnline } from "@/lib/kene/ux";
@@ -418,7 +418,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 px-3.5 text-[11.5px] font-bold text-gold-text transition-all hover:scale-105 active:scale-95 shadow-xs"
                       title="Découvrir l'Étude de Cas Awwwards, le design system et la 3D WebGL"
                     >
-                      <NsorommaIcon size={12} className="text-gold-text animate-pulse" />
+                      <ShieldCheck size={12} className="text-gold-text" />
                       <span>Case Study 3D</span>
                     </Link>
                     <button
@@ -477,7 +477,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   {/* Badge d'autorité IA & Carnations */}
                   <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 * d, duration: 0.5 }}>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 border border-gold/40 px-3.5 py-1 text-[11px] font-black uppercase tracking-wider text-gold-text shadow-xs">
-                      <Sparkles size={13} className="animate-pulse text-gold-text shrink-0" />
+                      <ShieldCheck size={13} className="text-gold-text shrink-0" />
                       <span>1er Scanner Dermo-IA calibré pour carnations africaines (Albinos à Ébène)</span>
                     </span>
                   </motion.div>
@@ -647,7 +647,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
 
                         {/* Réticule d'analyse centré */}
                         <div className="self-center flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold text-[#FFF9EC] border border-white/20">
-                          <Sparkles size={11} className="text-gold-text animate-pulse" />
+                          <CheckCircle2 size={11} className="text-emerald-400" />
                           <span>Score Global : 78 / 100</span>
                         </div>
 
@@ -1416,7 +1416,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   href="/case-study"
                   className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gold-text hover:text-gold transition-colors hover:underline"
                 >
-                  <NsorommaIcon size={11} />
+                  <ShieldCheck size={11} />
                   <span>Candidature Awwwards · Lire l&apos;Étude de Cas &amp; Laboratoire 3D</span>
                 </Link>
               </div>

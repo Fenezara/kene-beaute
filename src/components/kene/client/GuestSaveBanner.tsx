@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, ShieldCheck, X, LogIn, Sparkles, AlertCircle } from "lucide-react";
-import { NsorommaIcon, CauriIcon } from "@/components/kene/icons";
+import { ArrowRight, ShieldCheck, X, LogIn, AlertCircle } from "lucide-react";
+import { CauriIcon } from "@/components/kene/icons";
 import { useKene, isSavedUser } from "@/store/kene";
 import { LinkAccountModal } from "./LinkAccountModal";
 
@@ -25,7 +25,7 @@ export function GuestSaveBanner() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#C8951E]/25 text-[#C8951E] shadow-xs mt-0.5 sm:mt-0">
-              <Sparkles size={18} className="animate-pulse" />
+              <ShieldCheck size={18} />
             </span>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

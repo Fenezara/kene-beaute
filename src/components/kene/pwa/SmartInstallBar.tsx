@@ -3,7 +3,7 @@
 // Visible tant que l'app n'est pas en standalone (installée) et non mise en veille.
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Download, X, HelpCircle, ChevronRight, Gift } from "lucide-react";
+import { Download, X, HelpCircle, ChevronRight, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { KeneEmblem } from "@/components/kene/icons";
 import { HAPTIC, haptic } from "@/lib/kene/ux";

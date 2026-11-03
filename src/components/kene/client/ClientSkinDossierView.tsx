@@ -37,7 +37,6 @@ import {
   Check,
   Info,
   Droplets,
-  Sparkles,
   Lock,
   RefreshCw,
 } from "lucide-react";
@@ -534,7 +533,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         <div className="rounded-[20px] border-2 border-[#C8951E]/40 bg-gradient-to-r from-[#C8951E]/15 via-[#A0522D]/10 to-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-start sm:items-center gap-2.5 min-w-0">
             <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#C8951E]/20 text-[#C8951E]">
-              <Sparkles size={16} className="animate-pulse" />
+              <ShieldCheck size={16} />
             </span>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -1122,7 +1121,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                 {structuredPrescription.notes ? (
                   <div className="rounded-xl border border-white/10 bg-black/20 p-3.5 space-y-1.5 text-xs text-[#F5ECDD]/90">
                     <p className="text-[11px] font-bold text-[#F3D98A] uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles size={13} /> Recommandations de votre dermo-conseillère :
+                      <ShieldCheck size={13} /> Recommandations de votre dermo-conseillère :
                     </p>
                     <p className="whitespace-pre-line leading-relaxed text-[11.5px]">
                       {structuredPrescription.notes}

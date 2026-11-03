@@ -49,12 +49,12 @@ import {
   HelpCircle,
   Lightbulb,
   ShieldAlert,
-  Sparkles,
+  SunMedium,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
 import { extractVideoKeyframes, isVideoFile } from "@/lib/kene/video-frames";
-import { KeneEmblem, NeaOnnimIcon, CauriIcon, NsorommaIcon } from "@/components/kene/icons";
+import { KeneEmblem, NeaOnnimIcon, CauriIcon } from "@/components/kene/icons";
 import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useChat, getTimeGreeting } from "@/store/chat";
@@ -79,7 +79,7 @@ const DrKeneOrb3D = dynamic(() => import("./DrKeneOrb3D").then((mod) => mod.DrKe
   loading: () => (
     <div className="relative size-[185px] sm:size-[225px] flex items-center justify-center">
       <div className="size-24 rounded-full border border-amber-400/40 bg-gradient-to-tr from-emerald-600/30 via-amber-500/20 to-teal-700/20 animate-pulse flex items-center justify-center">
-        <NsorommaIcon size={26} className="text-[#C8951E] animate-pulse" />
+        <ShieldCheck size={26} className="text-[#C8951E] animate-pulse" />
       </div>
     </div>
   ),
@@ -1174,7 +1174,7 @@ export function ChatScreen() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-heading font-black text-base text-[#FFF9EC] truncate flex items-center gap-1.5">
-                <NsorommaIcon size={14} className="text-[#E5A93C]" />
+                <ShieldCheck size={14} className="text-[#E5A93C]" />
                 <span>Dermo Kènè</span>
               </h2>
               <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
@@ -1202,7 +1202,7 @@ export function ChatScreen() {
                   : "text-[#F5ECDD]/75 hover:text-[#FFF9EC]"
               }`}
             >
-              <NsorommaIcon size={13} className={viewMode === "orb" ? "text-[#18120C]" : "text-[#E5A93C]"} />
+              <ShieldCheck size={13} className={viewMode === "orb" ? "text-[#18120C]" : "text-[#E5A93C]"} />
               <span>Orbe</span>
             </button>
             <button
@@ -1261,7 +1261,7 @@ export function ChatScreen() {
             {/* Pilule Dermo-Météo & Protection UV Locale */}
             <div className="relative z-10 mb-2 flex items-center justify-center gap-1.5 flex-wrap">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/15 border border-gold/30 text-[11px] font-bold text-gold-text shadow-2xs">
-                <NsorommaIcon size={12} className="text-gold-text shrink-0" />
+                <SunMedium size={12} className="text-gold-text shrink-0" />
                 <span>{weatherAdvisory.cityLabel}</span>
                 <span className="text-muted-foreground/60">·</span>
                 <span className="text-foreground">{weatherAdvisory.temp}</span>
@@ -1310,7 +1310,7 @@ export function ChatScreen() {
                   </>
                 ) : (
                   <>
-                    <NsorommaIcon size={13} className="text-[#C8951E]" />
+                    <ShieldCheck size={13} className="text-[#C8951E]" />
                     <span>Touchez l&apos;Orbe ou parlez ci-dessous</span>
                   </>
                 )}
@@ -1507,7 +1507,7 @@ export function ChatScreen() {
                             }}
                             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 active:scale-95 transition-all shadow-2xs cursor-pointer"
                           >
-                            <Sparkles size={11} className="text-gold" />
+                            <CheckCircle2 size={11} className="text-gold" />
                             <span>{chip}</span>
                           </button>
                         ))}
@@ -1678,7 +1678,7 @@ export function ChatScreen() {
                       {isNewestCard && (
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 shadow-2xs">
-                            <NsorommaIcon size={11} className="text-amber-500 animate-spin-slow" />
+                            <CheckCircle2 size={11} className="text-amber-500" />
                             Dernier échange (Récent)
                           </span>
                         </div>
@@ -1728,7 +1728,7 @@ export function ChatScreen() {
                                         }}
                                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 active:scale-95 transition-all shadow-2xs cursor-pointer"
                                       >
-                                        <Sparkles size={11} className="text-gold" />
+                                        <CheckCircle2 size={11} className="text-gold" />
                                         <span>{chip}</span>
                                       </button>
                                     ))}

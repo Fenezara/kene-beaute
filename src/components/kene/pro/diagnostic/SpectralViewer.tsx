@@ -17,7 +17,6 @@ import {
   Info,
   FileText,
   RotateCcw,
-  Sparkles,
   Box,
 } from "lucide-react";
 import { toast } from "sonner";

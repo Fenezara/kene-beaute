@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Download, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, Video, WifiOff, X, Trash2, Sparkles, Zap,
+  Activity, ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Download, Droplets, FileDown, GitCompareArrows, Hand, History,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, Video, WifiOff, X, Trash2, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry, KENE_SUPPORT_PHONE } from "@/lib/kene/whatsapp-relay";
@@ -23,7 +23,7 @@ import {
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import { BODY_ZONES, CLIENT_SPECTRAL_VIEWS, SPECTRAL_VIEWS, ZONE_PHOTO_SLOTS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition, type ZonePhotoSlot } from "@/lib/kene/types";
-import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon, CauriIcon, DuafeIcon, KeneSunIcon, NsorommaIcon } from "@/components/kene/icons";
+import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon, CauriIcon, DuafeIcon, KeneSunIcon } from "@/components/kene/icons";
 import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
 import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
 import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
@@ -1096,7 +1096,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           {/* Ruban d'Expertise Continue (Épuré, Aéré, Sans Lourdeur) */}
           <div className="mt-4 pt-3 border-t border-border/50 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5 font-semibold text-foreground/85">
-              <Sparkles size={12} className="text-[#D49A24]" />
+              <Activity size={12} className="text-[#D49A24]" />
               8 spectres cutanés analysés
             </span>
             <span className="text-border">•</span>
@@ -2163,7 +2163,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
           <div className="rounded-[24px] border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/15 via-gold/10 to-card p-4 sm:p-5 shadow-md">
             <div className="flex items-start gap-3.5">
               <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-500/25 text-amber-600 dark:text-amber-400">
-                <NsorommaIcon size={22} />
+                <ShieldCheck size={22} />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap mb-1">

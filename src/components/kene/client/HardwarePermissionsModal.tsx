@@ -15,7 +15,6 @@ import {
   Check,
   AlertCircle,
   X,
-  Sparkles,
   Loader2,
   Lock,
   ArrowRight,
@@ -232,7 +231,7 @@ export function HardwarePermissionsModal({
           {/* Bannière de réassurance */}
           <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-gold/10 to-transparent p-4 flex flex-col gap-2.5 shadow-xs">
             <div className="flex items-start gap-2.5">
-              <Sparkles className="size-5 text-primary shrink-0 mt-0.5" />
+              <ShieldCheck className="size-5 text-primary shrink-0 mt-0.5" />
               <div>
                 <p className="font-heading font-black text-[13px] text-foreground leading-snug">
                   Zéro question répétée · Décision mémorisée à vie
@@ -262,8 +261,8 @@ export function HardwarePermissionsModal({
                 </>
               ) : (
                 <>
-                  <Sparkles size={18} />
-                  <span>✨ Tout autoriser en 1 clic (Recommandé)</span>
+                  <ShieldCheck size={18} />
+                  <span>Tout autoriser en 1 clic (Recommandé)</span>
                 </>
               )}
             </button>

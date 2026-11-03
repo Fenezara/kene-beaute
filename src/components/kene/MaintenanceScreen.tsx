@@ -8,7 +8,6 @@ import {
   MessageCircle,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -91,7 +90,7 @@ export function MaintenanceScreen({ config, onRefresh }: MaintenanceScreenProps)
                 <Wrench className="size-8 animate-bounce" />
               </div>
               <span className="absolute -top-1 -right-1 grid size-6 place-items-center rounded-full bg-[#C8951E] text-[#1A1410] shadow-sm">
-                <Sparkles size={13} />
+                <ShieldCheck size={13} />
               </span>
             </div>
 
