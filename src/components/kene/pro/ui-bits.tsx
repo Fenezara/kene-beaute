@@ -357,7 +357,7 @@ export function ScrollableActions({ children }: { children: ReactNode }) {
 /** Titre de section (font-heading) + actions à droite — Signature Éditoriale Afro-Luxe avec défilement horizontal fluide sur mobile & tablette */
 export function SectionHeader({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
   return (
-    <div className="k-card-awwwards px-3.5 py-3 sm:px-6 sm:py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 overflow-hidden">
+    <div className="k-card-awwwards px-3.5 py-3 sm:px-6 sm:py-4 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 overflow-hidden">
       <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 shrink-0">
         <div className="mt-1 h-8 sm:h-9 w-1.5 shrink-0 rounded-full k-rail-line" aria-hidden="true" />
         <div className="min-w-0">
@@ -366,7 +366,7 @@ export function SectionHeader({ title, sub, actions }: { title: string; sub?: st
         </div>
       </div>
       {actions && (
-        <div className="w-full md:flex-1 md:min-w-0 flex items-center md:justify-end overflow-hidden">
+        <div className="w-full xl:flex-1 xl:min-w-0 flex items-center xl:justify-end overflow-hidden">
           <ScrollableActions>
             {actions}
           </ScrollableActions>
