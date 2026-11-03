@@ -635,6 +635,7 @@ export function PosSection({
       setExpenseCategory("fournitures");
       void loadExpenses();
       void loadClosureData();
+      window.dispatchEvent(new CustomEvent("kene:refresh-overview"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement");
     } finally {

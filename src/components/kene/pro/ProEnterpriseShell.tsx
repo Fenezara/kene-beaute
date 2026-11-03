@@ -672,6 +672,18 @@ export function ProEnterpriseShell() {
     };
   }, [tid]);
 
+  // Écoute des demandes de rafraîchissement d'overview locales (dépenses caisse, clôture, etc.)
+  useEffect(() => {
+    const handleRefresh = () => {
+      setRefreshKey((k) => k + 1);
+      void refetchRef.current();
+    };
+    window.addEventListener("kene:refresh-overview", handleRefresh);
+    return () => {
+      window.removeEventListener("kene:refresh-overview", handleRefresh);
+    };
+  }, []);
+
   // Synchronisation en temps réel des droits employés servis par le serveur
   useEffect(() => {
     const v = overview.data?.viewer;

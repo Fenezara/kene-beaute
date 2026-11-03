@@ -8,7 +8,7 @@ import { genRef, xof } from "./format";
 import { rfmScore } from "./rfm";
 import { PARRAIN_REWARD } from "./referral";
 import { pushFeed, pushTenantFeed } from "./realtime";
-import type { SimpleLine } from "@/lib/accounting/syscohada";
+import { SYSCOHADA_TEMPLATE, type SimpleLine } from "@/lib/accounting/syscohada";
 import { sendNotificationSms } from "@/lib/sms";
 import { sendWhatsAppCloudMessage } from "./whatsapp-cloud-api";
 import { SALON_CONFIG } from "@/config/salon-identity";
@@ -568,16 +568,44 @@ export async function recomputeClientRfm(clientProfileId: string) {
   return db.clientProfile.update({ where: { id: clientProfileId }, data: { rfmSegment: segment } });
 }
 
+// ─────────────── Comptabilité: initialisation auto du plan comptable SYSCOHADA ───────────────
+export async function ensureChartAccounts(tenantId: string) {
+  const count = await db.chartAccount.count({ where: { tenantId } });
+  if (count >= 10) return;
+
+  // Création idempotente du plan comptable SYSCOHADA pour l'institut
+  for (const a of SYSCOHADA_TEMPLATE) {
+    const existing = await db.chartAccount.findFirst({
+      where: { tenantId, code: a.code },
+    });
+    if (!existing) {
+      await db.chartAccount.create({
+        data: {
+          tenantId,
+          code: a.code,
+          classe: a.classe,
+          label: a.label,
+          type: a.type,
+        },
+      });
+    }
+  }
+}
+
 // ─────────────── Comptabilité: écriture depuis lignes simplifiées ───────────────
 export async function createJournalEntry(
   tenantId: string,
   opts: { journalCode: string; date: Date; reference: string; description: string; sourceType?: string; sourceId?: string; lines: SimpleLine[] }
 ) {
-  const accounts = await db.chartAccount.findMany({ where: { tenantId } });
+  let accounts = await db.chartAccount.findMany({ where: { tenantId } });
+  if (accounts.length === 0) {
+    await ensureChartAccounts(tenantId);
+    accounts = await db.chartAccount.findMany({ where: { tenantId } });
+  }
   const byCode = new Map(accounts.map((a) => [a.code, a]));
   const resolved = opts.lines
     .map((l) => {
-      const acc = byCode.get(l.accountCode);
+      let acc = byCode.get(l.accountCode);
       if (!acc) return null; // compte absent du plan → ligne sautée
       return { accountId: acc.id, debit: Math.round(l.debit ?? 0), credit: Math.round(l.credit ?? 0), label: l.label ?? null };
     })

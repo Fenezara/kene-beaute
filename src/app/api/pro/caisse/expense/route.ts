@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, createJournalEntry, genRef } from "@/lib/kene/server";
+import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
 
 const EXPENSE_ACCOUNT_MAP: Record<string, string> = {
@@ -132,6 +133,15 @@ export async function POST(req: NextRequest) {
           createdAt: new Date().toISOString(),
         }),
       },
+    });
+
+    // Notification temps réel pour synchroniser les écrans caisse & tableau de bord
+    void pushTenantFeed(tenant.id, {
+      id: entry?.id || `exp_${Date.now()}`,
+      type: "notification",
+      label: `Sortie de caisse de ${amount.toLocaleString("fr-FR")} FCFA enregistrée`,
+      at: new Date().toISOString(),
+      status: "info",
     });
 
     return NextResponse.json({
