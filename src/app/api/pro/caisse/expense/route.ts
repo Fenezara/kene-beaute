@@ -136,13 +136,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Notification temps réel pour synchroniser les écrans caisse & tableau de bord
-    void pushTenantFeed(tenant.id, {
-      id: entry?.id || `exp_${Date.now()}`,
-      type: "notification",
-      label: `Sortie de caisse de ${amount.toLocaleString("fr-FR")} FCFA enregistrée`,
-      at: new Date().toISOString(),
-      status: "info",
-    });
+    void pushTenantFeed(tenant.id);
 
     return NextResponse.json({
       success: true,
