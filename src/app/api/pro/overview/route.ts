@@ -277,15 +277,19 @@ export async function GET(req: NextRequest) {
     for (const s of sales30d) {
       for (const item of s.items) {
         if (item.kind === "service") {
+          // Si l'article a un serviceId connu en base OU provient d'une saisie libre / reçu express
           const key = item.serviceId || item.label;
-          const row = svcMap.get(key) ?? { name: item.service?.name ?? item.label, count: 0, total: 0 };
+          const labelName = item.service?.name || item.label;
+          const row = svcMap.get(key) ?? { name: labelName, count: 0, total: 0 };
           row.count += item.qty || 1;
           row.total += item.total;
           totalServicesRevenue30d += item.total;
           svcMap.set(key, row);
         } else if (item.kind === "product") {
+          // Si l'article a un productId connu OU provient d'une vente libre / reçu express
           const key = item.productId || item.label;
-          const row = prodMap.get(key) ?? { name: item.product?.name ?? item.label, count: 0, total: 0 };
+          const labelName = item.product?.name || item.label;
+          const row = prodMap.get(key) ?? { name: labelName, count: 0, total: 0 };
           row.count += item.qty || 1;
           row.total += item.total;
           totalProductsRevenue30d += item.total;

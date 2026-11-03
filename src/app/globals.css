@@ -1082,7 +1082,7 @@
     visibility: visible !important;
     position: static !important;
     width: 100% !important;
-    max-width: 800px !important;
+    max-width: 680px !important;
     margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
@@ -1091,6 +1091,8 @@
     print-color-adjust: exact !important;
     box-shadow: none !important;
     border: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   #kene-passport-print * {
@@ -1103,11 +1105,40 @@
     color: #111827 !important;
     border: 1.5px solid #d4d4d8 !important;
     box-shadow: none !important;
-    border-radius: 16px !important;
+    border-radius: 14px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #kene-passport-print .p-5,
+  #kene-passport-print .sm\:p-6 {
+    padding: 12px 14px !important;
+  }
+
+  #kene-passport-print .space-y-5 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 8px !important;
+  }
+
+  #kene-passport-print .space-y-3\.5 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 6px !important;
+  }
+
+  #kene-passport-print .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 6px !important;
+  }
+
+  #kene-passport-print .mt-5 {
+    margin-top: 8px !important;
+  }
+
+  #kene-passport-print .mt-4 {
+    margin-top: 6px !important;
   }
 
   #kene-passport-print h1 {
     color: #0f172a !important;
+    font-size: 20px !important;
+    line-height: 1.2 !important;
   }
 
   #kene-passport-print p,
@@ -1136,11 +1167,13 @@
     background: #f8fafc !important;
     border: 1px solid #e2e8f0 !important;
     color: #0f172a !important;
+    padding: 6px 8px !important;
   }
 
   #kene-passport-print .bg-\[\#120C08\]\/90 {
     background: #f1f5f9 !important;
     border-top: 1px solid #cbd5e1 !important;
+    padding: 6px 12px !important;
   }
 
   #kene-passport-print .border-\[\#F8F1E4\]\/10,
@@ -1200,7 +1233,7 @@
 
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    margin: 8mm 10mm;
   }
 
   /* Support pour les tickets de caisse #kene-receipt-print */

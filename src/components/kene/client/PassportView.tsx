@@ -205,27 +205,27 @@ export function PassportGate() {
 
       <div
         id="kene-passport-print"
-        className="relative mx-auto flex min-h-dvh w-full max-w-[540px] flex-col px-4 sm:px-6 py-6 sm:py-8 print:max-w-none print:w-full print:min-h-0 print:p-0 print:m-0"
+        className="relative mx-auto flex min-h-dvh w-full max-w-[540px] flex-col px-4 sm:px-6 py-6 sm:py-8 print:max-w-[700px] print:w-full print:min-h-0 print:p-0 print:m-0"
       >
         {/* En-tête de marque — Sceau officiel + Badge de certification */}
-        <div className="flex items-center justify-between gap-3 print:border-b print:border-neutral-300 print:pb-4">
+        <div className="flex items-center justify-between gap-3 print:border-b print:border-neutral-300 print:pb-2.5">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="dark print:hidden" aria-hidden="true">
               <KeneEmblem size={40} className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]" />
             </span>
             <span className="hidden print:inline-block text-black" aria-hidden="true">
-              <KeneEmblem size={36} />
+              <KeneEmblem size={30} />
             </span>
             <div>
-              <p className="font-heading text-[19px] font-black tracking-[0.02em] leading-none print:text-black">
+              <p className="font-heading text-[19px] font-black tracking-[0.02em] leading-none print:text-black print:text-base">
                 Kènè
               </p>
-              <p className="text-[9.5px] uppercase tracking-[0.18em] text-[#D49A24] font-bold mt-0.5 print:text-neutral-600">
+              <p className="text-[9.5px] uppercase tracking-[0.18em] text-[#D49A24] font-bold mt-0.5 print:text-neutral-600 print:text-[8.5px]">
                 Registre Dermo-Biométrique Officiel
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-3 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-emerald-300 shadow-sm print:bg-emerald-50 print:border-emerald-700 print:text-emerald-800">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-3 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-emerald-300 shadow-sm print:bg-emerald-50 print:border-emerald-700 print:text-emerald-800 print:text-[8.5px] print:py-0.5">
             <CheckCircle2 size={11} className="text-emerald-400 shrink-0 print:text-emerald-800" />
             Passeport Certifié
           </span>
@@ -416,14 +416,14 @@ export function PassportGate() {
 
                       {/* Barres des 4 constantes biométriques (Hydratation, Éclat, Texture, etc.) */}
                       {data.lastScan.indicators && data.lastScan.indicators.length > 0 && (
-                        <div className="grid grid-cols-2 gap-2.5 pt-3 border-t border-[#F8F1E4]/10">
+                        <div className="grid grid-cols-2 gap-2.5 pt-3 border-t border-[#F8F1E4]/10 print:pt-1.5 print:gap-1.5">
                           {data.lastScan.indicators.map((ind) => (
-                            <div key={ind.nom} className="bg-[#1E150D] rounded-xl p-2.5 border border-[#F8F1E4]/8">
-                              <div className="flex items-center justify-between gap-1 text-[10.5px]">
+                            <div key={ind.nom} className="bg-[#1E150D] rounded-xl p-2.5 border border-[#F8F1E4]/8 print:p-1.5">
+                              <div className="flex items-center justify-between gap-1 text-[10.5px] print:text-[9.5px]">
                                 <span className="font-semibold text-[#F8F1E4]/80 truncate">{ind.nom}</span>
                                 <span className="font-black tabular-nums text-[#F3D98A]">{ind.pourcentage}%</span>
                               </div>
-                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-white/10 overflow-hidden print:mt-1 print:h-1">
                                 <div
                                   className="h-full rounded-full transition-all duration-500"
                                   style={{
@@ -512,22 +512,22 @@ export function PassportGate() {
 
                         {/* Produits prescrits */}
                         {data.prescription.products && data.prescription.products.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#F8F1E4]/60">
+                          <div className="space-y-2 print:space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#F8F1E4]/60 print:text-[8.5px]">
                               Cosmétiques Quotidiens :
                             </p>
-                            <div className="grid grid-cols-1 gap-2">
+                            <div className="grid grid-cols-1 gap-2 print:gap-1">
                               {data.prescription.products.map((prod, idx) => (
-                                <div key={idx} className="bg-[#1E150D] rounded-xl p-2.5 border border-[#F8F1E4]/8 flex items-start justify-between gap-2">
+                                <div key={idx} className="bg-[#1E150D] rounded-xl p-2.5 border border-[#F8F1E4]/8 flex items-start justify-between gap-2 print:p-1.5">
                                   <div className="min-w-0">
-                                    <p className="text-[12px] font-black text-[#FFF9EC] leading-tight truncate">
+                                    <p className="text-[12px] font-black text-[#FFF9EC] leading-tight truncate print:text-[11px]">
                                       {prod.name}
                                     </p>
-                                    <p className="text-[10.5px] text-[#F8F1E4]/70 mt-0.5 leading-snug">
+                                    <p className="text-[10.5px] text-[#F8F1E4]/70 mt-0.5 leading-snug print:text-[9.5px]">
                                       {prod.posology}
                                     </p>
                                   </div>
-                                  <span className="rounded-md bg-[#D49A24]/15 border border-[#D49A24]/30 px-1.5 py-0.5 text-[9px] font-bold text-[#F3D98A] shrink-0 uppercase">
+                                  <span className="rounded-md bg-[#D49A24]/15 border border-[#D49A24]/30 px-1.5 py-0.5 text-[9px] font-bold text-[#F3D98A] shrink-0 uppercase print:text-[8px] print:py-0">
                                     {prod.moment === "matin" ? "Matin" : prod.moment === "soir" ? "Soir" : prod.moment === "matin_soir" ? "Matin & Soir" : "Hebdo"}
                                   </span>
                                 </div>
@@ -538,17 +538,17 @@ export function PassportGate() {
 
                         {/* Soins cabine prescrits */}
                         {data.prescription.cabineServices && data.prescription.cabineServices.length > 0 && (
-                          <div className="space-y-1.5 pt-1">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#F8F1E4]/60">
+                          <div className="space-y-1.5 pt-1 print:pt-0.5 print:space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#F8F1E4]/60 print:text-[8.5px]">
                               Protocole en Institut :
                             </p>
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 print:space-y-1">
                               {data.prescription.cabineServices.map((srv, idx) => (
-                                <div key={idx} className="flex items-center justify-between gap-2 text-[11px] bg-[#1E150D]/60 rounded-lg px-2.5 py-1.5 border border-[#F8F1E4]/6">
+                                <div key={idx} className="flex items-center justify-between gap-2 text-[11px] bg-[#1E150D]/60 rounded-lg px-2.5 py-1.5 border border-[#F8F1E4]/6 print:p-1.5 print:text-[9.5px]">
                                   <span className="font-semibold text-emerald-300 truncate">
                                     ✦ {srv.name}
                                   </span>
-                                  <span className="text-[10px] text-[#F8F1E4]/60 shrink-0 font-medium">
+                                  <span className="text-[10px] text-[#F8F1E4]/60 shrink-0 font-medium print:text-[8.5px]">
                                     {srv.frequency}
                                   </span>
                                 </div>
@@ -559,7 +559,7 @@ export function PassportGate() {
 
                         {/* Notes / Instructions spécifiques */}
                         {data.prescription.notes && (
-                          <div className="bg-[#1E150D]/40 rounded-xl p-2.5 border border-dashed border-[#F8F1E4]/12 text-[11px] text-[#F8F1E4]/80 leading-relaxed italic">
+                          <div className="bg-[#1E150D]/40 rounded-xl p-2.5 border border-dashed border-[#F8F1E4]/12 text-[11px] text-[#F8F1E4]/80 leading-relaxed italic print:p-1.5 print:text-[9px]">
                             « {data.prescription.notes} »
                           </div>
                         )}
@@ -567,12 +567,12 @@ export function PassportGate() {
                     ) : null}
 
                     {data.lastCabinVisit && (
-                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#F8F1E4]/10 text-[11px] text-[#F8F1E4]/75">
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#F8F1E4]/10 text-[11px] text-[#F8F1E4]/75 print:pt-1 print:text-[9.5px]">
                         <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-300">
                           <CalendarCheck2 size={12} />
                           Dernier soin : {data.lastCabinVisit.serviceName}
                         </span>
-                        <span className="text-[10.5px] text-[#F8F1E4]/55">
+                        <span className="text-[10.5px] text-[#F8F1E4]/55 print:text-[8.5px]">
                           {data.lastCabinVisit.instituteName} ({formatDate(data.lastCabinVisit.date)})
                         </span>
                       </div>
@@ -581,7 +581,7 @@ export function PassportGate() {
                 )}
 
                 {/* Signature Kente Identitaire */}
-                <div>
+                <div className="print:hidden">
                   <div className="flex items-center justify-between text-[10.5px] text-[#F8F1E4]/65">
                     <span className="flex items-center gap-1.5 font-semibold">
                       <KenteIcon size={12} className="text-[#C8951E]" aria-hidden="true" />

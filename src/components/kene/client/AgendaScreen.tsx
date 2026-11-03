@@ -1349,22 +1349,22 @@ export function AgendaScreen() {
                   return (
                     <div
                       key={p.id}
-                      className="p-3.5 rounded-2xl border border-border/70 bg-card/50 flex items-center justify-between gap-3 text-xs"
+                      className="p-3.5 rounded-2xl border border-border/70 bg-card/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className={cn("text-[9.5px] font-bold px-2 py-0.2 rounded-full border", meta.badgeClass)}>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={cn("text-[9.5px] font-bold px-2 py-0.5 rounded-full border", meta.badgeClass)}>
                             {meta.shortLabel}
                           </span>
                         </div>
-                        <p className="font-heading font-bold text-foreground truncate">
+                        <p className="font-heading font-bold text-foreground text-sm">
                           {p.service?.name || "Soin réalisé"}
                         </p>
-                        <p className="text-muted-foreground truncate text-[11px] mt-0.5">
+                        <p className="text-muted-foreground text-[11px] mt-0.5">
                           {p.tenant?.name} · {formatDate(p.startAt)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
                         {p.review ? (
                           <span
                             className="shrink-0 h-8 px-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold text-[11px] flex items-center gap-1"
