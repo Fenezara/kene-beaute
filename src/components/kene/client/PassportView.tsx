@@ -634,7 +634,7 @@ export function PassportGate() {
               Entrer dans l&apos;application Kènè <ArrowRight size={16} />
             </button>
 
-            <p className="mt-4 text-center text-[10.5px] leading-relaxed text-[#F8F1E4]/55">
+            <p className="mt-4 text-center text-[10.5px] leading-relaxed text-[#F8F1E4]/55 print:text-neutral-500">
               Confidentialité garantie : aucune photo personnelle ni coordonnée téléphonique n&apos;est exposée sur ce certificat.
             </p>
           </motion.div>

@@ -984,6 +984,22 @@
 }
 
 @media print {
+  /* Si le Passeport de Peau est ouvert, masquer STRICTEMENT tout le reste de l'application */
+  body:has(#kene-passport-print) #contenu,
+  body:has(#kene-passport-print) main,
+  body:has(#kene-passport-print) nav,
+  body:has(#kene-passport-print) header,
+  body:has(#kene-passport-print) footer,
+  body:has(#kene-passport-print) aside,
+  body:has(#kene-passport-print) [data-radix-portal],
+  body:has(#kene-passport-print) .sonner-toast,
+  body:has(#kene-passport-print) [data-sonner-toaster],
+  body:has(#kene-passport-print) > *:not(:has(#kene-passport-print)),
+  body:has(#kene-passport-print) div:not(:has(#kene-passport-print)):not(#kene-passport-print):not(#kene-passport-print *) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
   /* 1. Déverrouiller html et body pour permettre la pagination complète et sans scroll-lock */
   html,
   body {
@@ -1034,6 +1050,8 @@
   }
 
   /* Support pour le Passeport de Peau Dermo-Biométrique #kene-passport-print */
+  body:has(#kene-passport-print) #contenu,
+  body:has(#kene-passport-print) main,
   body:has(#kene-passport-print) > *:not(:has(#kene-passport-print)) {
     display: none !important;
   }
