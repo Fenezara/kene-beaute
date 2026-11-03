@@ -4,7 +4,7 @@
 // métalliques et botaniques des grands royaumes africains.
 
 import { useEffect, useState } from "react";
-import { Check, Crown, Eye, Lock, Wand2, Shield, Gem } from "lucide-react";
+import { Check, Crown, Eye, Lock, RefreshCw, Shield, Gem } from "lucide-react";
 import { toast } from "sonner";
 import {
   TIER_THEMES,
@@ -294,7 +294,7 @@ export function TierThemeSelector({
             className="text-xs font-bold text-primary hover:underline shrink-0 inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl active:scale-95 transition-all shadow-xs"
             title="Réaligner automatiquement sur l'abonnement actif"
           >
-            <Wand2 size={13} /> Synchronisation Auto
+            <RefreshCw size={13} /> Synchronisation Auto
           </button>
         )}
       </div>
