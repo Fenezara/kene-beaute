@@ -91,15 +91,30 @@ export async function renderThermalReceiptToBlob(
   }
 
   y += 6;
-  // Badge Ticket de caisse
-  ctx.strokeStyle = "#000000";
-  ctx.lineWidth = 1;
-  const badgeText = "TICKET DE CAISSE";
+  // Badge Ticket de caisse ou Ticket Annulé
+  const isRefunded = data.status === "refunded";
+  ctx.strokeStyle = isRefunded ? "#DC2626" : "#000000";
+  ctx.fillStyle = isRefunded ? "#DC2626" : "#000000";
+  ctx.lineWidth = isRefunded ? 2 : 1;
+  const badgeText = isRefunded ? "TICKET ANNULÉ / AVOIR" : "TICKET DE CAISSE";
   ctx.font = "bold 13px 'Courier New', Courier, monospace";
   const badgeWidth = ctx.measureText(badgeText).width + 16;
   ctx.strokeRect((canvasWidth - badgeWidth) / 2, y - 14, badgeWidth, 20);
   ctx.fillText(badgeText, canvasWidth / 2, y);
   y += 20;
+
+  if (isRefunded) {
+    ctx.fillStyle = "#DC2626";
+    ctx.font = "bold 11px 'Courier New', Courier, monospace";
+    ctx.fillText("⚠️ VENTE ANNULÉE / REMBOURSÉE", canvasWidth / 2, y);
+    y += 16;
+    if (data.refundReason) {
+      ctx.font = "italic 10px 'Courier New', Courier, monospace";
+      ctx.fillText(`Motif : ${data.refundReason.slice(0, 45)}`, canvasWidth / 2, y);
+      y += 14;
+    }
+    ctx.fillStyle = "#000000";
+  }
 
   // Séparateur pointillé
   const drawDashedLine = (currY: number) => {

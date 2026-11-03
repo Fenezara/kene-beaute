@@ -379,6 +379,7 @@ export interface ProSale {
   paymentMethod: PaymentMethod;
   paymentRef?: string | null;
   cashierName?: string;
+  status?: "completed" | "refunded" | string;
   practitionerName?: string | null;
   appointmentId?: string | null;
   depositDeducted?: number;

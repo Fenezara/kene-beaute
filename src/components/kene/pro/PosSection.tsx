@@ -70,6 +70,7 @@ export function PosSection({
   tenantPhone,
   defaultPractitionerName,
   refreshKey = 0,
+  isOwner = true,
 }: {
   tenantId: string;
   tenantName: string;
@@ -77,6 +78,7 @@ export function PosSection({
   tenantPhone?: string;
   defaultPractitionerName?: string | null;
   refreshKey?: number;
+  isOwner?: boolean;
 }) {
   const sessionUser = useKene((s) => s.user);
 
@@ -203,6 +205,13 @@ export function PosSection({
   const online = useNetworkOnline();
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
   const [syncingOffline, setSyncingOffline] = useState(false);
+
+  // 🛡️ Annulation / Remboursement sécurisé de ticket de caisse
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [saleToRefund, setSaleToRefund] = useState<ProSale | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundPin, setRefundPin] = useState("");
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
 
   const catalog = useApi<ProCatalog>(
     () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve(DEFAULT_FALLBACK_CATALOG)),
@@ -672,6 +681,46 @@ export function PosSection({
       toast.error(e instanceof Error ? e.message : "Erreur lors de la clôture");
     } finally {
       setClosureSubmitting(false);
+    }
+  };
+
+  const handleOpenRefund = (sale: ProSale) => {
+    setSaleToRefund(sale);
+    setRefundReason("");
+    setRefundPin("");
+    setRefundModalOpen(true);
+  };
+
+  const handleConfirmRefund = async () => {
+    if (!saleToRefund) return;
+    if (!refundReason.trim() || refundReason.trim().length < 3) {
+      toast.error("Veuillez saisir un motif d'annulation explicite (min 3 caractères).");
+      return;
+    }
+    setRefundSubmitting(true);
+    try {
+      const res = await apiPost<{ ok: boolean; sale: ProSale; message: string }>("/api/pro/sales/refund", {
+        saleId: saleToRefund.id,
+        tenantId,
+        reason: refundReason.trim(),
+        pin: refundPin.trim() || undefined,
+      });
+
+      toast.success(res.message || "Ticket annulé et remboursé avec succès !");
+      setRefundModalOpen(false);
+      setSaleToRefund(null);
+
+      // Si le ticket ouvert dans le panneau était celui-ci, le mettre à jour
+      if (ticket?.id === saleToRefund.id) {
+        setTicket({ ...ticket, status: "refunded" });
+      }
+
+      // Rechargement immédiat des ventes
+      void sales.refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Échec de l'annulation du ticket.");
+    } finally {
+      setRefundSubmitting(false);
     }
   };
 
@@ -1530,11 +1579,29 @@ export function PosSection({
                       {s.clientProfile?.name ? ` · ${s.clientProfile.name}` : ""}
                     </p>
                   </div>
-                  <span className="font-mono text-xs font-semibold tabular-nums">{xof(s.total)}</span>
+                  <span className={cn("font-mono text-xs font-semibold tabular-nums", s.status === "refunded" && "line-through text-destructive")}>
+                    {xof(s.total)}
+                  </span>
+                  {s.status === "refunded" ? (
+                    <Badge variant="outline" className="text-[10px] py-0.5 px-2 bg-destructive/10 text-destructive border-destructive/30 font-bold shrink-0">
+                      Annulé
+                    </Badge>
+                  ) : isOwner ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-11 px-2 text-destructive hover:bg-destructive/10 text-[11px] gap-1 shrink-0"
+                      title="Annuler et rembourser ce ticket (Direction)"
+                      onClick={() => handleOpenRefund(s)}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                      <span className="hidden sm:inline">Annuler</span>
+                    </Button>
+                  ) : null}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-11 gap-1 text-[11px]"
+                    className="h-11 gap-1 text-[11px] shrink-0"
                     onClick={() => {
                       setTicket(s);
                       setSheetOpen(true);
@@ -1593,7 +1660,14 @@ export function PosSection({
               >
                 <div className="text-center">
                   <p className="text-[13px] font-bold tracking-wide uppercase">{tenantName}</p>
-                  <p className="mt-0.5 font-bold">TICKET DE CAISSE</p>
+                  <p className={cn("mt-0.5 font-bold", ticket.status === "refunded" ? "text-destructive" : "")}>
+                    {ticket.status === "refunded" ? "⚠️ TICKET ANNULÉ / AVOIR" : "TICKET DE CAISSE"}
+                  </p>
+                  {ticket.status === "refunded" && (
+                    <div className="my-1 border border-destructive/40 bg-destructive/10 text-destructive text-[10px] p-1 font-semibold rounded-xs">
+                      VENTE ANNULÉE & REMBOURSÉE
+                    </div>
+                  )}
                   <p>{formatDate(ticket.createdAt, { day: "2-digit", month: "2-digit", year: "numeric" })} {formatTime(ticket.createdAt)}</p>
                   <p>N° {(ticket.paymentRef ?? ticket.id).slice(-8).toUpperCase()}</p>
                 </div>
@@ -1804,6 +1878,20 @@ export function PosSection({
                 >
                   <MessageCircle className="size-4 text-[#25D366]" /> Partager le reçu officiel (Image &amp; WhatsApp)
                 </Button>
+
+                {isOwner && ticket.status !== "refunded" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSheetOpen(false);
+                      handleOpenRefund(ticket);
+                    }}
+                    className="w-full gap-2 text-xs font-semibold text-destructive border-destructive/40 hover:bg-destructive/10"
+                  >
+                    <Trash2 className="size-4" /> Annuler / Rembourser cette vente
+                  </Button>
+                )}
 
                 <Button
                   variant="ghost"
@@ -2664,6 +2752,98 @@ export function PosSection({
             >
               {expressReceiptSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
               Encaisser et Émettre le Reçu ({xof(expressTotal)})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal Sécurisée d'Annulation / Remboursement de Ticket (Direction) ── */}
+      <Dialog open={refundModalOpen} onOpenChange={setRefundModalOpen}>
+        <DialogContent className="max-w-md p-6">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="size-5" />
+              <DialogTitle className="font-heading text-lg">Annuler un Ticket de Caisse</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs">
+              Conformité SYSCOHADA : la vente ne sera pas supprimée mais marquée « Annulée / Remboursée ». Les produits seront automatiquement réintégrés au stock.
+            </DialogDescription>
+          </DialogHeader>
+
+          {saleToRefund && (
+            <div className="space-y-4 py-2">
+              <div className="p-3 bg-muted/60 rounded-xl border space-y-1 text-xs">
+                <div className="flex justify-between font-bold">
+                  <span>Ticket N° {(saleToRefund.paymentRef || saleToRefund.id).slice(-8).toUpperCase()}</span>
+                  <span className="text-destructive font-mono">{xof(saleToRefund.total)}</span>
+                </div>
+                <div className="text-muted-foreground flex justify-between">
+                  <span>Date : {formatDate(saleToRefund.createdAt)} {formatTime(saleToRefund.createdAt)}</span>
+                  <span>{METHOD_LABELS[saleToRefund.paymentMethod] ?? saleToRefund.paymentMethod}</span>
+                </div>
+                {saleToRefund.clientProfile?.name && (
+                  <div className="text-muted-foreground">
+                    Cliente : <span className="font-medium text-foreground">{saleToRefund.clientProfile.name}</span>
+                  </div>
+                )}
+                <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/50">
+                  {saleToRefund.items?.map((it) => `${it.qty}× ${it.label}`).join(", ") || "Prestation / Vente"}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="refund-reason" className="text-xs font-semibold">
+                  Motif d&apos;annulation obligatoire <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="refund-reason"
+                  placeholder="Ex : Erreur de saisie caisse, doublon, cliente repartie..."
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="refund-pin" className="text-xs font-semibold flex items-center justify-between">
+                  <span>Code PIN Direction (si configuré)</span>
+                  <Lock className="size-3 text-muted-foreground" />
+                </Label>
+                <Input
+                  id="refund-pin"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Code PIN à 4 chiffres"
+                  value={refundPin}
+                  onChange={(e) => setRefundPin(e.target.value.replace(/\D/g, ""))}
+                  className="font-mono tracking-widest text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground italic">
+                  Seule la direction de l&apos;établissement peut valider une annulation de caisse.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:justify-between pt-2 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRefundModalOpen(false)}
+              disabled={refundSubmitting}
+            >
+              <X className="size-3.5" /> Abandonner
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleConfirmRefund}
+              disabled={refundSubmitting || refundReason.trim().length < 3}
+              className="gap-1.5 font-bold"
+            >
+              {refundSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              Confirmer l&apos;Annulation &amp; Rembourser
             </Button>
           </DialogFooter>
         </DialogContent>

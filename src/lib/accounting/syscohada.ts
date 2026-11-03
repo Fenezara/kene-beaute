@@ -106,6 +106,28 @@ export function saleJournalLines(opts: {
   return lines;
 }
 
+/** Écriture d'annulation / contre-passation (Avoir) générée par le remboursement d'un ticket */
+export function refundSaleJournalLines(opts: {
+  total: number;
+  servicesAmount: number;
+  productsAmount: number;
+  method: "wave" | "orange" | "cash" | "card" | "wallet";
+}): SimpleLine[] {
+  const { ht, tva } = splitTVA(opts.total);
+  const treasCode =
+    opts.method === "cash" ? "571000" : opts.method === "card" ? "521000" : "585000";
+  const serviceHt = Math.round((opts.servicesAmount / (opts.total || 1)) * ht);
+  const productHt = ht - serviceHt;
+  const lines: SimpleLine[] = [];
+  // Débit des comptes de produits (annulation du CA)
+  if (serviceHt > 0) lines.push({ accountCode: "701000", label: "Annulation prestations", debit: serviceHt });
+  if (productHt > 0) lines.push({ accountCode: "702000", label: "Annulation ventes produits", debit: productHt });
+  if (tva > 0) lines.push({ accountCode: "443000", label: "Régularisation TVA facturée", debit: tva });
+  // Crédit de trésorerie (remboursement décaissé)
+  lines.push({ accountCode: treasCode, label: "Remboursement / Avoir client", credit: opts.total });
+  return lines;
+}
+
 /** Écriture d'achat marchandises */
 export function purchaseJournalLines(opts: { total: number; supplier?: string }): SimpleLine[] {
   const { ht, tva } = splitTVA(opts.total);

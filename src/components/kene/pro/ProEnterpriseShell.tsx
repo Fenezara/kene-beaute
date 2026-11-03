@@ -1814,6 +1814,7 @@ export function ProEnterpriseShell() {
                     tenantPhone={tenant?.phone}
                     defaultPractitionerName={chipName}
                     refreshKey={refreshKey}
+                    isOwner={isOwner}
                   />
                 ) : (
                   <OrdersSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />

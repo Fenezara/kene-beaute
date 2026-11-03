@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
         paymentMethod: sale.paymentMethod,
         paymentRef: sale.paymentRef || undefined,
         taxExempt: isTaxExempt,
+        status: sale.status,
       },
       format
     );

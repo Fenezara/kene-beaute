@@ -29,6 +29,8 @@ export interface ThermalReceiptData {
   paymentMethod: string;
   paymentRef?: string;
   taxExempt?: boolean;
+  status?: string; // "completed" | "refunded"
+  refundReason?: string;
   currency?: string;
   customFooter?: string;
 }
@@ -235,7 +237,13 @@ export function generateThermalReceiptHtml(data: ThermalReceiptData, format: The
       ${data.tenantAddress ? `<div style="font-size:${fontSizePx - 1}px;">${escapeHtml(data.tenantAddress)}</div>` : ""}
       ${data.tenantPhone ? `<div style="font-size:${fontSizePx - 1}px;">Tél : ${escapeHtml(data.tenantPhone)}</div>` : ""}
       ${data.tenantTaxId ? `<div style="font-size:${fontSizePx - 2}px;">NIF/RCCM : ${escapeHtml(data.tenantTaxId)}</div>` : ""}
-      <div><span class="receipt-badge">TICKET DE CAISSE</span></div>
+      <div><span class="receipt-badge">${data.status === "refunded" ? "TICKET ANNULÉ / AVOIR" : "TICKET DE CAISSE"}</span></div>
+      ${data.status === "refunded" ? `
+        <div style="background:#fee2e2;color:#991b1b;border:1px dashed #ef4444;border-radius:4px;padding:3px;margin:6px 0;font-size:${fontSizePx - 1}px;font-weight:bold;">
+          ⚠️ VENTE ANNULÉE / REMBOURSÉE
+          ${data.refundReason ? `<div style="font-size:${fontSizePx - 2}px;font-weight:normal;margin-top:2px;">Motif : ${escapeHtml(data.refundReason)}</div>` : ""}
+        </div>
+      ` : ""}
     </div>
 
     <!-- METADONNEES TICKET -->
