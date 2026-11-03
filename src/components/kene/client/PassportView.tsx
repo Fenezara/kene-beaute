@@ -189,38 +189,44 @@ export function PassportGate() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[80] overflow-y-auto bg-[#140E0A] text-[#F8F1E4]"
+      className="fixed inset-0 z-[80] overflow-y-auto bg-[#140E0A] text-[#F8F1E4] print:static print:bg-white print:text-black print:overflow-visible print:p-0"
       role="dialog"
       aria-label="Passeport Dermo-Biométrique Kènè"
     >
-      {/* Atmosphère de prestige Or & Ébène */}
+      {/* Atmosphère de prestige Or & Ébène (masqué à l'impression) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0"
+        className="pointer-events-none fixed inset-0 print:hidden"
         style={{
           backgroundImage:
             "radial-gradient(65% 50% at 50% 8%, rgba(212,154,36,0.20) 0%, transparent 68%), radial-gradient(50% 42% at 88% 88%, rgba(139,26,59,0.14) 0%, transparent 72%), radial-gradient(45% 36% at 10% 82%, rgba(160,82,45,0.12) 0%, transparent 74%)",
         }}
       />
 
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[540px] flex-col px-4 sm:px-6 py-6 sm:py-8">
+      <div
+        id="kene-passport-print"
+        className="relative mx-auto flex min-h-dvh w-full max-w-[540px] flex-col px-4 sm:px-6 py-6 sm:py-8 print:max-w-none print:w-full print:min-h-0 print:p-0 print:m-0"
+      >
         {/* En-tête de marque — Sceau officiel + Badge de certification */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 print:border-b print:border-neutral-300 print:pb-4">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="dark" aria-hidden="true">
+            <span className="dark print:hidden" aria-hidden="true">
               <KeneEmblem size={40} className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]" />
             </span>
+            <span className="hidden print:inline-block text-black" aria-hidden="true">
+              <KeneEmblem size={36} />
+            </span>
             <div>
-              <p className="font-heading text-[19px] font-black tracking-[0.02em] leading-none">
+              <p className="font-heading text-[19px] font-black tracking-[0.02em] leading-none print:text-black">
                 Kènè
               </p>
-              <p className="text-[9.5px] uppercase tracking-[0.18em] text-[#D49A24] font-bold mt-0.5">
-                Registre Dermo-Biométrique
+              <p className="text-[9.5px] uppercase tracking-[0.18em] text-[#D49A24] font-bold mt-0.5 print:text-neutral-600">
+                Registre Dermo-Biométrique Officiel
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-3 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-emerald-300 shadow-sm">
-            <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-3 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-emerald-300 shadow-sm print:bg-emerald-50 print:border-emerald-700 print:text-emerald-800">
+            <CheckCircle2 size={11} className="text-emerald-400 shrink-0 print:text-emerald-800" />
             Passeport Certifié
           </span>
         </div>

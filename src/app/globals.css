@@ -1029,7 +1029,12 @@
   }
 
   /* 4. Si une zone .print-area est présente, masquer le reste du document proprement */
-  body:has(.print-area) > *:not([data-radix-portal]) {
+  body:has(.print-area) > *:not([data-radix-portal]):not(:has(.print-area)) {
+    display: none !important;
+  }
+
+  /* Support pour le Passeport de Peau Dermo-Biométrique #kene-passport-print */
+  body:has(#kene-passport-print) > *:not(:has(#kene-passport-print)) {
     display: none !important;
   }
 
@@ -1051,6 +1056,138 @@
 
   .print-area * {
     visibility: visible !important;
+  }
+
+  /* Rendu d'impression et PDF haute fidélité pour le Passeport Kènè */
+  #kene-passport-print {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  #kene-passport-print * {
+    visibility: visible !important;
+  }
+
+  /* Rétablir les contrastes et fonds propres pour le Passeport en impression / PDF */
+  #kene-passport-print .overflow-hidden.rounded-\[28px\] {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1.5px solid #d4d4d8 !important;
+    box-shadow: none !important;
+    border-radius: 16px !important;
+  }
+
+  #kene-passport-print h1 {
+    color: #0f172a !important;
+  }
+
+  #kene-passport-print p,
+  #kene-passport-print span,
+  #kene-passport-print li {
+    color: #334155 !important;
+  }
+
+  #kene-passport-print .text-\[\#FFF9EC\],
+  #kene-passport-print .text-\[\#F8F1E4\],
+  #kene-passport-print .text-\[\#F3D98A\] {
+    color: #0f172a !important;
+  }
+
+  #kene-passport-print .text-\[\#D49A24\],
+  #kene-passport-print .text-\[\#C8951E\] {
+    color: #92400e !important;
+  }
+
+  #kene-passport-print .bg-\[\#140E0A\]\/75,
+  #kene-passport-print .bg-\[\#140E0A\]\/80,
+  #kene-passport-print .bg-\[\#140E0A\],
+  #kene-passport-print .bg-\[\#1E150D\],
+  #kene-passport-print .bg-\[\#1E150D\]\/60,
+  #kene-passport-print .bg-\[\#1E150D\]\/40 {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
+  #kene-passport-print .bg-\[\#120C08\]\/90 {
+    background: #f1f5f9 !important;
+    border-top: 1px solid #cbd5e1 !important;
+  }
+
+  #kene-passport-print .border-\[\#F8F1E4\]\/10,
+  #kene-passport-print .border-\[\#F8F1E4\]\/8,
+  #kene-passport-print .border-\[\#F8F1E4\]\/6,
+  #kene-passport-print .border-\[\#F8F1E4\]\/12,
+  #kene-passport-print .ring-\[\#F8F1E4\]\/12,
+  #kene-passport-print .ring-\[\#D49A24\]\/30,
+  #kene-passport-print .ring-\[\#D49A24\]\/40 {
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+
+  #kene-passport-print .text-emerald-300,
+  #kene-passport-print .text-emerald-400 {
+    color: #065f46 !important;
+  }
+
+  #kene-passport-print .bg-emerald-950\/60,
+  #kene-passport-print .bg-emerald-950\/35,
+  #kene-passport-print .bg-emerald-950\/80 {
+    background: #ecfdf5 !important;
+    border-color: #a7f3d0 !important;
+    color: #065f46 !important;
+  }
+
+  #kene-passport-print .text-rose-200,
+  #kene-passport-print .text-rose-300,
+  #kene-passport-print .text-rose-400 {
+    color: #9f1239 !important;
+  }
+
+  #kene-passport-print .bg-rose-950\/60,
+  #kene-passport-print .bg-rose-950\/50 {
+    background: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+    color: #9f1239 !important;
+  }
+
+  #kene-passport-print .text-amber-200,
+  #kene-passport-print .text-amber-400 {
+    color: #92400e !important;
+  }
+
+  #kene-passport-print .bg-amber-950\/50 {
+    background: #fffbeb !important;
+    border-color: #fde68a !important;
+    color: #92400e !important;
+  }
+
+  #kene-passport-print .bg-\[\#D49A24\]\/15,
+  #kene-passport-print .bg-\[\#D49A24\]\/20 {
+    background: #fef3c7 !important;
+    border-color: #fcd34d !important;
+    color: #92400e !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  /* Support pour les tickets de caisse #kene-receipt-print */
+  body:has(#kene-receipt-print) > *:not([data-radix-portal]) {
+    display: none !important;
   }
 
   /* Support pour les tickets de caisse #kene-receipt-print */
