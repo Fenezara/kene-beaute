@@ -5,7 +5,7 @@
 // encodé côté client (lib qrcode): modules #1A1410 sur #F8F1E4 — contraste
 // maximal, scanable en institut même en plein soleil.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, MessageCircle, QrCode, RotateCcw, Share2 } from "lucide-react";
+import { Eye, Loader2, MessageCircle, QrCode, RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import { apiPost } from "@/lib/kene/api";
@@ -155,6 +155,18 @@ export function PassportCard({ userId }: { userId: string }) {
                   title="Partager directement via WhatsApp"
                 >
                   <MessageCircle size={14} /> WhatsApp
+                </button>
+                <button
+                  onClick={() => {
+                    if (!token || typeof window === "undefined") return;
+                    window.history.pushState(null, "", `/?passport=${encodeURIComponent(token)}`);
+                    window.dispatchEvent(new PopStateEvent("popstate"));
+                  }}
+                  disabled={!token}
+                  className="inline-flex h-11 items-center gap-1.5 rounded-xl k-chip px-3.5 text-xs font-bold text-foreground hover:bg-accent/70 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
+                  title="Aperçu en direct de mon Passeport de Peau"
+                >
+                  <Eye size={14} /> Aperçu
                 </button>
                 <button
                   onClick={() => ensure(true)}

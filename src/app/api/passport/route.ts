@@ -32,17 +32,32 @@ function shortName(name: string): string {
 async function buildPassportData(userId: string) {
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return null;
-  const [lastDiag, scanCount, orderCount, visitCount, reviewCount, wallet] = await Promise.all([
+  const [lastDiag, scanCount, orderCount, visitCount, reviewCount, wallet, lastCompletedAppt, clientProfiles] = await Promise.all([
     db.diagnosis.findFirst({
       where: { userId, status: "done" },
       orderBy: { createdAt: "desc" },
-      select: { zone: true, scoreGlobal: true, createdAt: true },
+      select: { zone: true, scoreGlobal: true, createdAt: true, resultJson: true },
     }),
     db.diagnosis.count({ where: { userId, status: "done" } }),
     db.order.count({ where: { userId, status: { in: ["paid", "delivered"] } } }),
     db.appointment.count({ where: { userId, status: "completed" } }),
     db.review.count({ where: { userId } }),
     db.wallet.findUnique({ where: { userId }, select: { id: true } }),
+    db.appointment.findFirst({
+      where: { userId, status: "completed" },
+      orderBy: { startAt: "desc" },
+      select: {
+        startAt: true,
+        service: { select: { name: true } },
+        tenant: { select: { name: true } },
+      },
+    }),
+    db.clientProfile.findMany({
+      where: { userId },
+      select: { cosmeticsUsed: true, productObservations: true },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+    }),
   ]);
   const referrals = wallet
     ? await db.walletTransaction.count({ where: { walletId: wallet.id, type: "credit", reason: "referral" } })
@@ -51,25 +66,86 @@ async function buildPassportData(userId: string) {
 
   let goals: string[] = [];
   try {
-    goals = (JSON.parse(user.goals ?? "[]") as { label?: string }[]).map((g) => g.label ?? "").filter(Boolean);
+    const rawGoals = JSON.parse(user.goals ?? "[]");
+    if (Array.isArray(rawGoals)) {
+      goals = rawGoals
+        .map((g) => (typeof g === "string" ? g : (g as { label?: string })?.label ?? ""))
+        .filter(Boolean);
+    }
   } catch {
     goals = [];
   }
 
+  let indicators: { nom: string; pourcentage: number; severite: number }[] = [];
+  let botanicals: string[] = [];
+  let recommendedCare: string[] = [];
+  let routineMorning: string[] = [];
+  let routineEvening: string[] = [];
+
+  if (lastDiag?.resultJson) {
+    try {
+      const parsed = JSON.parse(lastDiag.resultJson);
+      if (Array.isArray(parsed.indicateurs)) {
+        indicators = parsed.indicateurs
+          .slice(0, 4)
+          .map((ind: { nom?: string; pourcentage?: number; severite?: number }) => ({
+            nom: String(ind.nom || ""),
+            pourcentage: Number(ind.pourcentage ?? 70),
+            severite: Number(ind.severite ?? 1),
+          }))
+          .filter((i: { nom: string }) => Boolean(i.nom));
+      }
+      if (parsed.recommandations) {
+        if (Array.isArray(parsed.recommandations.botaniques_conseillees)) {
+          botanicals = parsed.recommandations.botaniques_conseillees.slice(0, 5);
+        }
+        if (Array.isArray(parsed.recommandations.soins_conseilles)) {
+          recommendedCare = parsed.recommandations.soins_conseilles.slice(0, 3);
+        }
+        if (Array.isArray(parsed.recommandations.routine_matin)) {
+          routineMorning = parsed.recommandations.routine_matin.slice(0, 3);
+        }
+        if (Array.isArray(parsed.recommandations.routine_soir)) {
+          routineEvening = parsed.recommandations.routine_soir.slice(0, 3);
+        }
+      }
+    } catch {}
+  }
+
+  const prescribedRoutine = clientProfiles.find((cp) => cp.cosmeticsUsed?.trim())?.cosmeticsUsed?.trim() || null;
+
   return {
     name: shortName(user.name),
     city: user.city,
+    district: user.district || null,
     fitzpatrick: user.fitzpatrick,
     skinType: user.skinType,
     allergies: user.allergies?.trim() || null,
-    goals: goals.slice(0, 4),
+    pregnant: Boolean(user.pregnant),
+    gender: user.gender || "femme",
+    goals: goals.slice(0, 5),
+    scanCount,
+    visitCount,
     lastScan: lastDiag
       ? {
           zone: lastDiag.zone,
           score: lastDiag.scoreGlobal,
           date: lastDiag.createdAt,
+          indicators,
+          botanicals,
+          recommendedCare,
+          routineMorning,
+          routineEvening,
         }
       : null,
+    lastCabinVisit: lastCompletedAppt
+      ? {
+          date: lastCompletedAppt.startAt,
+          serviceName: lastCompletedAppt.service.name,
+          instituteName: lastCompletedAppt.tenant.name,
+        }
+      : null,
+    prescribedRoutine,
     threads,
     seed: seedOf(userId), // même graine que la vue privée → même pagne
     since: user.createdAt,
