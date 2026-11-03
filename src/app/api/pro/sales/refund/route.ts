@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
     void audit({
       kind: "sale_refunded",
       ip: clientIp(req),
-      detail: `[Tenant:${tenant.id}] Vente #${sale.id.slice(-6).toUpperCase()} annulée (${sale.total} FCFA) par ${sess.phone || sess.id} • Motif: ${reason}`,
+      detail: `[Tenant:${tenant.id}] Vente #${sale.id.slice(-6).toUpperCase()} annulée (${sale.total} FCFA) par ${sess.phone || sess.userId} • Motif: ${reason}`,
     });
 
     return NextResponse.json({
