@@ -41,20 +41,24 @@ function scoreTone(score: number): string {
   return "#8B1A3B";
 }
 
-/* Jeton de l'URL — lu UNE fois côté client via useSyncExternalStore (même
- pattern que useLoomMode): snapshot serveur null → correction post-
- hydratation SANS setState dans un effet. */
-let cachedToken: string | null | undefined;
-function readToken(): string | null {
-  if (cachedToken === undefined) {
-    cachedToken = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("passport");
-  }
-  return cachedToken;
+/* Jeton de l'URL — écoute réactive sur window.location (query ?passport=) */
+function subscribeToken(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("popstate", callback);
+  window.addEventListener("hashchange", callback);
+  return () => {
+    window.removeEventListener("popstate", callback);
+    window.removeEventListener("hashchange", callback);
+  };
 }
-const noopSubscribe = () => () => {};
+
+function readToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("passport");
+}
 
 export function PassportGate() {
-  const token = useSyncExternalStore<string | null>(noopSubscribe, readToken, () => null);
+  const token = useSyncExternalStore<string | null>(subscribeToken, readToken, () => null);
   const [data, setData] = useState<PassportData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);

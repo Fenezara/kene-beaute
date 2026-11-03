@@ -247,10 +247,8 @@ export default function Page() {
           )}
         </main>
 
-        {/* Fonctionnalités annexes (Passeport de Peau public ?passport= et Herbier 3D #herbier)
-            mises en sommeil pour la version actuelle — conservées pour les prochaines versions enrichies */}
-        {/* <PassportGate /> */}
-        {/* <HerbierGate /> */}
+        {/* Affichage du Passeport de Peau public (?passport=<token>) lors d'un scan QR Code */}
+        <PassportGate />
 
         {/* Validation de session au boot — TOUS espaces (voir SessionKeeper) */}
         <SessionKeeper />
