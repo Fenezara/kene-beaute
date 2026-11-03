@@ -24,6 +24,7 @@ import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, diagImgSrc } from "./types";
 import { SectionTitle } from "./bits";
 import { SharesCard } from "./SharesCard";
 import { ParrainageCard } from "./ParrainageCard";
+import { PassportCard } from "./PassportCard";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { ContactKeneModal } from "./ContactKeneModal";
 import { LinkAccountModal } from "./LinkAccountModal";
@@ -648,6 +649,11 @@ export function ProfileScreen() {
         </section>
       </RevealItem>
 
+
+      {/* Passeport de Peau officiel — QR Code et consultation instantanée en institut */}
+      <RevealItem>
+        <PassportCard userId={user.id} />
+      </RevealItem>
 
       {/* Partage des self-scans — la cliente décide, institut par institut */}
       <RevealItem>

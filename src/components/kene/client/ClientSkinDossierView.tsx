@@ -57,6 +57,7 @@ import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { SkinHealthDashboard } from "./SkinHealthDashboard";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { LinkAccountModal } from "./LinkAccountModal";
+import { PassportCard } from "./PassportCard";
 import { BookmarkCheck, CalendarCheck, ShoppingBag, X, Loader2 } from "lucide-react";
 import { parseStructuredPrescription, type StructuredPrescription, type PrescribedProductItem, type PrescribedCabineServiceItem } from "@/lib/kene/prescription-schema";
 
@@ -811,6 +812,9 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               </div>
             </CardContent>
           </Card>
+
+          {/* ══════════ PASSEPORT DE PEAU OFFICIEL & QR CODE PARTAGEABLE EN SALON ══════════ */}
+          <PassportCard userId={user.id} />
 
           {/* ══════════ 1. ORDONNANCE DERMO-ESTHÉTIQUE OFFICIELLE (PRODUITS + SOINS CABINE) ══════════ */}
           {(structuredPrescription.products.length > 0 || structuredPrescription.cabineServices.length > 0 || structuredPrescription.notes || cosmeticsUsed) ? (
