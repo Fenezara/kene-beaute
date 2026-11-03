@@ -21,6 +21,7 @@ import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, formatDate, formatTime } from "@/lib/kene/format";
 import { splitTVA } from "@/lib/accounting/syscohada";
 import { openThermalPrintWindow, ThermalFormat } from "@/lib/accounting/receipt-thermal";
+import { renderThermalReceiptToBlob } from "@/lib/accounting/receipt-image";
 import { openCashClosurePrintWindow, CashClosureData } from "@/lib/hardware/cash-closure-ticket";
 import { getTenantPosSettings, type TenantPosSettings } from "@/lib/kene/tenant-settings";
 import { printDirectWebBluetooth } from "@/lib/hardware/bluetooth-escpos";
@@ -1708,30 +1709,100 @@ export function PosSection({
                   <Printer className="size-4" aria-hidden="true" /> Impression système standard
                 </Button>
 
-                {/* Ticket dématérialisé sur WhatsApp */}
+                {/* Ticket dématérialisé image / WhatsApp */}
                 <Button
                   variant="outline"
-                  onClick={() => {
+                  onClick={async () => {
                     const clientPhone = ticket.clientProfile?.phone || expressPhone;
-                    const phoneToUse = clientPhone || window.prompt("Numéro WhatsApp de la cliente (ex: 07 08 09 10 11) :");
-                    if (!phoneToUse) return;
-                    const msg = buildWhatsAppReceiptMessage({
+                    const receiptData = {
                       tenantName,
                       receiptNumber: (ticket.paymentRef ?? ticket.id).slice(-8).toUpperCase(),
+                      createdAt: ticket.createdAt,
+                      cashierName: ticket.cashierName ?? "Caisse 1",
                       clientName: ticket.clientProfile?.name,
                       items: (ticket.items ?? []).map((it) => ({
                         label: it.label,
                         qty: it.qty,
+                        unitPrice: it.unitPrice,
                         total: it.total,
+                        kind: it.kind === "product" ? ("product" as const) : ("service" as const),
                       })),
+                      subtotal: ticket.subtotal ?? ticket.total,
+                      discount: ticket.discount ?? 0,
                       total: ticket.total,
-                      paymentMethod: METHOD_LABELS[ticket.paymentMethod] ?? ticket.paymentMethod,
-                    });
-                    openWhatsApp(phoneToUse, msg);
+                      paymentMethod: ticket.paymentMethod,
+                      paymentRef: ticket.paymentRef ?? undefined,
+                      taxExempt: !posSettings.isVatSubject,
+                    };
+
+                    try {
+                      const imageBlob = await renderThermalReceiptToBlob(receiptData, thermalFormat);
+                      const file = new File([imageBlob], `recu_${receiptData.receiptNumber}.png`, { type: "image/png" });
+
+                      // Essai de partage direct de l'image (smartphone / tablette / PC compatible)
+                      const nav = navigator as Navigator & {
+                        canShare?: (data: { files?: File[] }) => boolean;
+                        share?: (data: any) => Promise<void>;
+                      };
+
+                      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+                        await nav.share({
+                          title: `Reçu de caisse - ${tenantName}`,
+                          text: `Reçu officiel N° ${receiptData.receiptNumber} (${tenantName})`,
+                          files: [file],
+                        });
+                        toast.success("Reçu partagé avec succès 🌿");
+                        return;
+                      }
+
+                      // Fallback : Téléchargement direct de l'image du reçu + ouverture de WhatsApp
+                      const url = URL.createObjectURL(imageBlob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `recu_${receiptData.receiptNumber}.png`;
+                      a.click();
+                      setTimeout(() => URL.revokeObjectURL(url), 20000);
+
+                      toast.info("Image du reçu téléchargée ! Envoi sur WhatsApp...", {
+                        description: "Attachez simplement l'image téléchargée dans votre conversation WhatsApp.",
+                      });
+
+                      const phoneToUse = clientPhone || window.prompt("Numéro WhatsApp de la cliente (ex: 07 08 09 10 11) :");
+                      const msg = buildWhatsAppReceiptMessage({
+                        tenantName,
+                        receiptNumber: receiptData.receiptNumber,
+                        clientName: ticket.clientProfile?.name,
+                        items: (ticket.items ?? []).map((it) => ({
+                          label: it.label,
+                          qty: it.qty,
+                          total: it.total,
+                        })),
+                        total: ticket.total,
+                        paymentMethod: METHOD_LABELS[ticket.paymentMethod] ?? ticket.paymentMethod,
+                      });
+                      openWhatsApp(phoneToUse || "", msg);
+                    } catch (e) {
+                      // Repli texte si la génération d'image échoue
+                      const phoneToUse = clientPhone || window.prompt("Numéro WhatsApp de la cliente (ex: 07 08 09 10 11) :");
+                      if (!phoneToUse) return;
+                      const msg = buildWhatsAppReceiptMessage({
+                        tenantName,
+                        receiptNumber: (ticket.paymentRef ?? ticket.id).slice(-8).toUpperCase(),
+                        clientName: ticket.clientProfile?.name,
+                        items: (ticket.items ?? []).map((it) => ({
+                          label: it.label,
+                          qty: it.qty,
+                          total: it.total,
+                        })),
+                        total: ticket.total,
+                        paymentMethod: METHOD_LABELS[ticket.paymentMethod] ?? ticket.paymentMethod,
+                      });
+                      openWhatsApp(phoneToUse, msg);
+                    }
                   }}
                   className="w-full gap-2 text-xs font-bold bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40"
                 >
-                  <MessageCircle className="size-4 text-[#25D366]" /> Envoyer le reçu sur WhatsApp
+                  <MessageCircle className="size-4 text-[#25D366]" /> Partager le reçu officiel (Image &amp; WhatsApp)
                 </Button>
 
                 <Button
@@ -1739,7 +1810,7 @@ export function PosSection({
                   size="sm"
                   onClick={() => {
                     window.open(
-                      `/api/pro/sales/receipt?id=${ticket.id}&tenantId=${tenantId}&format=${thermalFormat}&autoprint=1`,
+                      `/api/pro/sales/receipt?id=${ticket.id}&tenantId=${tenantId}&format=${thermalFormat}&taxExempt=${!posSettings.isVatSubject ? "1" : "0"}&autoprint=1`,
                       "_blank"
                     );
                   }}

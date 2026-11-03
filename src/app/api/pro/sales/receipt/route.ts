@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     const saleId = searchParams.get("id");
     const tenantId = searchParams.get("tenantId");
     const format = (searchParams.get("format") === "58mm" ? "58mm" : "80mm") as ThermalFormat;
+    const taxExemptParam = searchParams.get("taxExempt");
+    const isTaxExempt = taxExemptParam === "1" || taxExemptParam === "true";
 
     if (!saleId) {
       return jsonError("Paramètre 'id' manquant", 400);
@@ -72,6 +74,7 @@ export async function GET(req: NextRequest) {
         total: sale.total,
         paymentMethod: sale.paymentMethod,
         paymentRef: sale.paymentRef || undefined,
+        taxExempt: isTaxExempt,
       },
       format
     );
