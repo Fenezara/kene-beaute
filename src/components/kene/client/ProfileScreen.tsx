@@ -23,6 +23,7 @@ import type { ApiUser } from "./types";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, diagImgSrc } from "./types";
 import { SectionTitle } from "./bits";
 import { SharesCard } from "./SharesCard";
+import { ParrainageCard } from "./ParrainageCard";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { ContactKeneModal } from "./ContactKeneModal";
 import { LinkAccountModal } from "./LinkAccountModal";
@@ -651,6 +652,11 @@ export function ProfileScreen() {
       {/* Partage des self-scans — la cliente décide, institut par institut */}
       <RevealItem>
         <SharesCard userId={user.id} userName={user.name} />
+      </RevealItem>
+
+      {/* Le Fil du Parrainage & Ambassadrice (Code, lien WhatsApp & Paliers Kènè+) */}
+      <RevealItem>
+        <ParrainageCard userId={user.id} userName={user.name} />
       </RevealItem>
 
       {/* Passerelle directe Espace Entreprise & Salon — Uniquement pour les comptes Pro ou Admin */}
