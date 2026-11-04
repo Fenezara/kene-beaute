@@ -216,6 +216,18 @@ export async function grantClientWelcomeTrial(userId: string): Promise<Subscript
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user || user.role !== "client") return null;
 
+  // VERROU DE SÉCURITÉ ANTI-ABUS :
+  // Les 30 jours gratuits sont strictement réservés aux comptes réels inscrits.
+  // Les comptes invités anonymes (+22500... ou "Nouvelle invitée") sont exclus.
+  if (
+    user.phone.startsWith("+22500") ||
+    user.name === "Nouvelle invitée" ||
+    user.id === "guest" ||
+    user.id.startsWith("guest_")
+  ) {
+    return null;
+  }
+
   const existingSub = await db.subscription.findFirst({ where: { userId } });
   if (existingSub) return null;
 

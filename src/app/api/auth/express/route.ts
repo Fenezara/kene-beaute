@@ -81,7 +81,9 @@ export async function GET(req: NextRequest) {
             selectedTenantId: defaultTenant?.id ?? null,
           },
         });
-        await grantClientWelcomeTrial(user.id).catch(() => null);
+        // Pas d'attribution automatique de Kènè+ 30 jours pour les comptes invités.
+        // L'offre de bienvenue 30 jours gratuits est réservée exclusivement aux vraies
+        // personnes inscrites avec leur numéro WhatsApp officiel.
       }
     } else {
       let phoneToUse = targetRole === "pro" ? "+2250709080706" : KENE_ADMIN_PHONE;
