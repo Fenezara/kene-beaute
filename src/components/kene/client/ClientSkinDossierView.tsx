@@ -107,7 +107,11 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const refreshOrdersAndAppts = useCallback(() => {
-    if (!storeUser?.id) return;
+    if (!storeUser?.id || !isSavedUser(storeUser)) {
+      setClientOrders([]);
+      setClientAppts([]);
+      return;
+    }
     apiGet<{ orders: any[] }>(`/api/orders?userId=${storeUser.id}`)
       .then((res) => {
         if (res?.orders) setClientOrders(res.orders);
@@ -119,7 +123,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         if (res?.appointments) setClientAppts(res.appointments);
       })
       .catch(() => {});
-  }, [storeUser?.id]);
+  }, [storeUser?.id, storeUser]);
 
   useEffect(() => {
     refreshOrdersAndAppts();
@@ -241,6 +245,18 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   }, [storeUser?.cosmeticsUsed, storeUser?.prescribedByTenant]);
 
   useEffect(() => {
+    // Si l'utilisateur est un invité anonyme / visiteur non inscrit,
+    // on vide immédiatement les bilans et ordonnances en mémoire locale
+    if (!isSavedUser(storeUser)) {
+      setDiagnoses([]);
+      setCosmeticsUsed(null);
+      setPrescribedByTenant(null);
+      setPrescribedTenantId(null);
+      setClientOrders([]);
+      setClientAppts([]);
+      return;
+    }
+
     if (initialDiagnoses && initialDiagnoses.length > 0) {
       setDiagnoses(initialDiagnoses);
     }
@@ -254,7 +270,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         })
         .catch(() => {});
     }
-  }, [initialDiagnoses, storeUser?.id]);
+  }, [initialDiagnoses, storeUser?.id, storeUser]);
 
   // Dernier bilan
   const lastDiag = useMemo(() => {

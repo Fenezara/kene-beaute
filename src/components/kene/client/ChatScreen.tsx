@@ -56,7 +56,7 @@ import { apiPost, resizeImage } from "@/lib/kene/api";
 import { extractVideoKeyframes, isVideoFile } from "@/lib/kene/video-frames";
 import { KeneEmblem, NeaOnnimIcon, CauriIcon } from "@/components/kene/icons";
 import { Chip, IconBadge } from "@/components/kene/ui2026";
-import { useKene } from "@/store/kene";
+import { useKene, isSavedUser } from "@/store/kene";
 import { useChat, getTimeGreeting } from "@/store/chat";
 import type { ChatMsg } from "./types";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
@@ -581,6 +581,13 @@ export function ChatScreen() {
 
   // Engagement obligatoire de la conversation par Dermo Kènè dès l'ouverture
   useEffect(() => {
+    // Si l'utilisateur actuel est un invité anonyme / visiteur non inscrit,
+    // on purge systématiquement le fil pour ne JAMAIS afficher les conversations d'une ancienne cliente
+    if (!isSavedUser(user)) {
+      useChat.getState().reset("Visiteuse", user?.city);
+      return;
+    }
+
     const userName = user?.name || "";
     const userCity = user?.city;
     if (!useChat.persist.hasHydrated()) {
@@ -595,7 +602,7 @@ export function ChatScreen() {
     } else {
       ensureEngaged(userName, userCity);
     }
-  }, [ensureEngaged, user?.name, user?.city]);
+  }, [ensureEngaged, user?.name, user?.city, user]);
 
   // Défilement automatique vers le message le plus récent à chaque changement de messages,
   // d'état d'envoi ou lors du basculement sur l'onglet "Fil complet"

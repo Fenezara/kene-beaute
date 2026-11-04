@@ -28,12 +28,31 @@ export async function performLogout(options?: { redirectUrl?: string; message?: 
     setSpace("client");
   } catch {}
 
-  // 3. Purge explicite du stockage persistant du navigateur
+  // 3. Purge explicite et étanche du stockage persistant du navigateur (Confidentialité RGPD)
   try {
     if (typeof window !== "undefined") {
+      // Clés Zustand
       window.localStorage.removeItem("kene-store");
+      window.localStorage.removeItem("kene-chat");
+      window.localStorage.removeItem("kene-favorites");
       window.localStorage.removeItem("kene-security-storage");
       window.localStorage.removeItem("kene-favs");
+
+      // Clés liées au compte et aux passeports de l'appareil
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (key && (
+          key.startsWith("kene_passport_") ||
+          key.startsWith("kene-diag-queue") ||
+          key.startsWith("kene_user_") ||
+          key === "kene-user"
+        )) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => window.localStorage.removeItem(k));
+
       window.sessionStorage.clear();
     }
   } catch {}
