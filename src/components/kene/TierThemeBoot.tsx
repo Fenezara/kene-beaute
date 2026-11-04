@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
 import { syncActiveTierTheme, getSavedTierTheme, applyTierThemeToDom, resolveDefaultTierTheme } from "@/lib/kene/tier-theme";
+import { detectDevicePerformance } from "@/lib/kene/device-tier";
 
 // Cache mémoire court pour éviter de sur-solliciter /api/subscriptions
 const subsCache = new Map<string, { plan: string | null; month: number; ts: number }>();
@@ -34,6 +35,9 @@ export function TierThemeBoot() {
   }, []);
 
   useEffect(() => {
+    // 0. Détection proactive de performance matérielle (mode Vitesse Pure pour smartphones modestes)
+    detectDevicePerformance();
+
     // 1. Appliquer immédiatement la parure du salon si définie, sinon choix local ou défaut
     if (user?.tenantThemeTier) {
       applyTierThemeToDom(user.tenantThemeTier as any);

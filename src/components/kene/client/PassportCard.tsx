@@ -25,6 +25,16 @@ export function PassportCard({ userId }: { userId: string }) {
   const [sharing, setSharing] = useState(false);
   const qrBox = useRef<HTMLDivElement>(null);
 
+  // Effet d'inclinaison 3D gyroscopique & tactile (Afro-Luxe Holographique)
+  const [tilt, setTilt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ x: -(y * 12), y: x * 12 });
+  };
+  const handleMouseLeave = () => setTilt({ x: 0, y: 0 });
+
   const ensure = useCallback(
     async (rotate = false) => {
       if (isGuest) return;
@@ -183,7 +193,23 @@ export function PassportCard({ userId }: { userId: string }) {
         <SectionTitle icon={<QrCode size={16} />}>
           <span id="pp-t">Passeport de Peau</span>
         </SectionTitle>
-        <div className="k-solar-glass relative overflow-hidden rounded-[24px] p-4">
+        <div
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          style={{
+            transform: `perspective(900px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+            transition: "transform 0.15s ease-out",
+          }}
+          className="k-solar-glass relative overflow-hidden rounded-[24px] p-4.5 border border-gold/45 shadow-[0_16px_36px_-12px_rgba(212,154,36,0.22)]"
+        >
+          {/* Reflet Holographique Or & Nacre qui suit l'inclinaison */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-40 mix-blend-color-dodge transition-opacity duration-300"
+            style={{
+              background: `radial-gradient(circle at ${50 + tilt.y * 3}% ${50 - tilt.x * 3}%, rgba(255,238,180,0.45) 0%, rgba(212,154,36,0.15) 35%, transparent 70%)`,
+            }}
+          />
           <div
             aria-hidden="true"
             className="k-aura-glow absolute -top-12 -right-12 h-40 w-40 rounded-full"
