@@ -39,10 +39,28 @@ export async function GET(req: NextRequest) {
 
     const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
 
+    // 0. Purge automatique des profils invités virtuels résiduels (+22500... ou "Nouvelle invitée")
+    await db.clientProfile.deleteMany({
+      where: {
+        tenantId: tenant.id,
+        OR: [
+          { phone: { startsWith: "+22500" } },
+          { name: { contains: "invitée" } },
+        ],
+      },
+    }).catch(() => null);
+
     // Synchronisation automatique et intelligente App ↔ CRM :
-    // 1. Clientes ayant choisi cet institut comme institut de référence
+    // 1. Clientes réelles ayant choisi cet institut comme institut de référence
     const refUsers = await db.user.findMany({
-      where: { selectedTenantId: tenant.id },
+      where: {
+        selectedTenantId: tenant.id,
+        NOT: [
+          { phone: { startsWith: "+22500" } },
+          { name: { contains: "invitée" } },
+          { name: "guest" },
+        ],
+      },
       select: {
         id: true,
         name: true,
@@ -145,7 +163,13 @@ export async function GET(req: NextRequest) {
     }
 
     const all = await db.clientProfile.findMany({
-      where: { tenantId: tenant.id },
+      where: {
+        tenantId: tenant.id,
+        NOT: [
+          { phone: { startsWith: "+22500" } },
+          { name: { contains: "invitée" } },
+        ],
+      },
       include: { _count: { select: { sales: true, appointments: true } } },
       orderBy: { totalSpent: "desc" },
     });

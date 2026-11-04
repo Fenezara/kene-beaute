@@ -71,14 +71,13 @@ export async function GET(req: NextRequest) {
       // Sinon on génère un compte invité unique et dédié à cet appareil
       if (!user) {
         const uniqueGuestPhone = `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
-        const defaultTenant = await getDefaultCabinetTenant();
         user = await db.user.create({
           data: {
             phone: uniqueGuestPhone,
             name: "Nouvelle invitée",
             role: "client",
             referralCode: genRef("KENE"),
-            selectedTenantId: defaultTenant?.id ?? null,
+            selectedTenantId: null, // Les comptes invités temporaires ne sont pas rattachés au CRM d'un institut
           },
         });
         // Pas d'attribution automatique de Kènè+ 30 jours pour les comptes invités.

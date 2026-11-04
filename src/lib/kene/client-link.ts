@@ -45,6 +45,15 @@ export async function ensureClientProfile(
   tenantId: string,
   user: Pick<User, "id" | "name" | "phone"> & Partial<Pick<User, "skinType" | "fitzpatrick" | "district" | "birthDate" | "pregnant" | "preferredChannel" | "beautyBudget">>,
 ): Promise<{ id: string } | null> {
+  // RÈGLE MÉTIER CRM STRICTE : Les comptes invités temporaires (+22500... ou "Nouvelle invitée")
+  // ne doivent JAMAIS être enregistrés comme fiches clientes dans le CRM d'un institut partenaire.
+  if (user.phone && user.phone.startsWith("+22500")) {
+    return null;
+  }
+  if (user.name && user.name.toLowerCase().includes("invitée") && (!user.phone || user.phone.startsWith("+22500"))) {
+    return null;
+  }
+
   const normPhone = canonicalPhone(user.phone);
   const matchKey = phoneMatchKey(user.phone);
 

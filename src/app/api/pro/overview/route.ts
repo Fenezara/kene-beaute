@@ -82,7 +82,16 @@ export async function GET(req: NextRequest) {
       db.appointment.count({
         where: { tenantId: tenant.id, startAt: { gte: todayStart, lte: dayEnd() }, status: { not: "cancelled" } },
       }),
-      db.clientProfile.count({ where: { tenantId: tenant.id, createdAt: { gte: since30 } } }),
+      db.clientProfile.count({
+        where: {
+          tenantId: tenant.id,
+          createdAt: { gte: since30 },
+          NOT: [
+            { phone: { startsWith: "+22500" } },
+            { name: { contains: "invitée" } },
+          ],
+        },
+      }),
       db.sale.findMany({
         where: { ...completed, createdAt: { gte: since14 } },
         select: { createdAt: true, total: true },
@@ -408,9 +417,24 @@ export async function GET(req: NextRequest) {
     }
 
     // Statistiques Radar Portail Clientes & Connexion
-    const totalClientsCount = await db.clientProfile.count({ where: { tenantId: tenant.id } });
+    const totalClientsCount = await db.clientProfile.count({
+      where: {
+        tenantId: tenant.id,
+        NOT: [
+          { phone: { startsWith: "+22500" } },
+          { name: { contains: "invitée" } },
+        ],
+      },
+    });
     const clientProfilesWithUser = await db.clientProfile.findMany({
-      where: { tenantId: tenant.id, userId: { not: null } },
+      where: {
+        tenantId: tenant.id,
+        userId: { not: null },
+        NOT: [
+          { phone: { startsWith: "+22500" } },
+          { name: { contains: "invitée" } },
+        ],
+      },
       select: { userId: true },
     });
     const cUserIds = clientProfilesWithUser.map((p) => p.userId!).filter(Boolean);
