@@ -190,8 +190,11 @@ export async function POST(req: NextRequest) {
     const guard = guardUserClaim(req, "passport:post", userId);
     if (guard) return guard;
 
-    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true } });
+    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, phone: true, name: true } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);
+    if (user.phone.startsWith("+22500") || user.name === "Nouvelle invitée") {
+      return jsonError("Enregistre ton numéro WhatsApp pour officialiser ton Passeport de Peau", 403);
+    }
 
     if (body?.rotate) {
       // Révocation: l'ancien lien public meurt immédiatement (nouveau jeton).

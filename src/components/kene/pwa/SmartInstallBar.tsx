@@ -48,8 +48,9 @@ export function SmartInstallBar() {
           return;
         }
       } catch {}
+      return;
     }
-    // Si iOS ou prompt natif indisponible, ouvrir le guide interactif
+    // Cas Apple (iOS) ou navigateur Android sans prompt natif (webview, etc.) : ouvrir le guide adapté
     setModalOpen(true);
   }
 
@@ -61,6 +62,12 @@ export function SmartInstallBar() {
       description: "Vous pouvez installer l'application à tout moment dans Paramètres.",
     });
   }
+
+  const actionLabel = canInstall
+    ? "Installer en 1 clic"
+    : isIOS
+    ? "Guide iPhone"
+    : "Guide d'installation";
 
   return (
     <>
@@ -77,7 +84,7 @@ export function SmartInstallBar() {
 
         <div className="flex items-center gap-3">
           {/* Logo Kènè */}
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 cursor-pointer" onClick={handleQuickAction}>
             <KeneEmblem size={44} />
             <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-gold text-[8.5px] font-black text-black">
               +
@@ -85,7 +92,7 @@ export function SmartInstallBar() {
           </div>
 
           {/* Textes incitatifs */}
-          <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setModalOpen(true)}>
+          <div className="min-w-0 flex-1 cursor-pointer" onClick={handleQuickAction}>
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-gold/20 text-gold-text text-[9.5px] font-black uppercase tracking-wider">
                 <Gift size={10} className="text-gold" />
@@ -105,10 +112,10 @@ export function SmartInstallBar() {
             <button
               type="button"
               onClick={handleQuickAction}
-              className="inline-flex items-center justify-center gap-1 rounded-xl bg-gold px-2.5 sm:px-3 py-1.5 text-xs font-black text-black shadow-xs hover:bg-gold/90 active:scale-95 transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gold px-3 sm:px-3.5 py-1.5 text-xs font-black text-black shadow-xs hover:bg-gold/90 active:scale-95 transition-all cursor-pointer"
             >
               <Download size={13} className="shrink-0" />
-              <span>{canInstall ? "Installer" : "Guide"}</span>
+              <span>{actionLabel}</span>
             </button>
 
             <button

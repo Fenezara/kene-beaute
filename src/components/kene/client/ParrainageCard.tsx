@@ -3,10 +3,11 @@
 // Kènè+ et débloque les paliers exclusifs (Initié: 5 amies = 1 mois Kènè+).
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Copy, Gift, HeartHandshake, Loader2, Send, Trophy, Users } from "lucide-react";
+import { Check, Copy, Gift, HeartHandshake, Loader2, Send, Trophy, Users, Lock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { formatDate } from "@/lib/kene/format";
+import { useKene, isSavedUser } from "@/store/kene";
 import {
   referralWaLink,
   REFERRAL_TIERS,
@@ -18,6 +19,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SectionTitle } from "./bits";
 
 export function ParrainageCard({ userId, userName, onRedeemed }: { userId: string; userName: string; onRedeemed?: () => void }) {
+  const user = useKene((s) => s.user);
+  const isGuest = !isSavedUser(user);
+
   const [data, setData] = useState<ReferralSummary | null>(null);
   const [failed, setFailed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -27,10 +31,11 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
+    if (isGuest) return;
     apiGet<ReferralSummary>(`/api/referral?userId=${userId}`)
       .then((r) => { setData(r); setFailed(false); })
       .catch(() => setFailed(true));
-  }, [userId]);
+  }, [userId, isGuest]);
 
   useEffect(() => {
     load();
@@ -75,6 +80,51 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
   }
 
   const firstName = userName.split(" ")[0];
+
+  if (isGuest) {
+    return (
+      <section aria-labelledby="par-t">
+        <SectionTitle icon={<HeartHandshake size={16} />}><span id="par-t">Le Fil du Parrainage</span></SectionTitle>
+        <div className="rounded-3xl bg-[#1A1410] text-[#F8F1E4] p-5 shadow-md relative overflow-hidden border border-gold/30">
+          <div aria-hidden="true" className="absolute inset-0 kente-band-soft opacity-20" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-gold/20 text-gold-text border border-gold/40">
+                <Lock size={10} /> Réservé aux Membres
+              </span>
+              <span className="text-[11px] font-bold text-muted-foreground">Mode Invité</span>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between rounded-2xl bg-white/5 border border-white/10 p-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Votre code personnel</p>
+                <p className="font-mono font-black text-xl tracking-widest text-[#FFF9EC] mt-0.5">KENE-••••••</p>
+              </div>
+              <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text">
+                <Lock size={16} />
+              </span>
+            </div>
+
+            <p className="text-xs text-[#F8F1E4]/90 mt-3 leading-relaxed">
+              Offrez <strong className="text-[#E3B454] font-bold">30 jours de Kènè+</strong> à vos amies. Pour chaque palier de 5 amies qui réalisent leur scan, recevez <strong className="text-[#E3B454] font-bold">1 mois d&apos;abonnement Kènè+ offert</strong> (valeur 2 500 FCFA/mois).
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("kene:open-link-account"));
+                }
+              }}
+              className="mt-4 h-12 w-full rounded-xl k-btn-gold font-black text-xs text-primary-foreground flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-md cursor-pointer"
+            >
+              <Sparkles size={16} /> Créer mon compte pour débloquer mon code (0 FCFA)
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section aria-labelledby="par-t">

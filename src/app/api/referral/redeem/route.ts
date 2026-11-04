@@ -61,6 +61,9 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
 
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return jsonError("Utilisatrice introuvable", 404);
+  if (user.phone.startsWith("+22500") || user.name === "Nouvelle invitée") {
+    return jsonError("Enregistre ton numéro WhatsApp pour utiliser un code parrain et activer tes 30 jours offerts", 403);
+  }
   if (user.referredBy) return jsonError("Tu es déjà parrainée — un seul code par cliente 😉", 400);
 
   const myWallet = await ensureWallet(userId);

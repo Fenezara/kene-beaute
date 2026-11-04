@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);
+    if (user.phone.startsWith("+22500") || user.name === "Nouvelle invitée") {
+      return jsonError("Le parrainage est réservé aux membres enregistrées", 403);
+    }
 
     const wallet = await ensureWallet(userId);
     if (!wallet) return jsonError("Wallet introuvable", 404);
