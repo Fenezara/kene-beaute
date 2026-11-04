@@ -23,6 +23,7 @@ import {
   Crown,
   ShoppingBag,
   Gift,
+  Users,
 } from "lucide-react";
 import {
   AreaChart,
@@ -273,7 +274,7 @@ export function DashboardSection({
       )}
 
       {/* ── 🛡️ BOUCLIER FINANCIER & CENTRE D'ACTION TEMPS RÉEL (2026) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Tuile 1 : Espèces en Caisse (Tiroir) */}
         <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
@@ -308,7 +309,54 @@ export function DashboardSection({
           </div>
         </div>
 
-        {/* Tuile 3 : Jauge d'Objectif & Pacing Mensuel */}
+        {/* Tuile 3 : Équipe en Poste (Présence live / pointage) */}
+        <div
+          onClick={() => onNavigate("team")}
+          className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between hover:border-gold/50 transition-all cursor-pointer group"
+          role="button"
+          tabIndex={0}
+          title="Cliquez pour gérer les pointages et l'équipe"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <span
+                className={cn(
+                  "size-2 rounded-full",
+                  (data.staffPresence?.present ?? 0) > 0 ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                )}
+              />
+              Équipe en Poste
+            </span>
+            <span className="font-mono text-[11px] font-black text-foreground">
+              {data.staffPresence
+                ? `${data.staffPresence.present} / ${data.staffPresence.total} en poste`
+                : "—"}
+            </span>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+            {data.staffPresence && data.staffPresence.notPresent > 0 ? (
+              <span
+                className="text-amber-500 font-semibold truncate max-w-[140px]"
+                title={data.staffPresence.absentStaff.map((e) => e.name).join(", ")}
+              >
+                {data.staffPresence.notPresent} pas encore en poste
+              </span>
+            ) : data.staffPresence && data.staffPresence.total > 0 ? (
+              <span className="text-emerald-500 font-semibold">100% au salon</span>
+            ) : (
+              <span>Aucune employée</span>
+            )}
+            <button
+              type="button"
+              onClick={() => onNavigate("team")}
+              className="text-[11px] font-bold text-gold-text hover:underline shrink-0 flex items-center gap-0.5 cursor-pointer"
+            >
+              Équipe →
+            </button>
+          </div>
+        </div>
+
+        {/* Tuile 4 : Jauge d'Objectif & Pacing Mensuel */}
         <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -328,7 +376,7 @@ export function DashboardSection({
           </div>
         </div>
 
-        {/* Tuile 4 : Radar Clientes Connectées au Portail */}
+        {/* Tuile 5 : Radar Clientes Connectées au Portail */}
         <div className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">

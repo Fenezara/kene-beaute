@@ -71,6 +71,9 @@ export async function GET(req: NextRequest) {
       pendingOrders,
       cashExpenses30d,
       skinDiagnosesCount30d,
+      activeEmployeesList,
+      attendancesToday,
+      leavesToday,
     ] = await Promise.all([
       db.sale.findMany({ where: { ...completed, createdAt: { gte: todayStart } }, select: { total: true, paymentMethod: true } }),
       db.sale.aggregate({ where: { ...completed, createdAt: { gte: since7 } }, _sum: { total: true } }),
@@ -187,6 +190,22 @@ export async function GET(req: NextRequest) {
       // Diagnostics peau réalisés sur 30j
       db.proDiagnosis.count({
         where: { tenantId: tenant.id, createdAt: { gte: since30 } },
+      }),
+      // Employées actives du salon (pour la jauge de présence en direct sur le tableau de bord)
+      db.employee.findMany({
+        where: { tenantId: tenant.id, active: true },
+        select: { id: true, name: true, role: true },
+        orderBy: { name: "asc" },
+      }),
+      // Pointages du jour
+      db.attendance.findMany({
+        where: { employee: { tenantId: tenant.id }, date: { gte: todayStart, lte: dayEnd() } },
+        select: { employeeId: true, checkIn: true, checkOut: true, status: true },
+      }),
+      // Congés approuvés couvrant aujourd'hui
+      db.leaveRequest.findMany({
+        where: { tenantId: tenant.id, status: "approved", startDate: { lte: now }, endDate: { gte: now } },
+        select: { employeeId: true },
       }),
     ]);
 
@@ -430,6 +449,39 @@ export async function GET(req: NextRequest) {
     const monthlyFixedCosts = 600000; // Charges fixes de référence
     const pacingPercentage = monthlyRevenueTarget > 0 ? Math.min(100, Math.round((currentMonthRevenue / monthlyRevenueTarget) * 100)) : 0;
 
+    // Calcul de la présence du personnel en temps réel (pour le tableau de bord)
+    const onLeaveEmpIds = new Set(leavesToday.map((l) => l.employeeId));
+    const attendanceMap = new Map<string, { checkIn: string | null; status: string }>();
+    for (const a of attendancesToday) {
+      if (a.checkIn && a.status !== "leave" && !onLeaveEmpIds.has(a.employeeId)) {
+        attendanceMap.set(a.employeeId, { checkIn: a.checkIn, status: a.status });
+      }
+    }
+
+    const presentStaff: { id: string; name: string; role: string; checkIn: string | null }[] = [];
+    const absentStaff: { id: string; name: string; role: string }[] = [];
+    const onLeaveStaff: { id: string; name: string; role: string }[] = [];
+
+    for (const emp of activeEmployeesList) {
+      if (onLeaveEmpIds.has(emp.id)) {
+        onLeaveStaff.push({ id: emp.id, name: emp.name, role: emp.role });
+      } else if (attendanceMap.has(emp.id)) {
+        presentStaff.push({ id: emp.id, name: emp.name, role: emp.role, checkIn: attendanceMap.get(emp.id)!.checkIn });
+      } else {
+        absentStaff.push({ id: emp.id, name: emp.name, role: emp.role });
+      }
+    }
+
+    const staffPresence = {
+      total: activeEmployeesList.length,
+      present: presentStaff.length,
+      notPresent: absentStaff.length,
+      onLeave: onLeaveStaff.length,
+      presentStaff,
+      absentStaff,
+      onLeaveStaff,
+    };
+
     return NextResponse.json({
       tenant: tenantWithLiveReviews,
       viewer,
@@ -516,6 +568,7 @@ export async function GET(req: NextRequest) {
         today: birthdaysToday,
         thisMonthCount: birthdaysThisMonthCount,
       },
+      staffPresence,
     });
   } catch (err) {
     return serverError("pro/overview", err);

@@ -94,6 +94,23 @@ export interface StockAlertItem {
   stockAlert: number;
 }
 
+export interface StaffPresenceItem {
+  id: string;
+  name: string;
+  role: string;
+  checkIn?: string | null;
+}
+
+export interface ProStaffPresence {
+  total: number;
+  present: number;
+  notPresent: number;
+  onLeave: number;
+  presentStaff: StaffPresenceItem[];
+  absentStaff: StaffPresenceItem[];
+  onLeaveStaff: StaffPresenceItem[];
+}
+
 export interface ProOverview {
   tenant: ProTenant;
   tenants?: ProTenant[];
@@ -125,6 +142,7 @@ export interface ProOverview {
     today: Array<{ id: string; name: string; phone: string; birthDate: string }>;
     thisMonthCount: number;
   };
+  staffPresence?: ProStaffPresence;
 }
 
 // ─────────────── Agenda ───────────────

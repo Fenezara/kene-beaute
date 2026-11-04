@@ -212,6 +212,20 @@ export const DEFAULT_FALLBACK_OVERVIEW: ProOverview = {
   chart: [],
   paymentSplit: [],
   topServices: [],
+  staffPresence: {
+    total: 3,
+    present: 2,
+    notPresent: 1,
+    onLeave: 0,
+    presentStaff: [
+      { id: "emp_1", name: "Edith", role: "estheticienne", checkIn: "08:30" },
+      { id: "emp_2", name: "Déborah", role: "manager", checkIn: "08:45" },
+    ],
+    absentStaff: [
+      { id: "emp_3", name: "Delphine", role: "estheticienne" },
+    ],
+    onLeaveStaff: [],
+  },
 };
 
 export const DEFAULT_FALLBACK_STOCK: StockResponse = {
