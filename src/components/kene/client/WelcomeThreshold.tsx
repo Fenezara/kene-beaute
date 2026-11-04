@@ -40,14 +40,6 @@ import { type ApiUser } from "./types";
 import { createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { SmartInstallBar } from "@/components/kene/pwa/SmartInstallBar";
-import dynamic from "next/dynamic";
-import { detectDevicePerformance } from "@/lib/kene/device-tier";
-
-// Chargement progressif du Sanctuaire 3D au scroll (uniquement si le matériel le permet)
-const AfricanScrollSanctuary3D = dynamic(
-  () => import("@/components/kene/3d/AfricanScrollSanctuary3D").then((m) => ({ default: m.AfricanScrollSanctuary3D })),
-  { ssr: false, loading: () => <div className="h-48 w-full animate-pulse rounded-[24px] bg-gold/5" /> }
-);
 
 /* ───────────────────────── Portail image plein cadre ───────────────────────── */
 function PortalCard({
@@ -154,12 +146,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
   const [pricingTab, setPricingTab] = useState<"client" | "pro">("client");
   const [showFullMatrix, setShowFullMatrix] = useState(false);
   const enterTimer = useRef<number | null>(null);
-
-  // Détection de performance du téléphone pour le Sanctuaire 3D
-  const [deviceProfile, setDeviceProfile] = useState(() => detectDevicePerformance());
-  useEffect(() => {
-    setDeviceProfile(detectDevicePerformance());
-  }, []);
 
   // Première visite? (raccourcit la chorégraphie d'arrivée au retour).
   // Lecture localStorage en rendu client uniquement — le composant n'est
@@ -785,29 +771,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       </div>
                     </div>
                   </GlassCard>
-                </section>
-              </div>
-
-              {/* ── LE SANCTUAIRE 3D IMMERSIF AU DÉFILEMENT (Poussières d'Or, Botanique & Sceau Royal) ── */}
-              <div className="mt-10 sm:mt-14 w-full">
-                <section aria-label="Sanctuaire dermo-cosmétique 3D au défilement">
-                  {deviceProfile.isHighEnd || deviceProfile.hasWebGL ? (
-                    <AfricanScrollSanctuary3D className="w-full" />
-                  ) : (
-                    /* Repli Parallaxe Haute-Vitesse 60 FPS pour smartphones modestes (CSS 3D matériel) */
-                    <div className="relative overflow-hidden rounded-[26px] border border-gold/40 bg-gradient-to-br from-[#1A120B] via-[#100C08] to-[#1A120B] p-6 text-foreground shadow-xl">
-                      <div className="flex items-center gap-2 text-gold-text text-xs font-bold uppercase tracking-wider">
-                        <Sparkles size={14} />
-                        <span>Sanctuaire Botanique &amp; Pharmacopée</span>
-                      </div>
-                      <h3 className="font-heading text-xl font-black mt-2 text-[#FFF9EC]">
-                        L&apos;Éveil de la Mélanine &amp; des Actifs Purs
-                      </h3>
-                      <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                        Karité vierge de Korhogo, Huile précieuse de Balanites, Moringa pur et Sceau Royal Adinkra Duafe. Chaque formulation protège la barrière lipidique sans décapage.
-                      </p>
-                    </div>
-                  )}
                 </section>
               </div>
 
