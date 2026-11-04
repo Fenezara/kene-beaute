@@ -311,7 +311,7 @@ export function DashboardSection({
 
         {/* Tuile 3 : Équipe en Poste (Présence live / pointage) */}
         <div
-          onClick={() => onNavigate("team")}
+          onClick={() => onNavigate("equipe")}
           className="rounded-[20px] border border-border/80 bg-card/90 p-3.5 sm:p-4 shadow-sm flex flex-col justify-between hover:border-gold/50 transition-all cursor-pointer group"
           role="button"
           tabIndex={0}
@@ -348,7 +348,7 @@ export function DashboardSection({
             )}
             <button
               type="button"
-              onClick={() => onNavigate("team")}
+              onClick={() => onNavigate("equipe")}
               className="text-[11px] font-bold text-gold-text hover:underline shrink-0 flex items-center gap-0.5 cursor-pointer"
             >
               Équipe →
