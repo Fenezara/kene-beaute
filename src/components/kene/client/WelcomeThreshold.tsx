@@ -40,6 +40,7 @@ import { type ApiUser } from "./types";
 import { createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { SmartInstallBar } from "@/components/kene/pwa/SmartInstallBar";
+import { BotanicalParallaxShowcase } from "./BotanicalParallaxShowcase";
 
 /* ───────────────────────── Portail image plein cadre ───────────────────────── */
 function PortalCard({
@@ -772,6 +773,11 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                     </div>
                   </GlassCard>
                 </section>
+              </div>
+
+              {/* ── SHOWCASE PARALLAXE BOTANIQUE HAUTE DÉFINITION (Textures & Flacons Réels) ── */}
+              <div className="w-full">
+                <BotanicalParallaxShowcase />
               </div>
 
               {/* ── SECTION 3 : Comment ça marche (3 Étapes Limpides) ── */}
