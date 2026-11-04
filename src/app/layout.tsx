@@ -140,6 +140,33 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Invalidation automatique des anciens caches démo et Service Worker v97
+                try {
+                  var currentBuildKey = "kene_cache_build_v2026_11_04_rev2";
+                  if (localStorage.getItem("kene_build_version") !== currentBuildKey) {
+                    localStorage.setItem("kene_build_version", currentBuildKey);
+                    Object.keys(localStorage).forEach(function(k) {
+                      if (k.startsWith("kene_pro_overview") || k.startsWith("kene_pro_catalog") || k.startsWith("kene_pro_clients") || k.startsWith("kene_offline_") || k.startsWith("kene_pro_stock")) {
+                        localStorage.removeItem(k);
+                      }
+                    });
+                    if ("caches" in window) {
+                      caches.keys().then(function(names) {
+                        names.forEach(function(name) {
+                          if (name.indexOf("data") !== -1 || name.indexOf("precache") !== -1) {
+                            caches.delete(name);
+                          }
+                        });
+                      });
+                    }
+                    if ("serviceWorker" in navigator) {
+                      navigator.serviceWorker.getRegistrations().then(function(regs) {
+                        regs.forEach(function(r) { r.update(); });
+                      });
+                    }
+                  }
+                } catch(e) {}
+
                 var triggerUnfreeze = function() {
                   var skeleton = document.querySelector('[role="status"][aria-busy="true"]');
                   if (skeleton) {
