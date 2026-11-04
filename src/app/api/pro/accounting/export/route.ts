@@ -18,6 +18,11 @@ import {
   type CsvCell,
   type ExportType,
 } from "@/lib/accounting/csv";
+import {
+  buildSalesBookExcel,
+  buildJournalExcel,
+  buildBalanceExcel,
+} from "@/lib/accounting/excel";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
@@ -55,9 +60,9 @@ export async function GET(req: NextRequest) {
     }
     const type = typeParam as ExportType;
 
-    const formatParam = (sp.get("format") ?? "csv").toLowerCase();
-    if (formatParam !== "csv" && formatParam !== "pdf") {
-      return jsonError(`Format d'export inconnu « ${formatParam} » — formats acceptés : csv, pdf`, 400);
+    const formatParam = (sp.get("format") ?? "xlsx").toLowerCase();
+    if (formatParam !== "csv" && formatParam !== "pdf" && formatParam !== "xlsx") {
+      return jsonError(`Format d'export inconnu « ${formatParam} » — formats acceptés : xlsx, csv, pdf`, 400);
     }
     if (formatParam === "pdf" && type !== "liasse") {
       return jsonError("Le format PDF est réservé au type « liasse » (dossier complet) — journal, balance et ventes s'exportent en CSV", 400);
@@ -202,29 +207,90 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: "asc" },
         });
         count = sales.length;
-        rows = salesBookCsvRows(
-          { tenantName: tenant.name, tenantCity: tenant.city, type, from, to, countLabel: `${sales.length} ventes réalisées` },
-          sales.map((s) => {
-            const servicesAmount = s.items.filter((i) => i.kind === "service").reduce((t, i) => t + i.total, 0);
-            const productsAmount = s.items.filter((i) => i.kind === "product").reduce((t, i) => t + i.total, 0);
-            return {
-              date: s.createdAt,
-              ref: s.paymentRef,
-              clientName: s.clientProfile?.name ?? null,
-              itemCount: s.items.length,
-              servicesAmount,
-              productsAmount,
-              subtotal: s.subtotal,
-              discount: s.discount,
-              total: s.total,
-              tvaAmount: s.tvaAmount,
-              paymentMethod: s.paymentMethod,
-              paymentRef: s.paymentRef,
-              cashierName: s.cashierName,
-            };
-          })
-        );
+
+        const salesRows = sales.map((s) => {
+          const servicesAmount = s.items.filter((i) => i.kind === "service").reduce((t, i) => t + i.total, 0);
+          const productsAmount = s.items.filter((i) => i.kind === "product").reduce((t, i) => t + i.total, 0);
+          return {
+            date: s.createdAt,
+            ref: s.paymentRef,
+            clientName: s.clientProfile?.name ?? null,
+            itemCount: s.items.length,
+            servicesAmount,
+            productsAmount,
+            subtotal: s.subtotal,
+            discount: s.discount,
+            total: s.total,
+            tvaAmount: s.tvaAmount,
+            paymentMethod: s.paymentMethod,
+            paymentRef: s.paymentRef,
+            cashierName: s.cashierName,
+          };
+        });
+
+        const metaObj = { tenantName: tenant.name, tenantCity: tenant.city, type, from, to, countLabel: `${sales.length} ventes réalisées` };
+
+        if (formatParam === "xlsx") {
+          const buffer = await buildSalesBookExcel(metaObj, salesRows);
+          const xlsxName = exportFilename(type, from, to).replace(/\.csv$/, ".xlsx");
+          return new NextResponse(new Uint8Array(buffer), {
+            status: 200,
+            headers: {
+              "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "Content-Disposition": `attachment; filename="${xlsxName}"`,
+              "X-Rows-Count": String(count),
+              "X-Export-Type": EXPORT_TYPE_LABELS[type],
+              "Cache-Control": "no-store",
+            },
+          });
+        }
+
+        rows = salesBookCsvRows(metaObj, salesRows);
         break;
+      }
+    }
+
+    if (formatParam === "xlsx") {
+      const metaObj = { tenantName: tenant.name, tenantCity: tenant.city, type, from, to, countLabel: `${count} lignes` };
+      let xlsxBuffer: Buffer | null = null;
+      if (type === "journal") {
+        const entries = await db.journalEntry.findMany({
+          where: { tenantId: tenant.id, ...(dateFilter ? { date: dateFilter } : {}) },
+          include: {
+            lines: { include: { account: { select: { code: true, label: true } } }, orderBy: { id: "asc" } },
+          },
+          orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+        });
+        xlsxBuffer = await buildJournalExcel(metaObj, entries);
+      } else if (type === "balance") {
+        const [entries, accounts] = await Promise.all([
+          db.journalEntry.findMany({
+            where: { tenantId: tenant.id, ...(dateFilter ? { date: dateFilter } : {}) },
+            include: { lines: { select: { accountId: true, debit: true, credit: true } } },
+          }),
+          db.chartAccount.findMany({ where: { tenantId: tenant.id } }),
+        ]);
+        const accountsMap = new Map(accounts.map((a) => [a.code, { code: a.code, label: a.label, classe: a.classe, type: a.type }]));
+        const accountIdToCode = new Map(accounts.map((a) => [a.id, a.code]));
+        const flatLines = entries.flatMap((e) =>
+          e.lines.map((l) => ({ accountCode: accountIdToCode.get(l.accountId) ?? "?", debit: l.debit, credit: l.credit }))
+        );
+        const balance = computeBalance(flatLines, accountsMap);
+        xlsxBuffer = await buildBalanceExcel(metaObj, balance);
+      }
+
+      if (xlsxBuffer) {
+        const xlsxName = exportFilename(type, from, to).replace(/\.csv$/, ".xlsx");
+        return new NextResponse(new Uint8Array(xlsxBuffer), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Content-Disposition": `attachment; filename="${xlsxName}"`,
+            "X-Rows-Count": String(count),
+            "X-Export-Type": EXPORT_TYPE_LABELS[type],
+            "Cache-Control": "no-store",
+          },
+        });
       }
     }
 

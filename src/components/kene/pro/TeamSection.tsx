@@ -135,6 +135,29 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
   const [editing, setEditing] = useState<ProEmployee | null>(null);
   const [departing, setDeparting] = useState<ProEmployee | null>(null);
   const [deleting, setDeleting] = useState<ProEmployee | null>(null);
+  const [downloadingExport, setDownloadingExport] = useState(false);
+
+  async function handleExportAttendance() {
+    try {
+      setDownloadingExport(true);
+      const res = await fetch(`/api/pro/employees/attendance/export?tenantId=${tenantId}&format=xlsx`);
+      if (!res.ok) throw new Error("Échec du téléchargement");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `emargement-presence-${new Date().toISOString().slice(0, 7)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Feuille d'émargement Excel téléchargée avec succès");
+    } catch {
+      toast.error("Impossible d'exporter la feuille d'émargement");
+    } finally {
+      setDownloadingExport(false);
+    }
+  }
   const [leaveOpen, setLeaveOpen] = useState(false);
 
   const employees = useApi<EmployeesResponse>(
@@ -243,6 +266,15 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         sub="Registre du personnel — postes, contrats, comptes app et pointage du jour"
         actions={
           <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              onClick={handleExportAttendance}
+              disabled={downloadingExport}
+              className="gap-1.5 shrink-0 border-gold/40 text-gold-dark hover:bg-gold/10 font-semibold"
+            >
+              <CalendarDays className="size-4" aria-hidden="true" />
+              {downloadingExport ? "Génération..." : "Feuille d'émargement (Excel)"}
+            </Button>
             <Button variant="outline" onClick={() => setLeaveOpen(true)} className="gap-1.5 shrink-0">
               <Palmtree className="size-4" aria-hidden="true" /> Poser un congé
             </Button>
