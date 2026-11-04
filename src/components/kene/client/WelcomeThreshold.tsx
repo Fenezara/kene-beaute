@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Camera, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Droplets, Heart, Leaf, Loader2, LogIn, Play, ShieldCheck, Star, UserCheck, X,
+  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Camera, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Droplets, Heart, Leaf, Loader2, LogIn, Play, ShieldCheck, Sparkles, Star, UserCheck, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -499,11 +499,10 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                     Taches d&apos;acné, hyperpigmentation, teint terne ou excès de sébum ? Scanne ton visage en <strong>30 secondes chrono</strong>. Obtiens ton score de santé cutanée, ton <strong>ordonnance personnalisée</strong> aux trésors botaniques africains purs (Karité brut de Korhogo, Balanites, Moringa) et ton <strong>Pass Cabine offert</strong>.
                   </motion.p>
 
-                  {/* LE GRAND BOUTON D'ACTION MAGNÉTIQUE (0 friction, 0 FCFA) */}
+                  {/* BOUTONS D'ACTION CLAIRS : NOUVELLE INSCRIPTION & CONNEXION */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-5 sm:mt-6">
                     <motion.button
-                      onClick={() => startExploration("diagnostic")}
-                      disabled={exploring}
+                      onClick={() => enterPortal("client")}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.45 * d }}
@@ -511,8 +510,8 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       whileTap={{ scale: 0.98 }}
                       className="inline-flex min-h-12 sm:min-h-13 items-center justify-center gap-2.5 rounded-full k-btn-gold px-6 sm:px-7 text-[13.5px] sm:text-[14.5px] font-black text-primary-foreground shadow-xl shadow-gold/20 hover:shadow-gold/30 transition-all cursor-pointer"
                     >
-                      {exploring ? <Loader2 size={18} className="animate-spin text-primary-foreground" /> : <Camera size={19} />}
-                      <span>Analyser ma peau gratuitement (0 FCFA)</span>
+                      <Sparkles size={18} className="text-primary-foreground" />
+                      <span>S&apos;inscrire / Créer un compte (0 FCFA)</span>
                       <ArrowRight size={16} />
                     </motion.button>
 
@@ -522,10 +521,23 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.5 * d }}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full k-chip px-4.5 text-[12.5px] font-bold text-foreground/90 hover:text-foreground cursor-pointer"
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full k-chip px-5 text-[12.5px] font-bold text-foreground/90 hover:text-foreground cursor-pointer"
                     >
                       <LogIn size={15} className="text-gold-text" />
-                      <span>Déjà cliente ? Me connecter</span>
+                      <span>Déjà inscrite ? Me connecter</span>
+                    </motion.button>
+
+                    <motion.button
+                      type="button"
+                      onClick={() => startExploration("diagnostic")}
+                      disabled={exploring}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.55 * d }}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-border/80 bg-background/50 hover:bg-background/80 px-4 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                    >
+                      {exploring ? <Loader2 size={15} className="animate-spin text-gold-text" /> : <Camera size={15} className="text-gold-text" />}
+                      <span>Découvrir sans compte</span>
                     </motion.button>
                   </div>
 

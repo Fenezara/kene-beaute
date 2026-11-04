@@ -54,16 +54,8 @@ export async function GET(req: NextRequest) {
         return jsonError("Session expirée ou absente", 401);
       }
 
-      if (user.role === "client" && !user.selectedTenantId) {
-        const defaultTenant = await getDefaultCabinetTenant();
-        if (defaultTenant) {
-          user = await db.user.update({
-            where: { id: user.id },
-            data: { selectedTenantId: defaultTenant.id },
-            include: { selectedTenant: { select: { id: true, name: true, city: true, phone: true, ownerPhone: true, address: true, country: true } } },
-          });
-        }
-      }
+      // Une cliente sans institut reste libre de choisir son institut dans l'application
+      // (zéro affiliation forcée à un salon par défaut)
 
       const proCtx = await resolveUserProContext(user);
       const ownerTenant = proCtx.ownerTenant;
