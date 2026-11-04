@@ -246,7 +246,7 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
         return;
       }
 
-      const res = await apiPatch<{ appointment: ProAppointment; sale?: unknown }>(`/api/pro/appointments/${appt.id}`, {
+      const res = await apiPatch<{ appointment: ProAppointment; sale?: unknown }>(`/api/pro/appointments/${appt.id}?tenantId=${tenantId}`, {
         action,
         ...(extra ?? {}),
       });
