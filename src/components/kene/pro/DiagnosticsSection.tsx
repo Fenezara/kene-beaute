@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatDate, formatTime, scoreVar } from "@/lib/kene/format";
-import { BODY_ZONES, ZONE_PHOTO_SLOTS, recommend4SpectralViews, type BodyZone, type Indicator, type SpectralViewId } from "@/lib/kene/types";
+import { BODY_ZONES, ZONE_PHOTO_SLOTS, recommend4SpectralViews, serializeReportSlots, parseReportSlots, type BodyZone, type Indicator, type SpectralViewId, type SelectedReportSlot } from "@/lib/kene/types";
 import {
   getSectionsForZone, getQuestionsForZone, defaultAnswers, questionnaireProgress, parseProDiagnosis,
 } from "@/lib/kene/questionnaire";
@@ -1708,13 +1708,14 @@ function ResultStep({
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent: (d: { indicators: Indicator[]; score: number; zoneLabel: string }) => void;
 }) {
-  const [selectedPdfViews, setSelectedPdfViews] = useState<SpectralViewId[]>(() =>
-    recommend4SpectralViews(result?.indicateurs)
-  );
+  const [reportSlots, setReportSlots] = useState<SelectedReportSlot[]>(() => {
+    const rec = recommend4SpectralViews(result?.indicateurs);
+    return rec.map((vid, idx) => ({ viewId: vid, photoIdx: 0 }));
+  });
   const [selectedPhotoIdx, setSelectedPhotoIdx] = useState<number>(0);
 
   const printUrl = savedId
-    ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}&views=${selectedPdfViews.join(",")}&photoIdx=${selectedPhotoIdx}`
+    ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}&views=${serializeReportSlots(reportSlots)}&photoIdx=${selectedPhotoIdx}`
     : null;
 
   if (submitting) {
@@ -1747,8 +1748,8 @@ function ResultStep({
         clientName={clientName}
         clientPhone={clientPhone}
         photo={photo}
-        selectedPdfViews={selectedPdfViews}
-        onChangeSelectedPdfViews={setSelectedPdfViews}
+        reportSlots={reportSlots}
+        onChangeReportSlots={setReportSlots}
         photoIdx={selectedPhotoIdx}
         onChangePhotoIdx={setSelectedPhotoIdx}
         onPrintPdf={() => printUrl && window.open(printUrl, "_blank")}
@@ -1801,8 +1802,8 @@ export function ResultView({
   photo,
   meta,
   tenantName,
-  selectedPdfViews: propSelectedPdfViews,
-  onChangeSelectedPdfViews,
+  reportSlots: propReportSlots,
+  onChangeReportSlots,
   photoIdx,
   onChangePhotoIdx,
   onPrintPdf,
@@ -1815,8 +1816,8 @@ export function ResultView({
   photo?: string | null;
   meta?: { zone?: string; createdAt?: string; practitioner?: string | null };
   tenantName?: string;
-  selectedPdfViews?: SpectralViewId[];
-  onChangeSelectedPdfViews?: (views: SpectralViewId[]) => void;
+  reportSlots?: SelectedReportSlot[];
+  onChangeReportSlots?: (slots: SelectedReportSlot[]) => void;
   photoIdx?: number;
   onChangePhotoIdx?: (idx: number) => void;
   onPrintPdf?: () => void;
@@ -1827,16 +1828,17 @@ export function ResultView({
     photo ? "spectra" : "biomarkers"
   );
 
-  const [localPdfViews, setLocalPdfViews] = useState<SpectralViewId[]>(() =>
-    recommend4SpectralViews(result.indicateurs)
-  );
+  const [localSlots, setLocalSlots] = useState<SelectedReportSlot[]>(() => {
+    const rec = recommend4SpectralViews(result.indicateurs);
+    return rec.map((vid) => ({ viewId: vid, photoIdx: 0 }));
+  });
 
-  const selectedPdfViews = propSelectedPdfViews ?? localPdfViews;
-  const handlePdfViewsChange = (views: SpectralViewId[]) => {
-    if (onChangeSelectedPdfViews) {
-      onChangeSelectedPdfViews(views);
+  const reportSlots = propReportSlots ?? localSlots;
+  const handleSlotsChange = (slots: SelectedReportSlot[]) => {
+    if (onChangeReportSlots) {
+      onChangeReportSlots(slots);
     } else {
-      setLocalPdfViews(views);
+      setLocalSlots(slots);
     }
   };
 
@@ -1918,7 +1920,7 @@ export function ResultView({
                   title="Ouvrir le rapport PDF officiel avec les 4 vues choisies"
                 >
                   <FileDown className="size-3.5" />
-                  <span>PDF ({selectedPdfViews.length}/4)</span>
+                  <span>PDF ({reportSlots.length}/4)</span>
                 </Button>
               )}
 
@@ -2039,8 +2041,8 @@ export function ResultView({
             zoneMarks={result.zones_marquages}
             zoneLabel={zoneLabel}
             indicators={result.indicateurs}
-            selectedPdfViews={selectedPdfViews}
-            onChangeSelectedPdfViews={handlePdfViewsChange}
+            selectedReportSlots={reportSlots}
+            onChangeReportSlots={handleSlotsChange}
             photoIdx={photoIdx}
             onChangePhotoIdx={onChangePhotoIdx}
             onPrintPdf={onPrintPdf}
@@ -2285,12 +2287,13 @@ function DetailResultContent({
   onClose: () => void;
   onDeleteClick: () => void;
 }) {
-  const [selectedPdfViews, setSelectedPdfViews] = useState<SpectralViewId[]>(() =>
-    recommend4SpectralViews(result.indicateurs)
-  );
+  const [reportSlots, setReportSlots] = useState<SelectedReportSlot[]>(() => {
+    const rec = recommend4SpectralViews(result.indicateurs);
+    return rec.map((vid) => ({ viewId: vid, photoIdx: 0 }));
+  });
   const [selectedPhotoIdx, setSelectedPhotoIdx] = useState<number>(0);
 
-  const printUrl = `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}&views=${selectedPdfViews.join(",")}&photoIdx=${selectedPhotoIdx}`;
+  const printUrl = `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}&views=${serializeReportSlots(reportSlots)}&photoIdx=${selectedPhotoIdx}`;
 
   return (
     <>
@@ -2300,8 +2303,8 @@ function DetailResultContent({
         clientPhone={clientPhone}
         photo={photoData}
         meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }}
-        selectedPdfViews={selectedPdfViews}
-        onChangeSelectedPdfViews={setSelectedPdfViews}
+        reportSlots={reportSlots}
+        onChangeReportSlots={setReportSlots}
         photoIdx={selectedPhotoIdx}
         onChangePhotoIdx={setSelectedPhotoIdx}
         onPrintPdf={() => window.open(printUrl, "_blank")}

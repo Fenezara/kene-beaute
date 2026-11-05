@@ -7,6 +7,8 @@ import sharp from "sharp";
 import {
   ALL_SPECTRAL_VIEW_IDS,
   recommend4SpectralViews,
+  parseReportSlots,
+  type SelectedReportSlot,
   type SpectralViewId,
 } from "@/lib/kene/types";
 
@@ -806,30 +808,31 @@ const BAND_STATIC_META: Record<
   },
 };
 
-function resolveSelectedFourViews(
+function resolveSelectedFourSlots(
   requested?: string[] | null,
-  indicators?: Array<{ nom: string; pourcentage: number }>
-): [SpectralViewId, SpectralViewId, SpectralViewId, SpectralViewId] {
-  const recommended = recommend4SpectralViews(indicators);
-  if (!requested || requested.length === 0) return recommended;
+  indicators?: Array<{ nom: string; pourcentage: number }>,
+  fallbackPhotoIdx = 0
+): [SelectedReportSlot, SelectedReportSlot, SelectedReportSlot, SelectedReportSlot] {
+  const parsed = parseReportSlots(requested, fallbackPhotoIdx);
+  const slots: SelectedReportSlot[] = [];
 
-  const valid: SpectralViewId[] = [];
-  for (const raw of requested) {
-    const clean = raw.trim() as SpectralViewId;
-    if (ALL_SPECTRAL_VIEW_IDS.includes(clean) && !valid.includes(clean)) {
-      valid.push(clean);
-    }
-    if (valid.length === 4) break;
+  for (const s of parsed) {
+    slots.push(s);
+    if (slots.length === 4) break;
   }
+
+  const recommended = recommend4SpectralViews(indicators);
   for (const fallbackId of recommended) {
-    if (valid.length >= 4) break;
-    if (!valid.includes(fallbackId)) valid.push(fallbackId);
+    if (slots.length >= 4) break;
+    slots.push({ viewId: fallbackId, photoIdx: fallbackPhotoIdx });
   }
+
   for (const anyId of ALL_SPECTRAL_VIEW_IDS) {
-    if (valid.length >= 4) break;
-    if (!valid.includes(anyId)) valid.push(anyId);
+    if (slots.length >= 4) break;
+    slots.push({ viewId: anyId, photoIdx: fallbackPhotoIdx });
   }
-  return [valid[0], valid[1], valid[2], valid[3]];
+
+  return [slots[0], slots[1], slots[2], slots[3]];
 }
 
 async function renderRealPhotoBandBuffer(
@@ -962,14 +965,15 @@ export async function processMultiSpectralSuite(
   const targetW = 380;
   const targetH = 380;
   const zone = meta?.zoneLabel || "Visage";
-  const chosenIds = resolveSelectedFourViews(meta?.selectedViews, meta?.indicators);
+  const fallbackPhotoIdx = meta?.photoIndex !== undefined && meta?.photoIndex !== null ? meta.photoIndex : 0;
+  const chosenSlots = resolveSelectedFourSlots(meta?.selectedViews, meta?.indicators, fallbackPhotoIdx);
 
   const photoBuffers = extractPhotoBuffers(photoBase64);
 
   if (photoBuffers.length > 0) {
     try {
       const normalizedBuffers: Buffer[] = [];
-      for (const rawBuf of photoBuffers.slice(0, 4)) {
+      for (const rawBuf of photoBuffers.slice(0, 6)) {
         try {
           const normBuf = await sharp(rawBuf)
             .rotate()
@@ -982,21 +986,14 @@ export async function processMultiSpectralSuite(
       }
 
       if (normalizedBuffers.length > 0) {
-        // Détermination du cliché de base : si un photoIndex spécifique est fourni (ou si on applique
-        // l'angle sélectionné par la praticienne pour les 4 filtres spectraux), on utilise cet angle homogène.
-        const preferredPhoto =
-          meta?.photoIndex !== undefined && meta?.photoIndex !== null && normalizedBuffers[meta.photoIndex]
-            ? normalizedBuffers[meta.photoIndex]
-            : normalizedBuffers[0];
-
         const copy = buildZoneBandCopy(zone, meta?.indicators, true);
         const builtBands: SpectralBandData[] = [];
 
         for (let idx = 0; idx < 4; idx++) {
-          const viewId = chosenIds[idx];
-          // Utilise le cliché choisi par la praticienne (ou le 1er cliché si 1 seul angle ou fallback)
-          // pour que les 4 spectres reflètent fidèlement l'angle observé
-          const basePhoto = preferredPhoto;
+          const slot = chosenSlots[idx];
+          const viewId = slot.viewId;
+          // Sélectionne précisément le cliché d'angle choisi pour CE slot spécifique !
+          const basePhoto = normalizedBuffers[slot.photoIdx] ?? normalizedBuffers[fallbackPhotoIdx] ?? normalizedBuffers[0];
           const sMeta = BAND_STATIC_META[viewId];
           const bCopy = copy[viewId];
 
@@ -1067,7 +1064,8 @@ export async function processMultiSpectralSuite(
   const builtSynthetic: SpectralBandData[] = [];
 
   for (let idx = 0; idx < 4; idx++) {
-    const viewId = chosenIds[idx];
+    const slot = chosenSlots[idx];
+    const viewId = slot.viewId;
     const sMeta = BAND_STATIC_META[viewId];
     const bCopy = copy[viewId];
     const svgBuf = buildSyntheticBandSvgById(viewId, targetW, targetH, zone);

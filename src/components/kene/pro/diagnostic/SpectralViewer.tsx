@@ -29,6 +29,7 @@ import {
   recommend4SpectralViews,
   type SpectralViewDefinition,
   type SpectralViewId,
+  type SelectedReportSlot,
   type ZoneMark,
 } from "@/lib/kene/types";
 
@@ -39,6 +40,8 @@ interface SpectralViewerProps {
   indicators?: Array<{ nom: string; pourcentage: number }>;
   selectedPdfViews?: SpectralViewId[];
   onChangeSelectedPdfViews?: (views: SpectralViewId[]) => void;
+  selectedReportSlots?: SelectedReportSlot[];
+  onChangeReportSlots?: (slots: SelectedReportSlot[]) => void;
   photoIdx?: number;
   onChangePhotoIdx?: (idx: number) => void;
   onPrintPdf?: () => void;
@@ -164,6 +167,8 @@ export function SpectralViewer({
   indicators = [],
   selectedPdfViews: propSelectedPdfViews,
   onChangeSelectedPdfViews,
+  selectedReportSlots: propReportSlots,
+  onChangeReportSlots,
   photoIdx: propPhotoIdx,
   onChangePhotoIdx,
   onPrintPdf,
@@ -173,56 +178,6 @@ export function SpectralViewer({
   const [showMarks, setShowMarks] = useState(true);
   const [zoom, setZoom] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // État contrôlé ou local des 4 vues PDF retenues
-  const initialViews = useMemo(() => recommend4SpectralViews(indicators), [indicators]);
-  const [localPdfViews, setLocalPdfViews] = useState<SpectralViewId[]>(initialViews);
-
-  const selectedPdfViews = propSelectedPdfViews ?? localPdfViews;
-  const setSelectedPdfViews = (updater: SpectralViewId[] | ((prev: SpectralViewId[]) => SpectralViewId[])) => {
-    const next = typeof updater === "function" ? updater(selectedPdfViews) : updater;
-    if (onChangeSelectedPdfViews) {
-      onChangeSelectedPdfViews(next);
-    } else {
-      setLocalPdfViews(next);
-    }
-  };
-
-  const togglePdfView = (id: SpectralViewId) => {
-    const exists = selectedPdfViews.includes(id);
-    const viewName = SPECTRAL_VIEWS.find((v) => v.id === id)?.shortLabel || id;
-
-    if (exists) {
-      if (selectedPdfViews.length <= 1) {
-        toast.error("Au moins 1 vue clinique doit être conservée pour le rapport PDF.");
-        return;
-      }
-      const next = selectedPdfViews.filter((v) => v !== id);
-      setSelectedPdfViews(next);
-      toast.info(`Vue ${viewName} retirée du PDF (${next.length}/4).`);
-    } else {
-      if (selectedPdfViews.length < 4) {
-        const next = [...selectedPdfViews, id];
-        setSelectedPdfViews(next);
-        toast.success(`Vue ${viewName} ajoutée au PDF (${next.length}/4) !`);
-      } else {
-        // Déjà 4 vues : on remplace la 4ème (ou la dernière non-standard) pour préserver la fluidité tactile
-        const replaceIdx = selectedPdfViews[0] === "standard" ? 3 : 0;
-        const replacedId = selectedPdfViews[replaceIdx];
-        const replacedName = SPECTRAL_VIEWS.find((v) => v.id === replacedId)?.shortLabel || replacedId;
-        const next = [...selectedPdfViews];
-        next[replaceIdx] = id;
-        setSelectedPdfViews(next);
-        toast.success(`Vue ${viewName} sélectionnée (remplace ${replacedName} en position ${replaceIdx + 1}).`);
-      }
-    }
-  };
-
-  const resetToAiQuad = () => {
-    const rec = recommend4SpectralViews(indicators);
-    setSelectedPdfViews(rec);
-    toast.success("4 vues cliniques réinitialisées selon la recommandation IA !");
-  };
 
   const photoList = useMemo(() => {
     if (!photo) return [];
@@ -244,6 +199,90 @@ export function SpectralViewer({
     else setLocalPhotoIdx(idx);
   };
   const activePhoto = photoList[photoIdx] || photoList[0] || photo;
+
+  // Initialisation des 4 slots
+  const initialSlots = useMemo<SelectedReportSlot[]>(() => {
+    if (propReportSlots && propReportSlots.length > 0) return propReportSlots;
+    if (propSelectedPdfViews && propSelectedPdfViews.length > 0) {
+      return propSelectedPdfViews.map((vid, idx) => ({
+        viewId: vid,
+        photoIdx: Math.min(idx, Math.max(0, photoList.length - 1)),
+      }));
+    }
+    const rec = recommend4SpectralViews(indicators);
+    return rec.map((vid, idx) => ({
+      viewId: vid,
+      photoIdx: Math.min(idx, Math.max(0, photoList.length - 1)),
+    }));
+  }, [propReportSlots, propSelectedPdfViews, indicators, photoList.length]);
+
+  const [localSlots, setLocalSlots] = useState<SelectedReportSlot[]>(initialSlots);
+  const reportSlots = propReportSlots ?? localSlots;
+
+  const setSlots = (updater: SelectedReportSlot[] | ((prev: SelectedReportSlot[]) => SelectedReportSlot[])) => {
+    const next = typeof updater === "function" ? updater(reportSlots) : updater;
+    if (onChangeReportSlots) {
+      onChangeReportSlots(next);
+    } else {
+      setLocalSlots(next);
+    }
+    if (onChangeSelectedPdfViews) {
+      onChangeSelectedPdfViews(next.map((s) => s.viewId));
+    }
+  };
+
+  // Bascule l'inclusion d'une longueur d'onde pour la photo EN COURS DE VISIONNAGE
+  const toggleSlotView = (id: SpectralViewId, targetPhotoIdx = photoIdx) => {
+    const existingIndex = reportSlots.findIndex(
+      (s) => s.viewId === id && s.photoIdx === targetPhotoIdx
+    );
+    const viewName = SPECTRAL_VIEWS.find((v) => v.id === id)?.shortLabel || id;
+    const photoLabel = photoList.length > 1 ? ` (Photo #${targetPhotoIdx + 1})` : "";
+
+    if (existingIndex !== -1) {
+      if (reportSlots.length <= 1) {
+        toast.error("Au moins 1 vue clinique doit être conservée pour le rapport PDF.");
+        return;
+      }
+      const next = reportSlots.filter((_, idx) => idx !== existingIndex);
+      setSlots(next);
+      toast.info(`Vue ${viewName}${photoLabel} retirée du PDF (${next.length}/4).`);
+    } else {
+      if (reportSlots.length < 4) {
+        const next = [...reportSlots, { viewId: id, photoIdx: targetPhotoIdx }];
+        setSlots(next);
+        toast.success(`Vue ${viewName}${photoLabel} ajoutée au PDF (${next.length}/4) !`);
+      } else {
+        // Déjà 4 slots : remplace le 4ème slot (ou le 1er si on préfère)
+        const replaceIdx = 3;
+        const replacedSlot = reportSlots[replaceIdx];
+        const replacedName = SPECTRAL_VIEWS.find((v) => v.id === replacedSlot.viewId)?.shortLabel || replacedSlot.viewId;
+        const next = [...reportSlots];
+        next[replaceIdx] = { viewId: id, photoIdx: targetPhotoIdx };
+        setSlots(next);
+        toast.success(`Vue ${viewName}${photoLabel} sélectionnée (remplace ${replacedName} en position 4).`);
+      }
+    }
+  };
+
+  const removeSlot = (slotIdx: number) => {
+    if (reportSlots.length <= 1) {
+      toast.error("Au moins 1 vue clinique doit être conservée pour le rapport PDF.");
+      return;
+    }
+    const next = reportSlots.filter((_, i) => i !== slotIdx);
+    setSlots(next);
+  };
+
+  const resetToAiQuad = () => {
+    const rec = recommend4SpectralViews(indicators);
+    const next: SelectedReportSlot[] = rec.map((vid, idx) => ({
+      viewId: vid,
+      photoIdx: Math.min(idx, Math.max(0, photoList.length - 1)),
+    }));
+    setSlots(next);
+    toast.success("4 vues cliniques réinitialisées selon la recommandation IA !");
+  };
 
   const currentView = useMemo<SpectralViewDefinition>(() => {
     return SPECTRAL_VIEWS.find((v) => v.id === activeMode) ?? SPECTRAL_VIEWS[0];
@@ -313,7 +352,7 @@ export function SpectralViewer({
               title="Générer immédiatement le PDF avec les 4 vues choisies"
             >
               <FileText className="size-3" />
-              <span>PDF ({selectedPdfViews.length}/4)</span>
+              <span>PDF ({reportSlots.length}/4)</span>
             </button>
           )}
 
@@ -371,7 +410,7 @@ export function SpectralViewer({
               Les 4 vues retenues pour le Compte-rendu PDF :
             </span>
             <Badge variant="outline" className="bg-gold/15 text-gold-text border-gold/30 text-[10px] font-mono">
-              {selectedPdfViews.length} / 4
+              {reportSlots.length} / 4
             </Badge>
           </div>
 
@@ -402,30 +441,48 @@ export function SpectralViewer({
         {/* 4 Slots de sélection tactile directe */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {[0, 1, 2, 3].map((slotIdx) => {
-            const viewId = selectedPdfViews[slotIdx];
+            const slot = reportSlots[slotIdx];
+            const viewId = slot?.viewId;
+            const targetPIdx = slot?.photoIdx ?? 0;
             const viewDef = viewId ? SPECTRAL_VIEWS.find((v) => v.id === viewId) : null;
             const meta = viewId ? SPECTRAL_METAS[viewId] : null;
+            const slotPhotoThumb = photoList[targetPIdx] || photoList[0];
 
-            if (viewDef && meta) {
-              const isActive = activeMode === viewId;
+            if (slot && viewDef && meta) {
+              const isActive = activeMode === viewId && photoIdx === targetPIdx;
               return (
                 <div
                   key={slotIdx}
                   className={cn(
-                    "p-1.5 rounded-lg border flex items-center justify-between gap-1 transition-all cursor-pointer",
+                    "p-1.5 rounded-lg border flex items-center justify-between gap-1.5 transition-all cursor-pointer",
                     isActive ? "ring-1 ring-gold border-gold/60 bg-gold/15" : "bg-card border-border/70 hover:border-gold/50"
                   )}
-                  onClick={() => setActiveMode(viewId)}
+                  onClick={() => {
+                    setActiveMode(viewId);
+                    setPhotoIdx(targetPIdx);
+                  }}
+                  title={`Cliquer pour afficher la vue ${viewDef.shortLabel} sur la photo #${targetPIdx + 1}`}
                 >
                   <div className="min-w-0 flex items-center gap-1.5">
-                    <span className="size-4 rounded-full grid place-items-center bg-gold/20 text-gold-text text-[9px] font-mono font-bold shrink-0">
-                      {slotIdx + 1}
-                    </span>
+                    {slotPhotoThumb ? (
+                      <div className="relative size-6 rounded-md overflow-hidden border border-gold/40 shrink-0">
+                        <img src={slotPhotoThumb} alt={`Photo #${targetPIdx + 1}`} className="size-full object-cover" />
+                        <span className="absolute bottom-0 right-0 bg-black/80 text-[7.5px] font-mono text-gold px-0.5 leading-none font-bold">
+                          #{targetPIdx + 1}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="size-4 rounded-full grid place-items-center bg-gold/20 text-gold-text text-[9px] font-mono font-bold shrink-0">
+                        {slotIdx + 1}
+                      </span>
+                    )}
                     <div className="truncate">
                       <p className="text-[10.5px] font-bold leading-tight truncate text-foreground">
                         {viewDef.shortLabel}
                       </p>
-                      <p className="text-[9px] font-mono text-muted-foreground truncate">{viewDef.wavelength}</p>
+                      <p className="text-[8.5px] font-mono text-muted-foreground truncate">
+                        {photoList.length > 1 ? `Photo #${targetPIdx + 1} · ` : ""}{viewDef.wavelength}
+                      </p>
                     </div>
                   </div>
 
@@ -433,10 +490,10 @@ export function SpectralViewer({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      togglePdfView(viewId);
+                      removeSlot(slotIdx);
                     }}
                     className="size-5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 grid place-items-center text-xs transition-colors shrink-0"
-                    title={`Retirer ${viewDef.shortLabel} du PDF`}
+                    title={`Retirer ${viewDef.shortLabel} (Photo #${targetPIdx + 1}) du PDF`}
                     aria-label={`Retirer ${viewDef.shortLabel}`}
                   >
                     ✕
@@ -459,18 +516,22 @@ export function SpectralViewer({
 
       {/* ── Sélecteur des 8 Longueurs d'Onde Optiques (avec badges tactiles PDF) ── */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-[9.5px] uppercase font-bold tracking-wider text-muted-foreground">
-          <span>Toutes les 8 longueurs d&apos;onde (Toucher pour observer ou cocher pour le PDF) :</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[9.5px] uppercase font-bold tracking-wider text-muted-foreground gap-1">
+          <span>
+            Longueurs d&apos;onde pour la photo en cours ({photoList.length > 1 ? `Photo #${photoIdx + 1} sur ${photoList.length}` : "Photo unique"}) :
+          </span>
           <span className="text-[9px] font-normal normal-case opacity-80">
-            Toucher le badge <strong>✓ PDF</strong> pour l&apos;ajouter au rapport
+            Toucher <strong>+ PDF</strong> pour ajouter cette longueur d&apos;onde sur la photo active
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {SPECTRAL_VIEWS.map((v) => {
             const isPreviewActive = activeMode === v.id;
-            const pdfIndex = selectedPdfViews.indexOf(v.id as SpectralViewId);
-            const isSelectedForPdf = pdfIndex !== -1;
+            const slotIndex = reportSlots.findIndex(
+              (s) => s.viewId === v.id && s.photoIdx === photoIdx
+            );
+            const isSelectedForCurrentPhoto = slotIndex !== -1;
             const meta = SPECTRAL_METAS[v.id as SpectralMode] ?? SPECTRAL_METAS.standard;
 
             return (
@@ -481,7 +542,7 @@ export function SpectralViewer({
                   "p-2 rounded-xl text-left border transition-all text-xs flex flex-col justify-between min-h-[66px] cursor-pointer relative group",
                   isPreviewActive
                     ? "shadow-xs ring-2 ring-primary/60 font-bold " + meta.tone
-                    : isSelectedForPdf
+                    : isSelectedForCurrentPhoto
                     ? "bg-gold/5 border-gold/40 text-foreground"
                     : "bg-muted/40 hover:bg-muted/70 border-border/70 text-muted-foreground"
                 )}
@@ -494,29 +555,29 @@ export function SpectralViewer({
                     <span className="text-[9px] font-mono opacity-70 block">{v.wavelength}</span>
                   </div>
 
-                  {/* Bouton tactile PDF : 1 tap pour l'ajouter/retirer */}
+                  {/* Bouton tactile PDF : 1 tap pour l'ajouter/retirer pour la photo active */}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      togglePdfView(v.id as SpectralViewId);
+                      toggleSlotView(v.id as SpectralViewId, photoIdx);
                     }}
                     className={cn(
                       "px-1.5 py-0.5 rounded-md text-[9.5px] font-bold tracking-tight border transition-all shrink-0 flex items-center gap-0.5 shadow-2xs",
-                      isSelectedForPdf
+                      isSelectedForCurrentPhoto
                         ? "bg-gold text-black border-gold-dark ring-1 ring-gold"
                         : "bg-background/80 hover:bg-gold/20 text-muted-foreground hover:text-gold-text border-border"
                     )}
                     title={
-                      isSelectedForPdf
-                        ? `Vue #${pdfIndex + 1} du PDF (toucher pour retirer)`
-                        : "Toucher pour inclure dans le PDF"
+                      isSelectedForCurrentPhoto
+                        ? `Vue #${slotIndex + 1} du PDF pour cette photo (toucher pour retirer)`
+                        : `Toucher pour inclure ${v.shortLabel} sur cette photo #${photoIdx + 1} dans le PDF`
                     }
                   >
-                    {isSelectedForPdf ? (
+                    {isSelectedForCurrentPhoto ? (
                       <>
                         <Check className="size-2.5 stroke-[3]" />
-                        <span>PDF #{pdfIndex + 1}</span>
+                        <span>PDF #{slotIndex + 1}</span>
                       </>
                     ) : (
                       <span>+ PDF</span>
@@ -612,30 +673,38 @@ export function SpectralViewer({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-center">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePdfView(activeMode);
-              }}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[10.5px] font-bold border transition-all flex items-center gap-1 shadow-xs",
-                selectedPdfViews.includes(activeMode)
-                  ? "bg-gold text-black border-gold-dark ring-1 ring-gold"
-                  : "bg-white/15 hover:bg-white/25 text-white border-white/30"
-              )}
-            >
-              {selectedPdfViews.includes(activeMode) ? (
-                <>
-                  <Check className="size-3 stroke-[3]" />
-                  <span>Retenu au PDF (#{selectedPdfViews.indexOf(activeMode) + 1})</span>
-                </>
-              ) : (
-                <>
-                  <span>+ Retenir pour le PDF</span>
-                </>
-              )}
-            </button>
+            {(() => {
+              const currentSlotIndex = reportSlots.findIndex(
+                (s) => s.viewId === activeMode && s.photoIdx === photoIdx
+              );
+              const isRetained = currentSlotIndex !== -1;
+              return (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSlotView(activeMode, photoIdx);
+                  }}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-[10.5px] font-bold border transition-all flex items-center gap-1 shadow-xs",
+                    isRetained
+                      ? "bg-gold text-black border-gold-dark ring-1 ring-gold"
+                      : "bg-white/15 hover:bg-white/25 text-white border-white/30"
+                  )}
+                >
+                  {isRetained ? (
+                    <>
+                      <Check className="size-3 stroke-[3]" />
+                      <span>Retenu au PDF (#{currentSlotIndex + 1})</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>+ Retenir pour le PDF ({photoList.length > 1 ? `Photo #${photoIdx + 1}` : "cette vue"})</span>
+                    </>
+                  )}
+                </button>
+              );
+            })()}
             <Badge variant="outline" className="bg-white/10 text-white border-white/20 text-[10px]">
               {currentView.opticalTarget}
             </Badge>

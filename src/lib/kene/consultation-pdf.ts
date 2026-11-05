@@ -895,8 +895,8 @@ function renderMultiSpectralQuad(
   const bands = ms.bands;
   const prefix = isPro ? "proSpectral_" : "clientSpectral_";
 
-  bands.forEach((b) => {
-    doc.addImage(`${prefix}${b.id}`, b.jpegBytes, b.width, b.height);
+  bands.forEach((b, idx) => {
+    doc.addImage(`${prefix}${b.id}_${idx}`, b.jpegBytes, b.width, b.height);
   });
 
   const cardW = 248;
@@ -937,7 +937,7 @@ function renderMultiSpectralQuad(
     const imgX = cardX + 7;
     const imgY = cardY + 9;
     doc.rect(imgX - 1.5, imgY - 1.5, imgSize + 3, imgSize + 3, [0.03, 0.05, 0.1]);
-    doc.drawImage(`${prefix}${b.id}`, imgX, imgY, imgSize, imgSize);
+    doc.drawImage(`${prefix}${b.id}_${idx}`, imgX, imgY, imgSize, imgSize);
     doc.rectStroke(imgX, imgY, imgSize, imgSize, b.accentRgb, 1.2);
 
     // Bloc textuel d'interprétation clinique à droite de la photo

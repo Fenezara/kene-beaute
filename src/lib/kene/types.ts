@@ -240,6 +240,45 @@ export const ALL_SPECTRAL_VIEW_IDS: SpectralViewId[] = [
   "polarized",
 ];
 
+export interface SelectedReportSlot {
+  viewId: SpectralViewId;
+  photoIdx: number;
+}
+
+/**
+ * Sérialise une liste de slots [ {viewId: "uv365", photoIdx: 0}, ... ] en format URL query "uv365:0,blue405:1"
+ */
+export function serializeReportSlots(slots: SelectedReportSlot[]): string {
+  return slots.map((s) => `${s.viewId}:${s.photoIdx}`).join(",");
+}
+
+/**
+ * Décode des chaînes de requête "uv365:0,blue405:1" ou "uv365,blue405" en slots typés.
+ */
+export function parseReportSlots(
+  rawViews?: string[] | string | null,
+  fallbackPhotoIdx = 0
+): SelectedReportSlot[] {
+  if (!rawViews) return [];
+  const tokens = Array.isArray(rawViews)
+    ? rawViews
+    : rawViews.split(",").map((s) => s.trim()).filter(Boolean);
+
+  const res: SelectedReportSlot[] = [];
+  for (const token of tokens) {
+    const parts = token.split(":");
+    const viewId = parts[0]?.trim() as SpectralViewId;
+    if (ALL_SPECTRAL_VIEW_IDS.includes(viewId)) {
+      const pIdx = parts[1] !== undefined && parts[1] !== "" ? parseInt(parts[1], 10) : fallbackPhotoIdx;
+      res.push({
+        viewId,
+        photoIdx: Number.isFinite(pIdx) && pIdx >= 0 ? pIdx : fallbackPhotoIdx,
+      });
+    }
+  }
+  return res;
+}
+
 /**
  * Pré-sélectionne intelligemment les 4 vues cliniques les plus pertinentes parmi les 8
  * selon les biomarqueurs les plus faibles du diagnostic (avec "standard" en référence).
