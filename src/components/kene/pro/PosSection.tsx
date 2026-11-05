@@ -2948,34 +2948,14 @@ export function PosSection({
           {/* Praticienne & Remise */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t pt-2.5">
             <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">Praticienne (Commissions)</Label>
-              <SearchableSelect
-                options={[
-                  { value: "", label: "Caisse standard", subLabel: "Aucune praticienne attitrée" },
-                  ...(resolvedSessionPractitioner && !(team.data?.employees ?? []).some((e) => e.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase())
-                    ? [{
-                        value: resolvedSessionPractitioner,
-                        label: `⭐ ${resolvedSessionPractitioner} (Session active)`,
-                        subLabel: "Connectée",
-                      }]
-                    : []),
-                  ...(team.data?.employees ?? []).map((emp) => {
-                    const isCurrent = resolvedSessionPractitioner && emp.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase();
-                    return {
-                      value: emp.name,
-                      label: `${isCurrent ? "⭐ " : ""}${emp.name}${isCurrent ? " (Vous)" : ""}`,
-                      subLabel: emp.role,
-                    };
-                  }),
-                ]}
-                value={expressPractitioner || ""}
-                onValueChange={setExpressPractitioner}
-                placeholder="Caisse standard…"
-                searchPlaceholder="Saisir le nom d'une praticienne…"
-                emptyMessage="Aucune praticienne trouvée"
-                size="sm"
-                ariaLabel="Praticienne"
-              />
+              <Label className="text-[11px] text-muted-foreground font-semibold">Praticienne (Session active)</Label>
+              <div className="h-8 px-2.5 rounded-lg border border-gold/40 bg-gold/5 text-foreground text-xs font-bold flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="truncate text-foreground font-black">{activeSessionPractitionerName}</span>
+                </div>
+                <span className="text-[10px] text-gold-text font-semibold shrink-0">Session connectée</span>
+              </div>
             </div>
 
             <div className="space-y-1">
