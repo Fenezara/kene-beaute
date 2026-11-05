@@ -835,93 +835,161 @@ function resolveSelectedFourSlots(
   return [slots[0], slots[1], slots[2], slots[3]];
 }
 
+type FilterStep =
+  | { type: "invert"; val: number }
+  | { type: "contrast"; val: number }
+  | { type: "brightness"; val: number }
+  | { type: "saturate"; val: number }
+  | { type: "grayscale"; val: number }
+  | { type: "sepia"; val: number }
+  | { type: "hue-rotate"; val: number };
+
+const SPECTRAL_CSS_FILTERS: Record<SpectralViewId, FilterStep[]> = {
+  standard: [],
+  uv365: [
+    { type: "invert", val: 0.82 },
+    { type: "hue-rotate", val: 215 },
+    { type: "contrast", val: 1.75 },
+    { type: "saturate", val: 1.85 },
+    { type: "brightness", val: 0.92 },
+  ],
+  blue405: [
+    { type: "invert", val: 0.68 },
+    { type: "hue-rotate", val: 185 },
+    { type: "contrast", val: 1.8 },
+    { type: "saturate", val: 1.6 },
+  ],
+  green540: [
+    { type: "contrast", val: 1.65 },
+    { type: "hue-rotate", val: 135 },
+    { type: "saturate", val: 2.3 },
+    { type: "brightness", val: 0.95 },
+  ],
+  amber585: [
+    { type: "contrast", val: 1.45 },
+    { type: "saturate", val: 1.85 },
+    { type: "hue-rotate", val: -15 },
+    { type: "brightness", val: 0.9 },
+  ],
+  red660: [
+    { type: "sepia", val: 0.3 },
+    { type: "hue-rotate", val: 330 },
+    { type: "saturate", val: 2.1 },
+    { type: "contrast", val: 1.3 },
+    { type: "brightness", val: 1.05 },
+  ],
+  nir850: [
+    { type: "grayscale", val: 1 },
+    { type: "invert", val: 0.12 },
+    { type: "contrast", val: 1.6 },
+    { type: "brightness", val: 1.12 },
+  ],
+  polarized: [
+    { type: "contrast", val: 1.75 },
+    { type: "brightness", val: 1.12 },
+    { type: "saturate", val: 0.65 },
+  ],
+};
+
+function applyCssFiltersOnRgbBuffer(data: Buffer, filterList: FilterStep[]): void {
+  if (!filterList || filterList.length === 0) return;
+  const len = data.length;
+
+  for (let i = 0; i < len; i += 3) {
+    let r = data[i];
+    let g = data[i + 1];
+    let b = data[i + 2];
+
+    for (const step of filterList) {
+      if (step.type === "invert") {
+        const a = step.val;
+        r = r * (1 - 2 * a) + 255 * a;
+        g = g * (1 - 2 * a) + 255 * a;
+        b = b * (1 - 2 * a) + 255 * a;
+      } else if (step.type === "contrast") {
+        const c = step.val;
+        r = (r - 128) * c + 128;
+        g = (g - 128) * c + 128;
+        b = (b - 128) * c + 128;
+      } else if (step.type === "brightness") {
+        const br = step.val;
+        r = r * br;
+        g = g * br;
+        b = b * br;
+      } else if (step.type === "saturate") {
+        const s = step.val;
+        const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        r = lum + (r - lum) * s;
+        g = lum + (g - lum) * s;
+        b = lum + (b - lum) * s;
+      } else if (step.type === "grayscale") {
+        const a = step.val;
+        const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        r = r * (1 - a) + lum * a;
+        g = g * (1 - a) + lum * a;
+        b = b * (1 - a) + lum * a;
+      } else if (step.type === "sepia") {
+        const s = step.val;
+        const sr = (0.393 + 0.607 * (1 - s)) * r + (0.769 - 0.769 * (1 - s)) * g + (0.189 - 0.189 * (1 - s)) * b;
+        const sg = (0.349 - 0.349 * (1 - s)) * r + (0.686 + 0.314 * (1 - s)) * g + (0.168 - 0.168 * (1 - s)) * b;
+        const sb = (0.272 - 0.272 * (1 - s)) * r + (0.534 - 0.534 * (1 - s)) * g + (0.131 + 0.869 * (1 - s)) * b;
+        r = sr;
+        g = sg;
+        b = sb;
+      } else if (step.type === "hue-rotate") {
+        const rad = (step.val * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const m00 = 0.213 + cos * 0.787 - sin * 0.213;
+        const m01 = 0.715 - cos * 0.715 - sin * 0.715;
+        const m02 = 0.072 - cos * 0.072 + sin * 0.928;
+        const m10 = 0.213 - cos * 0.213 + sin * 0.143;
+        const m11 = 0.715 + cos * 0.285 + sin * 0.140;
+        const m12 = 0.072 - cos * 0.072 - sin * 0.283;
+        const m20 = 0.213 - cos * 0.213 - sin * 0.787;
+        const m21 = 0.715 - cos * 0.715 + sin * 0.715;
+        const m22 = 0.072 + cos * 0.928 + sin * 0.072;
+        const hr = m00 * r + m01 * g + m02 * b;
+        const hg = m10 * r + m11 * g + m12 * b;
+        const hb = m20 * r + m21 * g + m22 * b;
+        r = hr;
+        g = hg;
+        b = hb;
+      }
+    }
+
+    data[i] = r < 0 ? 0 : r > 255 ? 255 : (r + 0.5) | 0;
+    data[i + 1] = g < 0 ? 0 : g > 255 ? 255 : (g + 0.5) | 0;
+    data[i + 2] = b < 0 ? 0 : b > 255 ? 255 : (b + 0.5) | 0;
+  }
+}
+
 async function renderRealPhotoBandBuffer(
   id: SpectralViewId,
   basePhoto: Buffer,
   w: number,
   h: number
 ): Promise<Buffer> {
-  if (id === "standard") {
-    return sharp(basePhoto)
-      .modulate({ brightness: 1.04, saturation: 1.05 })
-      .sharpen({ sigma: 0.9 })
-      .toBuffer();
-  }
-  if (id === "amber585") {
-    const glaze = Buffer.from(
-      `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#d97706" fill-opacity="0.22" /></svg>`
-    );
-    return sharp(basePhoto)
-      .modulate({ hue: -18, saturation: 1.65, brightness: 1.02 })
-      .linear(1.28, -12)
-      .sharpen({ sigma: 1.2 })
-      .composite([{ input: glaze, blend: "over" }])
-      .toBuffer();
-  }
-  if (id === "green540") {
-    const glaze = Buffer.from(
-      `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#059669" fill-opacity="0.22" /></svg>`
-    );
-    return sharp(basePhoto)
-      .modulate({ hue: 85, saturation: 1.6, brightness: 1.04 })
-      .linear(1.25, -10)
-      .sharpen({ sigma: 1.2 })
-      .composite([{ input: glaze, blend: "over" }])
-      .toBuffer();
-  }
-  if (id === "blue405") {
-    const glaze = Buffer.from(
-      `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#1e1b4b" fill-opacity="0.30" /><rect width="${w}" height="${h}" fill="#0284c7" fill-opacity="0.25" /></svg>`
-    );
-    return sharp(basePhoto)
-      .modulate({ hue: 195, saturation: 1.65, brightness: 0.95 })
-      .linear(1.35, -18)
-      .sharpen({ sigma: 1.4 })
-      .composite([{ input: glaze, blend: "over" }])
-      .toBuffer();
-  }
-  if (id === "uv365") {
-    const glaze = Buffer.from(
-      `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#2e1065" fill-opacity="0.34" /><rect width="${w}" height="${h}" fill="#7c3aed" fill-opacity="0.22" /></svg>`
-    );
-    return sharp(basePhoto)
-      .modulate({ hue: 245, saturation: 1.75, brightness: 0.92 })
-      .linear(1.38, -20)
-      .sharpen({ sigma: 1.5 })
-      .composite([{ input: glaze, blend: "over" }])
-      .toBuffer();
-  }
-  if (id === "red660") {
-    const glaze = Buffer.from(
-      `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#dc2626" fill-opacity="0.24" /></svg>`
-    );
-    return sharp(basePhoto)
-      .modulate({ hue: -32, saturation: 1.5, brightness: 1.06 })
-      .linear(1.22, -8)
-      .sharpen({ sigma: 1.1 })
-      .composite([{ input: glaze, blend: "over" }])
-      .toBuffer();
-  }
-  if (id === "nir850") {
-    const glaze = Buffer.from(
-      `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#4c0519" fill-opacity="0.28" /></svg>`
-    );
-    return sharp(basePhoto)
-      .modulate({ saturation: 0.35, brightness: 1.12 })
-      .linear(1.32, -14)
-      .sharpen({ sigma: 1.3 })
-      .composite([{ input: glaze, blend: "over" }])
-      .toBuffer();
-  }
-  // polarized
-  const glaze = Buffer.from(
-    `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="#334155" fill-opacity="0.18" /></svg>`
-  );
-  return sharp(basePhoto)
-    .modulate({ saturation: 0.65, brightness: 1.05 })
-    .linear(1.35, -16)
-    .sharpen({ sigma: 1.8 })
-    .composite([{ input: glaze, blend: "over" }])
+  // 1. Extraire les pixels RGB bruts aux dimensions de la vignette
+  const { data, info } = await sharp(basePhoto)
+    .removeAlpha()
+    .resize(w, h, { fit: "cover" })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  // 2. Appliquer les filtres CSS pixel par pixel pour une stricte identité visuelle avec SpectralViewer
+  const filters = SPECTRAL_CSS_FILTERS[id] ?? [];
+  applyCssFiltersOnRgbBuffer(data, filters);
+
+  // 3. Encoder le résultat avec sharp
+  return sharp(data, {
+    raw: {
+      width: info.width,
+      height: info.height,
+      channels: 3,
+    },
+  })
+    .sharpen({ sigma: id === "uv365" || id === "blue405" ? 1.1 : 0.8 })
     .toBuffer();
 }
 
