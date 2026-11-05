@@ -19,7 +19,7 @@ export interface ProTenant {
   [k: string]: unknown;
 }
 
-export type PaymentMethod = "wave" | "orange" | "mtn" | "moov" | "cash" | "card" | "wallet";
+export type PaymentMethod = "wave" | "orange" | "mtn" | "moov" | "cash" | "card" | "wallet" | "split";
 
 // ─────────────── Flux temps réel institut (/api/pro/live) ───────────────
 export interface ProLiveEvent {
@@ -397,6 +397,7 @@ export interface ProSale {
   total: number;
   tvaAmount?: number;
   paymentMethod: PaymentMethod;
+  splitPayments?: Array<{ method: string; amount: number }>;
   paymentRef?: string | null;
   cashierName?: string;
   status?: "completed" | "refunded" | string;

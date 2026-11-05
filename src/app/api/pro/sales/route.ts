@@ -3,9 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { splitTVA, saleJournalLines, computeSaleLedgerHash, GENESIS_LEDGER_HASH } from "@/lib/accounting/syscohada";
+import { serializeSplitPayments, type SplitPaymentItem } from "@/lib/accounting/split-payment";
 import { jsonError, serverError, resolveTenant, createJournalEntry, recomputeClientRfm, genRef } from "@/lib/kene/server";
 import { pushTenantFeed } from "@/lib/kene/realtime";
-import { guardProRole } from "@/lib/kene/session";
+import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 import { sanitizePayload } from "@/lib/kene/security-sanitize";
 import { audit, clientIp } from "@/lib/kene/audit";
@@ -53,10 +54,16 @@ const SaleItemInput = z.object({
   customPriceReason: z.string().optional(),
 });
 
+const SplitPaymentInput = z.object({
+  method: z.enum(["wave", "orange", "mtn", "moov", "cash", "card", "wallet"]),
+  amount: z.number().int().positive(),
+});
+
 const Body = z.object({
   tenantId: z.string().min(1),
   items: z.array(SaleItemInput).min(1),
-  paymentMethod: z.enum(["wave", "orange", "mtn", "moov", "cash", "card", "wallet"]),
+  paymentMethod: z.enum(["wave", "orange", "mtn", "moov", "cash", "card", "wallet", "split"]),
+  splitPayments: z.array(SplitPaymentInput).optional(),
   clientProfileId: z.string().optional(),
   walkInClientName: z.string().optional(),
   walkInClientPhone: z.string().optional(),
@@ -196,13 +203,51 @@ export async function POST(req: NextRequest) {
     const servicesAmount = lines.filter((l) => l.kind === "service").reduce((s, l) => s + l.total, 0);
     const productsAmount = subtotal - servicesAmount;
 
+    // Validation du paiement mixte / multi-moyens
+    const splitPayments = parsed.data.splitPayments;
+    let splitTag: string | null = null;
+    if (paymentMethod === "split") {
+      if (!splitPayments || splitPayments.length === 0) {
+        return jsonError("La ventilation du paiement mixte est obligatoire", 400);
+      }
+      const splitSum = splitPayments.reduce((acc, sp) => acc + sp.amount, 0);
+      if (splitSum !== total) {
+        return jsonError(`Le montant ventilé (${splitSum} FCFA) ne correspond pas au total dû (${total} FCFA)`, 400);
+      }
+      splitTag = serializeSplitPayments(splitPayments as SplitPaymentItem[]);
+    }
+
+    // Détermination de l'opératrice / praticienne en caisse (par défaut l'utilisatrice de la session active)
+    let resolvedCashier: string | null = practitionerName?.trim() || null;
+    if (!resolvedCashier) {
+      const sess = sessionFromRequest(req);
+      if (sess?.userId) {
+        const emp = await db.employee.findFirst({
+          where: { tenantId: tenant.id, userId: sess.userId },
+          select: { name: true },
+        });
+        if (emp?.name) {
+          resolvedCashier = emp.name.trim();
+        } else {
+          const sessionDbUser = await db.user.findUnique({
+            where: { id: sess.userId },
+            select: { name: true },
+          });
+          resolvedCashier = sessionDbUser?.name?.trim() || null;
+        }
+      }
+    }
+    const cashier = resolvedCashier || "Caisse 1";
+
     // Contexte de traçabilité acompte / praticienne
     const depositUsed = depositDeducted ?? (linkedAppointment ? linkedAppointment.depositAmount : 0);
     let payRef = appointmentId ? `RDV #${appointmentId.slice(-6).toUpperCase()}` : null;
     if (depositUsed > 0) {
       payRef = payRef ? `${payRef} (Acompte ${depositUsed} F déduit)` : `Acompte ${depositUsed} F déduit`;
     }
-    const cashier = practitionerName?.trim() || "Caisse 1";
+    if (splitTag) {
+      payRef = payRef ? `${payRef} • ${splitTag}` : splitTag;
+    }
 
     // Chaînage cryptographique SYSCOHADA (inaltérabilité de caisse & horodatage fiscal)
     const lastSale = await db.sale.findFirst({
@@ -287,15 +332,22 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Écriture comptable automatique (CA si espèces, sinon BQ)
+    // Écriture comptable automatique (CA si espèces pures, sinon BQ)
+    const isPureCash = paymentMethod === "cash" || (paymentMethod === "split" && splitPayments?.every((s) => s.method === "cash"));
     await createJournalEntry(tenantId, {
-      journalCode: paymentMethod === "cash" ? "CA" : "BQ",
+      journalCode: isPureCash ? "CA" : "BQ",
       date: new Date(),
       reference: genRef("VE"),
-      description: `Vente caisse ${sale.id.slice(-6).toUpperCase()} — ${lines.length} ligne(s)${disc ? ` (remise ${disc})` : ""}`,
+      description: `Vente caisse ${sale.id.slice(-6).toUpperCase()} — ${lines.length} ligne(s)${disc ? ` (remise ${disc})` : ""}${splitTag ? ` ${splitTag}` : ""}`,
       sourceType: "sale",
       sourceId: sale.id,
-      lines: saleJournalLines({ total, servicesAmount, productsAmount, method: paymentMethod }),
+      lines: saleJournalLines({
+        total,
+        servicesAmount,
+        productsAmount,
+        method: paymentMethod,
+        splits: splitPayments,
+      }),
     });
 
     // CRM: visites, CA, dernier passage, RFM

@@ -16,6 +16,8 @@ export interface OfflineSaleItem {
     qty: number;
   }>;
   paymentMethod: string;
+  splitPayments?: Array<{ method: string; amount: number }>;
+  practitionerName?: string;
   clientProfileId?: string;
   discount?: number;
   total: number;
@@ -170,6 +172,8 @@ export async function syncOfflineSales(
         tenantId: item.tenantId,
         items: item.items.map((it) => ({ kind: it.kind, id: it.id, qty: it.qty })),
         paymentMethod: item.paymentMethod,
+        splitPayments: item.splitPayments,
+        practitionerName: item.practitionerName,
         clientProfileId: item.clientProfileId || undefined,
         discount: item.discount || 0,
       });

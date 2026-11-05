@@ -3,6 +3,7 @@
 // Conforme SYSCOHADA : ventilation HT / TVA 18 % / TTC et traçabilité de caisse.
 
 import { splitTVA } from "./syscohada";
+import { parseSplitPayments, type SplitPaymentItem, SPLIT_PAYMENT_SHORT_LABELS } from "./split-payment";
 
 export type ThermalFormat = "80mm" | "58mm";
 
@@ -28,6 +29,7 @@ export interface ThermalReceiptData {
   total: number;
   paymentMethod: string;
   paymentRef?: string;
+  splitPayments?: Array<{ method: string; amount: number }>;
   taxExempt?: boolean;
   status?: string; // "completed" | "refunded"
   refundReason?: string;
@@ -73,6 +75,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   cash: "Espèces",
   card: "Carte bancaire",
   wallet: "Compte Kènè",
+  split: "Paiement Combiné / Mixte",
 };
 
 /**
@@ -85,7 +88,14 @@ export function generateThermalReceiptHtml(data: ThermalReceiptData, format: The
   const isCompact = format === "58mm";
 
   const { dateStr, timeStr } = formatDateTime(data.createdAt);
-  const payMethodLabel = PAYMENT_LABELS[data.paymentMethod] || data.paymentMethod;
+  const resolvedSplits =
+    data.splitPayments && data.splitPayments.length > 0
+      ? data.splitPayments
+      : parseSplitPayments(data.paymentRef);
+  const payMethodLabel =
+    data.paymentMethod === "split" || resolvedSplits.length > 0
+      ? "Mixte (Multi-moyens)"
+      : (PAYMENT_LABELS[data.paymentMethod] || data.paymentMethod);
   const tvaCalc = splitTVA(data.total);
   const currency = data.currency || "FCFA";
 
@@ -337,6 +347,16 @@ export function generateThermalReceiptHtml(data: ThermalReceiptData, format: The
       <span>Règlement :</span>
       <span class="bold">${escapeHtml(payMethodLabel)}</span>
     </div>
+    ${resolvedSplits.length > 0 ? `
+      <div style="font-size:${fontSizePx - 1}px; margin: 3px 0 3px 6px; padding-left: 6px; border-left: 2px solid #555;">
+        ${resolvedSplits.map((sp) => `
+          <div class="flex-row" style="margin-bottom: 2px;">
+            <span>• ${escapeHtml(SPLIT_PAYMENT_SHORT_LABELS[sp.method as keyof typeof SPLIT_PAYMENT_SHORT_LABELS] || sp.method)} :</span>
+            <span class="bold">${formatFcfa(sp.amount)} ${currency}</span>
+          </div>
+        `).join("")}
+      </div>
+    ` : ""}
     ${data.paymentRef ? `
       <div class="flex-row" style="font-size:${fontSizePx - 1}px;">
         <span>Réf. Trans. :</span>

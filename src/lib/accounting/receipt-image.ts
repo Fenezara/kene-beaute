@@ -4,6 +4,7 @@
 
 import { ThermalReceiptData, ThermalFormat } from "./receipt-thermal";
 import { splitTVA } from "./syscohada";
+import { parseSplitPayments, SPLIT_PAYMENT_SHORT_LABELS } from "./split-payment";
 
 const PAYMENT_LABELS: Record<string, string> = {
   wave: "Wave Mobile Money",
@@ -13,6 +14,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   cash: "Espèces",
   card: "Carte bancaire",
   wallet: "Compte Kènè",
+  split: "Mixte (Multi-moyens)",
 };
 
 function formatFcfa(amount: number): string {
@@ -48,13 +50,20 @@ export async function renderThermalReceiptToBlob(
   const paddingX = 24;
   const contentWidth = canvasWidth - paddingX * 2;
   const currency = data.currency || "FCFA";
-  const payMethodLabel = PAYMENT_LABELS[data.paymentMethod] || data.paymentMethod;
+  const resolvedSplits =
+    data.splitPayments && data.splitPayments.length > 0
+      ? data.splitPayments
+      : parseSplitPayments(data.paymentRef);
+  const payMethodLabel =
+    data.paymentMethod === "split" || resolvedSplits.length > 0
+      ? "Mixte (Multi-moyens)"
+      : (PAYMENT_LABELS[data.paymentMethod] || data.paymentMethod);
   const { dateStr, timeStr } = formatDateTime(data.createdAt);
   const tvaCalc = splitTVA(data.total);
 
   // Estimation dynamique de la hauteur
   const itemsCount = data.items.length;
-  const estimatedHeight = 560 + itemsCount * 36;
+  const estimatedHeight = 560 + itemsCount * 36 + resolvedSplits.length * 20;
 
   const canvas = document.createElement("canvas");
   canvas.width = canvasWidth;
@@ -265,6 +274,20 @@ export async function renderThermalReceiptToBlob(
   ctx.fillText(payMethodLabel, canvasWidth - paddingX, y);
   ctx.font = "13px 'Courier New', Courier, monospace";
   y += 18;
+
+  if (resolvedSplits.length > 0) {
+    ctx.font = "11px 'Courier New', Courier, monospace";
+    for (const sp of resolvedSplits) {
+      ctx.textAlign = "left";
+      const lbl = SPLIT_PAYMENT_SHORT_LABELS[sp.method as keyof typeof SPLIT_PAYMENT_SHORT_LABELS] || sp.method;
+      ctx.fillText(`• ${lbl} :`, paddingX + 12, y);
+      ctx.textAlign = "right";
+      ctx.fillText(`${formatFcfa(sp.amount)} ${currency}`, canvasWidth - paddingX, y);
+      y += 16;
+    }
+    ctx.font = "13px 'Courier New', Courier, monospace";
+    y += 2;
+  }
 
   if (data.paymentRef) {
     ctx.textAlign = "left";

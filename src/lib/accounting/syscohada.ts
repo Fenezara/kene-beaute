@@ -92,14 +92,34 @@ export function saleJournalLines(opts: {
   total: number;
   servicesAmount: number; // part prestations
   productsAmount: number; // part produits
-  method: "wave" | "orange" | "mtn" | "moov" | "cash" | "card" | "wallet";
+  method: "wave" | "orange" | "mtn" | "moov" | "cash" | "card" | "wallet" | "split" | string;
+  splits?: { method: string; amount: number }[];
 }): SimpleLine[] {
   const { ht, tva } = splitTVA(opts.total);
-  const treasCode =
-    opts.method === "cash" ? "571000" : opts.method === "card" ? "521000" : "585000";
   const serviceHt = Math.round((opts.servicesAmount / (opts.total || 1)) * ht);
   const productHt = ht - serviceHt;
-  const lines: SimpleLine[] = [{ accountCode: treasCode, label: "Encaissement", debit: opts.total }];
+
+  const lines: SimpleLine[] = [];
+
+  if (opts.splits && opts.splits.length > 0) {
+    for (const sp of opts.splits) {
+      if (sp.amount <= 0) continue;
+      const treasCode =
+        sp.method === "cash" ? "571000" : sp.method === "card" ? "521000" : "585000";
+      const methodLabel =
+        sp.method === "cash"
+          ? "Caisse espèces"
+          : sp.method === "card"
+          ? "Carte bancaire"
+          : `Mobile Money (${sp.method.toUpperCase()})`;
+      lines.push({ accountCode: treasCode, label: `Encaissement ${methodLabel}`, debit: sp.amount });
+    }
+  } else {
+    const treasCode =
+      opts.method === "cash" ? "571000" : opts.method === "card" ? "521000" : "585000";
+    lines.push({ accountCode: treasCode, label: "Encaissement", debit: opts.total });
+  }
+
   if (serviceHt > 0) lines.push({ accountCode: "701000", label: "Ventes prestations", credit: serviceHt });
   if (productHt > 0) lines.push({ accountCode: "702000", label: "Ventes produits", credit: productHt });
   if (tva > 0) lines.push({ accountCode: "443000", label: "TVA facturée 18 %", credit: tva });

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, resolveProTenants, resolveUserProContext, dayStart, dayEnd, daysAgo, ddMM } from "@/lib/kene/server";
 import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
+import { parseSplitPayments } from "@/lib/accounting/split-payment";
 
 export async function GET(req: NextRequest) {
   try {
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
       attendancesToday,
       leavesToday,
     ] = await Promise.all([
-      db.sale.findMany({ where: { ...completed, createdAt: { gte: todayStart } }, select: { total: true, paymentMethod: true } }),
+      db.sale.findMany({ where: { ...completed, createdAt: { gte: todayStart } }, select: { total: true, paymentMethod: true, paymentRef: true } }),
       db.sale.aggregate({ where: { ...completed, createdAt: { gte: since7 } }, _sum: { total: true } }),
       db.sale.aggregate({ where: { ...completed, createdAt: { gte: since30 } }, _sum: { total: true }, _count: true }),
       db.resource.count({ where: { tenantId: tenant.id, active: true } }),
@@ -454,12 +455,21 @@ export async function GET(req: NextRequest) {
     const disconnectedClientsCount = Math.max(0, cUserIds.length - connectedUsers);
 
     // Bouclier Caisse & Rentabilité
-    const cashSalesToday = salesToday
-      .filter((s: any) => s.paymentMethod === "cash")
-      .reduce((sum: number, s: any) => sum + s.total, 0);
-    const mobileMoneyToday = salesToday
-      .filter((s: any) => s.paymentMethod && s.paymentMethod !== "cash")
-      .reduce((sum: number, s: any) => sum + s.total, 0);
+    let cashSalesToday = 0;
+    let mobileMoneyToday = 0;
+    for (const s of salesToday as any[]) {
+      if (s.paymentMethod === "split") {
+        const splits = parseSplitPayments(s.paymentRef);
+        for (const sp of splits) {
+          if (sp.method === "cash") cashSalesToday += sp.amount;
+          else mobileMoneyToday += sp.amount;
+        }
+      } else if (s.paymentMethod === "cash") {
+        cashSalesToday += s.total;
+      } else {
+        mobileMoneyToday += s.total;
+      }
+    }
     const cashInDrawerToday = Math.max(0, cashSalesToday - (expensesToday || 0));
 
     // Début du mois en cours pour projection & pacing

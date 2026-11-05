@@ -4,6 +4,7 @@
 
 import type { ThermalReceiptData, ThermalFormat } from "@/lib/accounting/receipt-thermal";
 import { splitTVA } from "@/lib/accounting/syscohada";
+import { parseSplitPayments, SPLIT_PAYMENT_SHORT_LABELS } from "@/lib/accounting/split-payment";
 
 // UUIDs des services Bluetooth thermiques courants
 const BLE_PRINTER_SERVICES = [
@@ -135,7 +136,21 @@ export function buildEscPosBinary(data: ThermalReceiptData, format: ThermalForma
   write(divider);
 
   // 6. Règlement
-  write(padLine("Reglement", data.paymentMethod.toUpperCase()));
+  const resolvedSplits =
+    data.splitPayments && data.splitPayments.length > 0
+      ? data.splitPayments
+      : parseSplitPayments(data.paymentRef);
+
+  if (data.paymentMethod === "split" || resolvedSplits.length > 0) {
+    write(padLine("Reglement", "MIXTE"));
+    for (const sp of resolvedSplits) {
+      const lbl = SPLIT_PAYMENT_SHORT_LABELS[sp.method as keyof typeof SPLIT_PAYMENT_SHORT_LABELS] || sp.method;
+      write(padLine(`- ${lbl}`, `${Math.round(sp.amount).toLocaleString("fr-FR")} F`));
+    }
+  } else {
+    write(padLine("Reglement", data.paymentMethod.toUpperCase()));
+  }
+
   if (data.paymentRef) {
     write(padLine("Ref.", data.paymentRef.slice(-10).toUpperCase()));
   }

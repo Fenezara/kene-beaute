@@ -8,6 +8,7 @@ import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { splitTVA } from "@/lib/accounting/syscohada";
+import { parseSplitPayments } from "@/lib/accounting/split-payment";
 
 export const runtime = "nodejs";
 
@@ -49,7 +50,18 @@ export async function GET(req: NextRequest) {
     let walletSales = 0;
 
     for (const s of activeSales) {
-      if (s.paymentMethod === "cash") cashSales += s.total;
+      if (s.paymentMethod === "split") {
+        const splits = parseSplitPayments(s.paymentRef);
+        for (const sp of splits) {
+          if (sp.method === "cash") cashSales += sp.amount;
+          else if (sp.method === "wave") waveSales += sp.amount;
+          else if (sp.method === "orange") orangeSales += sp.amount;
+          else if (sp.method === "mtn") mtnSales += sp.amount;
+          else if (sp.method === "moov") moovSales += sp.amount;
+          else if (sp.method === "card") cardSales += sp.amount;
+          else if (sp.method === "wallet") walletSales += sp.amount;
+        }
+      } else if (s.paymentMethod === "cash") cashSales += s.total;
       else if (s.paymentMethod === "wave") waveSales += s.total;
       else if (s.paymentMethod === "orange") orangeSales += s.total;
       else if (s.paymentMethod === "mtn") mtnSales += s.total;
@@ -174,7 +186,18 @@ export async function POST(req: NextRequest) {
     let walletSales = 0;
 
     for (const s of sales) {
-      if (s.paymentMethod === "cash") cashSales += s.total;
+      if (s.paymentMethod === "split") {
+        const splits = parseSplitPayments(s.paymentRef);
+        for (const sp of splits) {
+          if (sp.method === "cash") cashSales += sp.amount;
+          else if (sp.method === "wave") waveSales += sp.amount;
+          else if (sp.method === "orange") orangeSales += sp.amount;
+          else if (sp.method === "mtn") mtnSales += sp.amount;
+          else if (sp.method === "moov") moovSales += sp.amount;
+          else if (sp.method === "card") cardSales += sp.amount;
+          else if (sp.method === "wallet") walletSales += sp.amount;
+        }
+      } else if (s.paymentMethod === "cash") cashSales += s.total;
       else if (s.paymentMethod === "wave") waveSales += s.total;
       else if (s.paymentMethod === "orange") orangeSales += s.total;
       else if (s.paymentMethod === "mtn") mtnSales += s.total;

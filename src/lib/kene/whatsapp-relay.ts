@@ -211,6 +211,8 @@ Tu peux y faire tes soins cabine et bilans de peau personnalisés Kènè ! 🌿`
 
 // ─────────────── Modèles de messages ───────────────
 
+import { parseSplitPayments, SPLIT_PAYMENT_SHORT_LABELS } from "@/lib/accounting/split-payment";
+
 export interface WhatsAppReceiptInput {
   tenantName: string;
   tenantPhone?: string;
@@ -219,6 +221,8 @@ export interface WhatsAppReceiptInput {
   items: Array<{ label: string; qty: number; total: number }>;
   total: number;
   paymentMethod: string;
+  paymentRef?: string;
+  splitPayments?: Array<{ method: string; amount: number }>;
 }
 
 /** Génère le message de ticket de caisse dématérialisé pour la cliente */
@@ -228,6 +232,16 @@ export function buildWhatsAppReceiptMessage(input: WhatsAppReceiptInput): string
     .map((it) => `• ${it.qty}× ${it.label} (${Math.round(it.total).toLocaleString("fr-FR")} FCFA)`)
     .join("\n");
 
+  const resolvedSplits =
+    input.splitPayments && input.splitPayments.length > 0
+      ? input.splitPayments
+      : parseSplitPayments(input.paymentRef);
+
+  const paymentText =
+    input.paymentMethod === "split" || resolvedSplits.length > 0
+      ? `Mixte (${resolvedSplits.map((s) => `${SPLIT_PAYMENT_SHORT_LABELS[s.method as keyof typeof SPLIT_PAYMENT_SHORT_LABELS] || s.method}: ${Math.round(s.amount).toLocaleString("fr-FR")} F`).join(", ")})`
+      : input.paymentMethod.toUpperCase();
+
   return `${greeting}
 
 Voici votre reçu de caisse chez *${input.tenantName.toUpperCase()}* :
@@ -236,7 +250,7 @@ Voici votre reçu de caisse chez *${input.tenantName.toUpperCase()}* :
 ${itemsText}
 
 💰 *TOTAL PAYÉ* : *${Math.round(input.total).toLocaleString("fr-FR")} FCFA*
-💳 *Règlement* : ${input.paymentMethod.toUpperCase()}
+💳 *Règlement* : ${paymentText}
 
 Merci infiniment pour votre confiance et à très bientôt pour votre prochain soin ! 🌿
 — *${input.tenantName}* · Propulsé par Kènè`;
