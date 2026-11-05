@@ -102,28 +102,21 @@ export function PosSection({
 }) {
   const sessionUser = useKene((s) => s.user);
 
-  // Détermination du nom de la praticienne connectée (session active)
-  const resolvedSessionPractitioner = useMemo(() => {
-    const isGeneric = (n?: string | null) =>
-      !n ||
-      n.trim() === "" ||
-      n === "Gérante" ||
-      n === "Collaboratrice" ||
-      n.startsWith("Membre ") ||
-      n.startsWith("Nouvelle ") ||
-      n.includes("??");
-
-    if (defaultPractitionerName && !isGeneric(defaultPractitionerName)) {
+  // Détermination stricte du nom de l'employée connectée (session active)
+  const activeSessionPractitionerName = useMemo(() => {
+    if (defaultPractitionerName && defaultPractitionerName.trim()) {
       return defaultPractitionerName.trim();
     }
-    if (sessionUser?.employeeName && !isGeneric(sessionUser.employeeName)) {
+    if (sessionUser?.employeeName && sessionUser.employeeName.trim()) {
       return sessionUser.employeeName.trim();
     }
-    if (sessionUser?.name && !isGeneric(sessionUser.name)) {
+    if (sessionUser?.name && sessionUser.name.trim()) {
       return sessionUser.name.trim();
     }
-    return "";
+    return "Collaboratrice connectée";
   }, [defaultPractitionerName, sessionUser?.employeeName, sessionUser?.name]);
+
+  const resolvedSessionPractitioner = activeSessionPractitionerName;
 
   const [lines, setLines] = useState<TicketLine[]>([]);
   const [discountInput, setDiscountInput] = useState("");
@@ -167,8 +160,9 @@ export function PosSection({
   const [linkedAppointmentId, setLinkedAppointmentId] = useState<string | null>(null);
   const [depositDeducted, setDepositDeducted] = useState<number>(0);
 
-  // ⚡ Modal de Paiement Combiné / Mixte (Multi-moyens)
-  const [splitModalOpen, setSplitModalOpen] = useState(false);
+  // ⚡ Modes d'encaissement : Direct (1 mode) vs Multi-moyens (Mixte)
+  const [paymentMode, setPaymentMode] = useState<"single" | "split">("single");
+  const [selectedSplitMethods, setSelectedSplitMethods] = useState<SplitPaymentMethod[]>(["cash", "wave"]);
   const [splitAmounts, setSplitAmounts] = useState<Record<SplitPaymentMethod, string>>({
     cash: "",
     wave: "",
@@ -178,6 +172,29 @@ export function PosSection({
     card: "",
     wallet: "",
   });
+
+  const toggleSplitMethod = (method: SplitPaymentMethod) => {
+    setSelectedSplitMethods((prev) => {
+      if (prev.includes(method)) {
+        if (prev.length <= 1) {
+          toast.info("Au moins un mode de règlement doit rester sélectionné.");
+          return prev;
+        }
+        setSplitAmounts((a) => ({ ...a, [method]: "" }));
+        return prev.filter((x) => x !== method);
+      } else {
+        const next = [...prev, method];
+        const currentSum = next
+          .filter((x) => x !== method)
+          .reduce((sum, x) => sum + (parseInt(splitAmounts[x]?.replace(/\D/g, "") || "0", 10) || 0), 0);
+        const remaining = Math.max(0, total - currentSum);
+        if (remaining > 0) {
+          setSplitAmounts((a) => ({ ...a, [method]: String(remaining) }));
+        }
+        return next;
+      }
+    });
+  };
 
 
 
@@ -851,7 +868,6 @@ export function PosSection({
         setLinkedAppointmentId(null);
         setDepositDeducted(0);
         setPractitionerName(resolvedSessionPractitioner);
-        setSplitModalOpen(false);
         resetSplitAmounts();
         void sales.refetch();
         void todayAppointments.refetch();
@@ -895,7 +911,6 @@ export function PosSection({
           setLinkedAppointmentId(null);
           setDepositDeducted(0);
           setPractitionerName(resolvedSessionPractitioner);
-          setSplitModalOpen(false);
           resetSplitAmounts();
         }, 1300);
       } catch {
@@ -1480,32 +1495,18 @@ export function PosSection({
               </div>
             </div>
 
-            {/* Praticienne (pour calcul automatique des commissions de paie) */}
+            {/* Praticienne : strictement la session de l'employée connectée */}
             <div className="space-y-1">
-              <Label htmlFor="pos-practitioner" className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <CauriIcon className="size-3 text-gold-text" aria-hidden="true" /> Praticienne (Commissions)
+              <Label className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold">
+                <CauriIcon className="size-3 text-gold-text" aria-hidden="true" /> Praticienne (Session active)
               </Label>
-              <Select value={practitionerName || (resolvedSessionPractitioner || "__none")} onValueChange={(v) => setPractitionerName(v === "__none" ? "" : v)}>
-                <SelectTrigger id="pos-practitioner" className="h-8 text-xs font-semibold">
-                  <SelectValue placeholder={resolvedSessionPractitioner ? `${resolvedSessionPractitioner} (Vous)` : "Aucune / Standard"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">-- Aucune / Caisse standard --</SelectItem>
-                  {resolvedSessionPractitioner && !(team.data?.employees ?? []).some((e) => e.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase()) && (
-                    <SelectItem value={resolvedSessionPractitioner}>
-                      ⭐ {resolvedSessionPractitioner} (Vous - Session active)
-                    </SelectItem>
-                  )}
-                  {(team.data?.employees ?? []).map((emp) => {
-                    const isCurrent = resolvedSessionPractitioner && emp.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase();
-                    return (
-                      <SelectItem key={emp.id} value={emp.name}>
-                        {isCurrent ? "⭐ " : ""}{emp.name} {isCurrent ? "(Vous - Session active)" : `(${emp.role})`}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <div className="h-8 px-2.5 rounded-lg border border-gold/40 bg-gold/5 text-foreground text-xs font-bold flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="truncate text-foreground font-black">{activeSessionPractitionerName}</span>
+                </div>
+                <span className="text-[10px] text-gold-text font-semibold shrink-0">Session connectée</span>
+              </div>
             </div>
 
             {/* Cliente express — Dialog 2 champs (mode saisie allégé) */}
@@ -1599,37 +1600,177 @@ export function PosSection({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                {availablePayMethods.map((m) => (
-                  <button
-                    key={m.code}
-                    disabled={busy || lines.length === 0}
-                    onClick={() => pay(m.code)}
-                    className={cn(
-                      "flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-65 disabled:saturate-75 disabled:pointer-events-none cursor-pointer",
-                      m.cls
-                    )}
-                  >
-                    {m.code === "wave" || m.code === "orange" ? <Wallet className="size-4" aria-hidden="true" /> : m.code === "cash" ? <ReceiptText className="size-4" aria-hidden="true" /> : <CauriIcon className="size-4" aria-hidden="true" />}
-                    {m.label}
-                  </button>
-                ))}
+            <div className="space-y-2.5">
+              {/* Sélecteur de mode d'encaissement : Simple vs Multi-moyens */}
+              <div className="flex rounded-lg bg-muted/60 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMode("single")}
+                  className={cn(
+                    "flex-1 py-1.5 px-2 rounded-md font-bold transition-all text-center flex items-center justify-center gap-1.5 text-[11px]",
+                    paymentMode === "single"
+                      ? "bg-background text-foreground shadow-xs font-black"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Wallet className="size-3.5" />
+                  Règlement Direct
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentMode("split");
+                    if (selectedSplitMethods.length === 0) {
+                      setSelectedSplitMethods(["cash", "wave"]);
+                    }
+                  }}
+                  className={cn(
+                    "flex-1 py-1.5 px-2 rounded-md font-bold transition-all text-center flex items-center justify-center gap-1.5 text-[11px]",
+                    paymentMode === "split"
+                      ? "bg-amber-500 text-black shadow-xs font-black"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Layers className="size-3.5" />
+                  Multi-moyens (Mixte)
+                </button>
               </div>
 
-              {/* Bouton Paiement Mixte / Multi-moyens */}
-              <button
-                type="button"
-                disabled={busy || lines.length === 0}
-                onClick={() => {
-                  resetSplitAmounts();
-                  setSplitModalOpen(true);
-                }}
-                className="w-full flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold border-2 border-dashed border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-              >
-                <Layers className="size-4 text-amber-500" aria-hidden="true" />
-                Paiement Mixte / Multi-moyens (Espèces + Wave, Orange...)
-              </button>
+              {/* Grille des boutons de règlement */}
+              <div className="grid grid-cols-2 gap-2">
+                {availablePayMethods.map((m) => {
+                  const isSelected = selectedSplitMethods.includes(m.code as SplitPaymentMethod);
+                  return (
+                    <button
+                      key={m.code}
+                      type="button"
+                      disabled={busy || (paymentMode === "single" && lines.length === 0)}
+                      onClick={() => {
+                        if (paymentMode === "single") {
+                          pay(m.code);
+                        } else {
+                          toggleSplitMethod(m.code as SplitPaymentMethod);
+                        }
+                      }}
+                      className={cn(
+                        "flex min-h-11 items-center justify-between gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-65 disabled:saturate-75 disabled:pointer-events-none cursor-pointer",
+                        m.cls,
+                        paymentMode === "split" && (
+                          isSelected
+                            ? "ring-2 ring-amber-500 shadow-md brightness-105"
+                            : "opacity-40 grayscale-[35%] hover:opacity-75"
+                        )
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {m.code === "wave" || m.code === "orange" ? (
+                          <Wallet className="size-4 shrink-0" aria-hidden="true" />
+                        ) : m.code === "cash" ? (
+                          <ReceiptText className="size-4 shrink-0" aria-hidden="true" />
+                        ) : (
+                          <CauriIcon className="size-4 shrink-0" aria-hidden="true" />
+                        )}
+                        <span className="truncate">{m.label}</span>
+                      </div>
+                      {paymentMode === "split" && (
+                        <span
+                          className={cn(
+                            "size-4 rounded-full flex items-center justify-center text-[10px] shrink-0 font-black",
+                            isSelected ? "bg-white text-black" : "border border-white/60 text-transparent"
+                          )}
+                        >
+                          {isSelected ? "✓" : ""}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Si Mode Multi-moyens activé : Détail inline et validation */}
+              {paymentMode === "split" && (
+                <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-2.5">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground px-0.5">
+                    <span>Ventilation des paiements</span>
+                    <button
+                      type="button"
+                      onClick={resetSplitAmounts}
+                      className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                    >
+                      Effacer
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-[190px] overflow-y-auto pr-0.5">
+                    {selectedSplitMethods.map((mCode) => {
+                      const mInfo = PAY_METHODS.find((p) => p.code === mCode);
+                      const currentVal = splitAmounts[mCode] || "";
+                      return (
+                        <div
+                          key={mCode}
+                          className="flex items-center justify-between gap-2 p-1.5 bg-background/90 rounded-lg border border-border/60 text-xs shadow-2xs"
+                        >
+                          <span className="font-bold truncate flex-1 min-w-0">
+                            {mInfo?.label ?? mCode}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Input
+                              inputMode="numeric"
+                              placeholder="0"
+                              value={currentVal}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, "");
+                                setSplitAmounts((prev) => ({ ...prev, [mCode]: val }));
+                              }}
+                              className="h-8 w-24 text-right font-mono text-xs font-bold"
+                            />
+                            <span className="text-[10px] text-muted-foreground font-semibold">F</span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleFillRemaining(mCode)}
+                              className="h-8 px-2 text-[10px] font-bold hover:bg-amber-500/10 hover:text-amber-600"
+                              title="Affecter le solde restant à ce mode"
+                            >
+                              Reste
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Reste à ventiler / équilibre */}
+                  <div className="pt-1.5 border-t border-border/40 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground text-[11px]">Saisi : <b>{xof(splitValidation.sum)}</b></span>
+                    {splitValidation.valid ? (
+                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">
+                        <CheckCircle2 className="size-3.5" /> Équilibré (100 %)
+                      </span>
+                    ) : splitValidation.remaining > 0 ? (
+                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold text-[11px]">
+                        <AlertTriangle className="size-3.5" /> Reste {xof(splitValidation.remaining)}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-destructive font-bold text-[11px]">
+                        <AlertTriangle className="size-3.5" /> Dépassement de {xof(Math.abs(splitValidation.remaining))}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Bouton d'encaissement combiné */}
+                  <Button
+                    type="button"
+                    disabled={busy || !splitValidation.valid || total <= 0 || lines.length === 0}
+                    onClick={() => pay("split", splitItemsList)}
+                    className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs gap-2 shadow-md cursor-pointer"
+                  >
+                    {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                    Valider l&apos;encaissement mixte ({xof(total)})
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
 
@@ -2992,154 +3133,7 @@ export function PosSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* ── Modal : Paiement Combiné & Multi-moyens (Split Payment) ── */}
-      <Dialog open={splitModalOpen} onOpenChange={setSplitModalOpen}>
-        <DialogContent className="max-w-[500px] rounded-2xl p-5 gap-4 max-h-[92vh] overflow-y-auto pretty-scroll">
-          <DialogHeader className="space-y-1 text-left">
-            <DialogTitle className="font-heading font-black text-lg flex items-center gap-2 text-foreground">
-              <Layers className="size-5 text-amber-500" /> Paiement Mixte & Multi-moyens
-            </DialogTitle>
-            <DialogDescription className="text-xs leading-relaxed">
-              Répartissez l&apos;encaissement entre plusieurs modes de paiement (Espèces, Wave, Orange Money, MTN MoMo, Carte).
-            </DialogDescription>
-          </DialogHeader>
 
-          {/* En-tête : Montant total dû */}
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider">Total à encaisser</span>
-              <p className="font-heading font-black text-2xl text-gold-text tabular-nums">{xof(total)}</p>
-            </div>
-            <div className="text-right">
-              <span className="text-[11px] text-muted-foreground">Praticienne</span>
-              <p className="text-xs font-bold truncate max-w-[150px]">
-                {practitionerName || resolvedSessionPractitioner || "Caisse standard"}
-              </p>
-            </div>
-          </div>
-
-          {/* Saisie par moyen de paiement */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground font-medium px-1">
-              <span>Mode de règlement</span>
-              <div className="flex items-center gap-3">
-                <span>Montant (FCFA)</span>
-                <button
-                  type="button"
-                  onClick={resetSplitAmounts}
-                  className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
-                >
-                  Effacer tout
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
-              {[
-                { code: "cash" as SplitPaymentMethod, label: "Espèces (Caisse)", color: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/30 bg-emerald-500/5" },
-                { code: "wave" as SplitPaymentMethod, label: "Wave Mobile Money", color: "text-[#0099cc]", border: "border-[#0099cc]/30 bg-[#1DC8FF]/5" },
-                { code: "orange" as SplitPaymentMethod, label: "Orange Money", color: "text-[#FF7900]", border: "border-[#FF7900]/30 bg-[#FF7900]/5" },
-                { code: "mtn" as SplitPaymentMethod, label: "MTN MoMo", color: "text-[#e6b800]", border: "border-[#FFCC00]/40 bg-[#FFCC00]/5" },
-                { code: "moov" as SplitPaymentMethod, label: "Moov Money", color: "text-[#0066B3]", border: "border-[#0066B3]/30 bg-[#0066B3]/5" },
-                { code: "card" as SplitPaymentMethod, label: "Carte bancaire (TPE)", color: "text-slate-600 dark:text-slate-300", border: "border-slate-500/30 bg-slate-500/5" },
-              ].map((m) => {
-                const currentVal = splitAmounts[m.code] || "";
-                return (
-                  <div
-                    key={m.code}
-                    className={cn(
-                      "flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-all",
-                      currentVal ? m.border : "border-border/60 bg-muted/20"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={cn("size-2 rounded-full shrink-0", currentVal ? "bg-amber-500" : "bg-muted-foreground/40")} />
-                      <span className={cn("text-xs font-bold truncate", m.color)}>{m.label}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Input
-                        inputMode="numeric"
-                        placeholder="0"
-                        value={currentVal}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "");
-                          setSplitAmounts((prev) => ({ ...prev, [m.code]: val }));
-                        }}
-                        className="h-8 w-28 text-right font-mono text-xs font-bold"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleFillRemaining(m.code)}
-                        className="h-8 px-2 text-[10px] font-bold shrink-0 hover:bg-amber-500/10 hover:text-amber-600"
-                        title="Affecter le solde restant à ce mode"
-                      >
-                        Reste
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Récapitulatif dynamique & reste à ventiler */}
-          <div className="rounded-xl border p-3 space-y-1.5 bg-muted/30 text-xs">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Total ventilé :</span>
-              <span className="font-mono font-bold tabular-nums text-foreground">{xof(splitValidation.sum)}</span>
-            </div>
-
-            <div className="flex justify-between items-center pt-1 border-t border-border/50">
-              <span className="font-semibold">Statut :</span>
-              {splitValidation.valid ? (
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
-                  <CheckCircle2 className="size-3.5" /> Équilibré (100 %)
-                </span>
-              ) : splitValidation.remaining > 0 ? (
-                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold">
-                  <AlertTriangle className="size-3.5" /> Reste {xof(splitValidation.remaining)}
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-destructive font-bold">
-                  <AlertTriangle className="size-3.5" /> Dépassement de {xof(Math.abs(splitValidation.remaining))}
-                </span>
-              )}
-            </div>
-
-            {splitItemsList.length > 0 && (
-              <p className="text-[11px] text-muted-foreground/80 italic pt-1 truncate">
-                Ventilation : {splitItemsList.map((s) => `${SPLIT_PAYMENT_SHORT_LABELS[s.method] || s.method} (${xof(s.amount)})`).join(" + ")}
-              </p>
-            )}
-          </div>
-
-          <DialogFooter className="flex items-center justify-between sm:justify-between gap-2 pt-2 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setSplitModalOpen(false)}
-              disabled={busy}
-              className="rounded-lg"
-            >
-              <X className="size-3.5" /> Annuler
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={busy || !splitValidation.valid || total <= 0}
-              onClick={() => pay("split", splitItemsList)}
-              className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 px-4 shadow-sm"
-            >
-              {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-              Valider l&apos;encaissement mixte ({xof(total)})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
     </div>
   );
