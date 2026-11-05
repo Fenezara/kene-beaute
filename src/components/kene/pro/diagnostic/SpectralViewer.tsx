@@ -39,6 +39,8 @@ interface SpectralViewerProps {
   indicators?: Array<{ nom: string; pourcentage: number }>;
   selectedPdfViews?: SpectralViewId[];
   onChangeSelectedPdfViews?: (views: SpectralViewId[]) => void;
+  photoIdx?: number;
+  onChangePhotoIdx?: (idx: number) => void;
   onPrintPdf?: () => void;
   onOpen3D?: () => void;
 }
@@ -162,6 +164,8 @@ export function SpectralViewer({
   indicators = [],
   selectedPdfViews: propSelectedPdfViews,
   onChangeSelectedPdfViews,
+  photoIdx: propPhotoIdx,
+  onChangePhotoIdx,
   onPrintPdf,
   onOpen3D,
 }: SpectralViewerProps) {
@@ -233,7 +237,12 @@ export function SpectralViewer({
     return [photo];
   }, [photo]);
 
-  const [photoIdx, setPhotoIdx] = useState(0);
+  const [localPhotoIdx, setLocalPhotoIdx] = useState(0);
+  const photoIdx = propPhotoIdx !== undefined ? propPhotoIdx : localPhotoIdx;
+  const setPhotoIdx = (idx: number) => {
+    if (onChangePhotoIdx) onChangePhotoIdx(idx);
+    else setLocalPhotoIdx(idx);
+  };
   const activePhoto = photoList[photoIdx] || photoList[0] || photo;
 
   const currentView = useMemo<SpectralViewDefinition>(() => {

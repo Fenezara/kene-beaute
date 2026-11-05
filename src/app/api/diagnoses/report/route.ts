@@ -8,6 +8,7 @@ import { jsonError, serverError } from "@/lib/kene/server";
 import { guardUserClaim, sessionFromRequest } from "@/lib/kene/session";
 import { clientDiagReportPdf, clientDiagReportFilename } from "@/lib/kene/consultation-pdf";
 import { processMultiSpectralSuite } from "@/lib/kene/spectral-imaging";
+import { parseStructuredPrescription } from "@/lib/kene/prescription-schema";
 
 export const runtime = "nodejs";
 
@@ -70,18 +71,48 @@ export async function GET(req: NextRequest) {
       // ignore
     }
 
+    const rawViewsParam = req.nextUrl.searchParams.get("views");
+    const rawPhotoIdx = req.nextUrl.searchParams.get("photoIdx");
+    const photoIndex = rawPhotoIdx !== null && rawPhotoIdx !== undefined && rawPhotoIdx !== ""
+      ? parseInt(rawPhotoIdx, 10)
+      : null;
+
+    const selectedViews = rawViewsParam
+      ? rawViewsParam
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+
     const spectral = await processMultiSpectralSuite(resolvedImageData, {
       clientName: diag.user.name,
       date: diag.createdAt,
       zoneLabel: diag.zone,
       indicators: parsedIndicators,
+      selectedViews,
+      photoIndex,
     });
+
+    // Récupération de l'ordonnance beauté active émise par l'institut partenaire
+    const clientProfile = await db.clientProfile.findFirst({
+      where: {
+        userId,
+        cosmeticsUsed: { not: null },
+        NOT: { cosmeticsUsed: "" },
+      },
+      include: { tenant: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    const prescription = clientProfile?.cosmeticsUsed
+      ? parseStructuredPrescription(clientProfile.cosmeticsUsed, clientProfile.tenant?.name)
+      : null;
 
     const pdf = clientDiagReportPdf({
       userName: diag.user.name,
       diagnosis: { id: diag.id, zone: diag.zone, createdAt: diag.createdAt, resultJson: diag.resultJson, imageData: resolvedImageData },
       multiSpectral: spectral,
       spectralImage: spectral.legacyAcne,
+      prescription,
     });
 
     return new NextResponse(new Uint8Array(pdf.data), {

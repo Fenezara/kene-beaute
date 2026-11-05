@@ -1711,9 +1711,10 @@ function ResultStep({
   const [selectedPdfViews, setSelectedPdfViews] = useState<SpectralViewId[]>(() =>
     recommend4SpectralViews(result?.indicateurs)
   );
+  const [selectedPhotoIdx, setSelectedPhotoIdx] = useState<number>(0);
 
   const printUrl = savedId
-    ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}&views=${selectedPdfViews.join(",")}`
+    ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}&views=${selectedPdfViews.join(",")}&photoIdx=${selectedPhotoIdx}`
     : null;
 
   if (submitting) {
@@ -1748,6 +1749,8 @@ function ResultStep({
         photo={photo}
         selectedPdfViews={selectedPdfViews}
         onChangeSelectedPdfViews={setSelectedPdfViews}
+        photoIdx={selectedPhotoIdx}
+        onChangePhotoIdx={setSelectedPhotoIdx}
         onPrintPdf={() => printUrl && window.open(printUrl, "_blank")}
         onNavigate={onNavigate}
         onOpenDescent={() =>
@@ -1800,6 +1803,8 @@ export function ResultView({
   tenantName,
   selectedPdfViews: propSelectedPdfViews,
   onChangeSelectedPdfViews,
+  photoIdx,
+  onChangePhotoIdx,
   onPrintPdf,
   onNavigate,
   onOpenDescent,
@@ -1812,6 +1817,8 @@ export function ResultView({
   tenantName?: string;
   selectedPdfViews?: SpectralViewId[];
   onChangeSelectedPdfViews?: (views: SpectralViewId[]) => void;
+  photoIdx?: number;
+  onChangePhotoIdx?: (idx: number) => void;
   onPrintPdf?: () => void;
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent?: () => void;
@@ -2034,6 +2041,8 @@ export function ResultView({
             indicators={result.indicateurs}
             selectedPdfViews={selectedPdfViews}
             onChangeSelectedPdfViews={handlePdfViewsChange}
+            photoIdx={photoIdx}
+            onChangePhotoIdx={onChangePhotoIdx}
             onPrintPdf={onPrintPdf}
             onOpen3D={onOpenDescent}
           />
@@ -2279,8 +2288,9 @@ function DetailResultContent({
   const [selectedPdfViews, setSelectedPdfViews] = useState<SpectralViewId[]>(() =>
     recommend4SpectralViews(result.indicateurs)
   );
+  const [selectedPhotoIdx, setSelectedPhotoIdx] = useState<number>(0);
 
-  const printUrl = `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}&views=${selectedPdfViews.join(",")}`;
+  const printUrl = `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}&views=${selectedPdfViews.join(",")}&photoIdx=${selectedPhotoIdx}`;
 
   return (
     <>
@@ -2292,6 +2302,8 @@ function DetailResultContent({
         meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }}
         selectedPdfViews={selectedPdfViews}
         onChangeSelectedPdfViews={setSelectedPdfViews}
+        photoIdx={selectedPhotoIdx}
+        onChangePhotoIdx={setSelectedPhotoIdx}
         onPrintPdf={() => window.open(printUrl, "_blank")}
         onNavigate={onNavigate}
         onOpenDescent={() =>

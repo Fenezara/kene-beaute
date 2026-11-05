@@ -29,12 +29,14 @@ import {
   LINE,
   GREEN,
   RED,
+  INDIGO,
   M_X,
   M_RIGHT,
   CONTENT_W,
   type RGB,
   type Font,
 } from "@/lib/accounting/pdf";
+import type { StructuredPrescription } from "@/lib/kene/prescription-schema";
 import {
   QUESTIONNAIRE_SECTIONS,
   QUESTIONS,
@@ -1021,6 +1023,7 @@ export function proDiagReportPdf(input: {
   client: { name: string; phone: string };
   spectralImage?: SpectralAcneResult | null;
   multiSpectral?: MultiSpectralSuiteResult | null;
+  prescription?: StructuredPrescription | null;
 }): ConsultPdfResult {
   const result = safeParse<ProDiagnosisResult>(input.diagnosis.resultJson);
   const answers = safeParse<QAnswers>(input.diagnosis.questionnaireJson) ?? {};
@@ -1396,8 +1399,121 @@ export function proDiagReportPdf(input: {
     }
   }
 
+  // 6.bis ORDONNANCE BEAUTÉ & PRESCRIPTION DERMO-ESTHÉTIQUE ÉMISE PAR L'INSTITUT
+  const sp = input.prescription;
+  if (sp && (sp.products.length > 0 || sp.cabineServices.length > 0 || (sp.notes && sp.notes.trim().length > 0))) {
+    doc.ensure(50);
+    const activeCure = sp.cureNumber || 1;
+    sectionBand(
+      doc,
+      "E",
+      `ORDONNANCE BEAUTÉ & PROTOCOLE INSTITUT · CURE #${activeCure}`,
+      `Prescription officielle émise par ${sp.prescribedBy || input.diagnosis.practitioner || input.tenantName}`
+    );
+
+    // Produits à domicile
+    if (sp.products.length > 0) {
+      doc.ensure(24);
+      doc.rect(M_X, doc.cursorY, CONTENT_W, 16, BISSAP_SOFT);
+      doc.text(`1. PRODUITS COSMÉTIQUES PRESCRITS POUR LE DOMICILE (${sp.products.length})`, M_X + 8, doc.cursorY + 11, {
+        font: "bold",
+        size: 8.5,
+        color: BISSAP_DARK,
+        letterSpace: 0.4,
+      });
+      doc.advance(20);
+
+      for (const prod of sp.products) {
+        doc.ensure(34);
+        const cardY = doc.cursorY;
+        const cardH = 28;
+        drawBox(doc, M_X, cardY, CONTENT_W, cardH, CARD, LINE, 0.6);
+
+        const momentStr =
+          prod.moment === "matin"
+            ? "Matin"
+            : prod.moment === "soir"
+            ? "Soir"
+            : prod.moment === "matin_soir"
+            ? "Matin & Soir"
+            : "Hebdomadaire";
+
+        doc.text(`${prod.name}`, M_X + 8, cardY + 11, { font: "bold", size: 9, color: INK });
+        doc.text(`[ ${momentStr} ]`, M_X + 160, cardY + 11, { font: "bold", size: 7.5, color: BISSAP });
+        if (prod.price) {
+          doc.textRight(`${prod.price.toLocaleString("fr-FR")} FCFA`, M_RIGHT - 8, cardY + 11, {
+            font: "bold",
+            size: 8.5,
+            color: GOLD_DARK,
+          });
+        }
+        const posText = prod.posology || "Appliquer selon recommandations sur peau propre";
+        doc.text(`👉 Posologie : ${posText}`, M_X + 8, cardY + 21, {
+          size: 7.5,
+          color: SOFT,
+          maxW: CONTENT_W - 20,
+        });
+        doc.advance(cardH + 4);
+      }
+      doc.advance(4);
+    }
+
+    // Soins en cabine prescrits
+    if (sp.cabineServices.length > 0) {
+      doc.ensure(24);
+      doc.rect(M_X, doc.cursorY, CONTENT_W, 16, KARITE);
+      doc.rectStroke(M_X, doc.cursorY, CONTENT_W, 16, LINE, 0.7);
+      doc.text(`2. SOINS ESTHÉTIQUES PROGRAMMÉS EN CABINE (${sp.cabineServices.length})`, M_X + 8, doc.cursorY + 11, {
+        font: "bold",
+        size: 8.5,
+        color: INDIGO,
+        letterSpace: 0.4,
+      });
+      doc.advance(20);
+
+      for (const srv of sp.cabineServices) {
+        doc.ensure(34);
+        const cardY = doc.cursorY;
+        const cardH = 28;
+        drawBox(doc, M_X, cardY, CONTENT_W, cardH, CARD, LINE, 0.6);
+
+        const durStr = srv.durationMin ? ` (${srv.durationMin} min)` : "";
+        doc.text(`${srv.name}${durStr}`, M_X + 8, cardY + 11, { font: "bold", size: 9, color: INK });
+        if (srv.price) {
+          doc.textRight(`${srv.price.toLocaleString("fr-FR")} FCFA`, M_RIGHT - 8, cardY + 11, {
+            font: "bold",
+            size: 8.5,
+            color: INDIGO,
+          });
+        }
+        let desc = `Rythme : ${srv.frequency || "1 séance / mois"}`;
+        if (srv.sessionsCount && srv.sessionsCount > 1) desc += ` · Cure de ${srv.sessionsCount} séances`;
+        if (srv.objective) desc += ` · Objectif : ${srv.objective}`;
+        doc.text(desc, M_X + 8, cardY + 21, { size: 7.5, color: SOFT, maxW: CONTENT_W - 20 });
+        doc.advance(cardH + 4);
+      }
+      doc.advance(4);
+    }
+
+    // Notes de la dermo-conseillère
+    if (sp.notes && sp.notes.trim()) {
+      doc.ensure(36);
+      const noteY = doc.cursorY;
+      const noteH = 30;
+      drawBox(doc, M_X, noteY, CONTENT_W, noteH, CREAM, GOLD, 0.7);
+      doc.text("CONSIGNES & RECOMMANDATIONS DE LA DERMO-CONSEILLÈRE :", M_X + 8, noteY + 10, {
+        font: "bold",
+        size: 7.8,
+        color: GOLD_DARK,
+      });
+      doc.text(sp.notes, M_X + 8, noteY + 21, { size: 7.8, color: INK, maxW: CONTENT_W - 16 });
+      doc.advance(noteH + 6);
+    }
+    doc.advance(4);
+  }
+
   // 7. Traçabilité complète des réponses du questionnaire de la zone prise
-  sectionBand(doc, "E", `QUESTIONNAIRE & RÉPONSES DE L'ENTRETIEN · ${zoneLabel.toUpperCase()}`);
+  sectionBand(doc, sp ? "F" : "E", `QUESTIONNAIRE & RÉPONSES DE L'ENTRETIEN · ${zoneLabel.toUpperCase()}`);
   const zoneQuestions = getQuestionsForZone(input.diagnosis.zone as BodyZone);
   let renderedAnswersCount = 0;
   for (const q of zoneQuestions) {
@@ -1424,7 +1540,7 @@ export function proDiagReportPdf(input: {
   doc.advance(6);
 
   // 8. Signatures & Décharge
-  sectionBand(doc, "F", "CONSENTEMENTS RECUEILLIS & CLÔTURE DU DOSSIER");
+  sectionBand(doc, sp ? "G" : "F", "CONSENTEMENTS RECUEILLIS & CLÔTURE DU DOSSIER");
   doc.ensure(56);
   const cs = input.diagnosis;
 
@@ -1472,6 +1588,7 @@ export function clientDiagReportPdf(input: {
   };
   spectralImage?: SpectralAcneResult | null;
   multiSpectral?: MultiSpectralSuiteResult | null;
+  prescription?: StructuredPrescription | null;
 }): ConsultPdfResult {
   const result = safeParse<DiagnosisResult>(input.diagnosis.resultJson);
   const zoneLabel = BODY_ZONES.find((z) => z.id === input.diagnosis.zone)?.label ?? input.diagnosis.zone;
@@ -1780,6 +1897,116 @@ export function clientDiagReportPdf(input: {
       }
       doc.advance(30);
     }
+  }
+
+  // ORDONNANCE DERMO-ESTHÉTIQUE SI PRESCRITE PAR L'INSTITUT (cosmeticsUsed)
+  const clientSp = input.prescription;
+  if (clientSp && (clientSp.products.length > 0 || clientSp.cabineServices.length > 0 || (clientSp.notes && clientSp.notes.trim().length > 0))) {
+    doc.ensure(50);
+    const activeCure = clientSp.cureNumber || 1;
+    sectionBand(
+      doc,
+      "D",
+      `MON ORDONNANCE BEAUTÉ & PROTOCOLE INSTITUT · CURE #${activeCure}`,
+      `Ordonnance personnalisée prescrite par ${clientSp.tenantName || clientSp.prescribedBy || "mon institut partenaire"}`
+    );
+
+    if (clientSp.products.length > 0) {
+      doc.ensure(24);
+      doc.rect(M_X, doc.cursorY, CONTENT_W, 16, BISSAP_SOFT);
+      doc.text(`1. SOINS COSMÉTIQUES DU QUOTIDIEN (${clientSp.products.length})`, M_X + 8, doc.cursorY + 11, {
+        font: "bold",
+        size: 8.5,
+        color: BISSAP_DARK,
+        letterSpace: 0.4,
+      });
+      doc.advance(20);
+
+      for (const prod of clientSp.products) {
+        doc.ensure(34);
+        const cardY = doc.cursorY;
+        const cardH = 28;
+        drawBox(doc, M_X, cardY, CONTENT_W, cardH, CARD, LINE, 0.6);
+
+        const momentStr =
+          prod.moment === "matin"
+            ? "Matin"
+            : prod.moment === "soir"
+            ? "Soir"
+            : prod.moment === "matin_soir"
+            ? "Matin & Soir"
+            : "Hebdo";
+
+        doc.text(`${prod.name}`, M_X + 8, cardY + 11, { font: "bold", size: 9, color: INK });
+        doc.text(`[ ${momentStr} ]`, M_X + 160, cardY + 11, { font: "bold", size: 7.5, color: BISSAP });
+        if (prod.price) {
+          doc.textRight(`${prod.price.toLocaleString("fr-FR")} FCFA`, M_RIGHT - 8, cardY + 11, {
+            font: "bold",
+            size: 8.5,
+            color: GOLD_DARK,
+          });
+        }
+        const posText = prod.posology || "Appliquer selon recommandations";
+        doc.text(`👉 Application : ${posText}`, M_X + 8, cardY + 21, {
+          size: 7.5,
+          color: SOFT,
+          maxW: CONTENT_W - 20,
+        });
+        doc.advance(cardH + 4);
+      }
+      doc.advance(4);
+    }
+
+    if (clientSp.cabineServices.length > 0) {
+      doc.ensure(24);
+      doc.rect(M_X, doc.cursorY, CONTENT_W, 16, KARITE);
+      doc.rectStroke(M_X, doc.cursorY, CONTENT_W, 16, LINE, 0.7);
+      doc.text(`2. SOINS EN INSTITUT RECOMMANDÉS (${clientSp.cabineServices.length})`, M_X + 8, doc.cursorY + 11, {
+        font: "bold",
+        size: 8.5,
+        color: INDIGO,
+        letterSpace: 0.4,
+      });
+      doc.advance(20);
+
+      for (const srv of clientSp.cabineServices) {
+        doc.ensure(34);
+        const cardY = doc.cursorY;
+        const cardH = 28;
+        drawBox(doc, M_X, cardY, CONTENT_W, cardH, CARD, LINE, 0.6);
+
+        const durStr = srv.durationMin ? ` (${srv.durationMin} min)` : "";
+        doc.text(`${srv.name}${durStr}`, M_X + 8, cardY + 11, { font: "bold", size: 9, color: INK });
+        if (srv.price) {
+          doc.textRight(`${srv.price.toLocaleString("fr-FR")} FCFA`, M_RIGHT - 8, cardY + 11, {
+            font: "bold",
+            size: 8.5,
+            color: INDIGO,
+          });
+        }
+        let desc = `Fréquence : ${srv.frequency || "1 séance / mois"}`;
+        if (srv.sessionsCount && srv.sessionsCount > 1) desc += ` · Cure de ${srv.sessionsCount} séances`;
+        if (srv.objective) desc += ` · Objectif : ${srv.objective}`;
+        doc.text(desc, M_X + 8, cardY + 21, { size: 7.5, color: SOFT, maxW: CONTENT_W - 20 });
+        doc.advance(cardH + 4);
+      }
+      doc.advance(4);
+    }
+
+    if (clientSp.notes && clientSp.notes.trim()) {
+      doc.ensure(36);
+      const noteY = doc.cursorY;
+      const noteH = 30;
+      drawBox(doc, M_X, noteY, CONTENT_W, noteH, CREAM, GOLD, 0.7);
+      doc.text("CONSIGNES DE L'INSTITUT :", M_X + 8, noteY + 10, {
+        font: "bold",
+        size: 7.8,
+        color: GOLD_DARK,
+      });
+      doc.text(clientSp.notes, M_X + 8, noteY + 21, { size: 7.8, color: INK, maxW: CONTENT_W - 16 });
+      doc.advance(noteH + 6);
+    }
+    doc.advance(4);
   }
 
   // Mention légale de précaution

@@ -956,6 +956,7 @@ export async function processMultiSpectralSuite(
     indicators?: Array<{ nom: string; pourcentage: number }>;
     scoreGlobal?: number;
     selectedViews?: string[] | null;
+    photoIndex?: number | null;
   }
 ): Promise<MultiSpectralSuiteResult> {
   const targetW = 380;
@@ -981,12 +982,21 @@ export async function processMultiSpectralSuite(
       }
 
       if (normalizedBuffers.length > 0) {
+        // Détermination du cliché de base : si un photoIndex spécifique est fourni (ou si on applique
+        // l'angle sélectionné par la praticienne pour les 4 filtres spectraux), on utilise cet angle homogène.
+        const preferredPhoto =
+          meta?.photoIndex !== undefined && meta?.photoIndex !== null && normalizedBuffers[meta.photoIndex]
+            ? normalizedBuffers[meta.photoIndex]
+            : normalizedBuffers[0];
+
         const copy = buildZoneBandCopy(zone, meta?.indicators, true);
         const builtBands: SpectralBandData[] = [];
 
         for (let idx = 0; idx < 4; idx++) {
           const viewId = chosenIds[idx];
-          const basePhoto = normalizedBuffers[idx] ?? normalizedBuffers[0];
+          // Utilise le cliché choisi par la praticienne (ou le 1er cliché si 1 seul angle ou fallback)
+          // pour que les 4 spectres reflètent fidèlement l'angle observé
+          const basePhoto = preferredPhoto;
           const sMeta = BAND_STATIC_META[viewId];
           const bCopy = copy[viewId];
 

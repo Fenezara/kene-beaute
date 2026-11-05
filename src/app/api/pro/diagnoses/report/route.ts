@@ -8,6 +8,7 @@ import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { proDiagReportPdf, proDiagReportFilename } from "@/lib/kene/consultation-pdf";
 import { processMultiSpectralSuite } from "@/lib/kene/spectral-imaging";
+import { parseStructuredPrescription } from "@/lib/kene/prescription-schema";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     const diag = await db.proDiagnosis.findFirst({
       where: { id, tenantId: tenant.id },
-      include: { clientProfile: { select: { id: true, name: true, phone: true } } },
+      include: { clientProfile: { select: { id: true, name: true, phone: true, cosmeticsUsed: true } } },
     });
     if (!diag) return jsonError("Diagnostic introuvable dans cet institut", 404);
 
@@ -82,7 +83,13 @@ export async function GET(req: NextRequest) {
 
     // Analyse optique multi-spectrale cabine : Quad 4 Bandes sur les clichés réels de la cliente
     // Supporte la sélection tactile des 4 vues cliniques parmi les 8 (?views=standard,amber585,green540,blue405)
+    // et l'angle photo spécifique choisi (?photoIdx=0, 1, 2...)
     const rawViewsParam = req.nextUrl.searchParams.get("views");
+    const rawPhotoIdx = req.nextUrl.searchParams.get("photoIdx");
+    const photoIndex = rawPhotoIdx !== null && rawPhotoIdx !== undefined && rawPhotoIdx !== ""
+      ? parseInt(rawPhotoIdx, 10)
+      : null;
+
     const selectedViews = rawViewsParam
       ? rawViewsParam
           .split(",")
@@ -97,7 +104,11 @@ export async function GET(req: NextRequest) {
       indicators: parsedIndicators,
       scoreGlobal: diag.scoreGlobal,
       selectedViews,
+      photoIndex,
     });
+
+    // Résolution de l'ordonnance beauté / prescription active de la cliente
+    const prescription = parseStructuredPrescription(diag.clientProfile.cosmeticsUsed, tenant.name);
 
     const pdf = proDiagReportPdf({
       tenantName: tenant.name,
@@ -120,6 +131,7 @@ export async function GET(req: NextRequest) {
       client: diag.clientProfile,
       multiSpectral: spectral,
       spectralImage: spectral.legacyAcne,
+      prescription,
     });
 
     return new NextResponse(new Uint8Array(pdf.data), {
