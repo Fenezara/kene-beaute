@@ -90,7 +90,9 @@ export async function POST(req: NextRequest) {
     }
 
     // CONTRÔLE ANTI-FRAUDE PRÉSENCE PHYSIQUE (Standards Sécurité RH 2026) :
-    // Le pointage d'arrivée exige une preuve physique (GPS de proximité OU QR Token caisse du jour)
+    // Le pointage d'arrivée exige impérativement une preuve physique :
+    // 1. Soit le QR Code de caisse/présence affiché sur l'écran du salon
+    // 2. Soit les coordonnées GPS certifiées à moins de 1000m de l'institut
     if (parsed.data.action === "in") {
       const { lat, lng, qrToken } = parsed.data;
       const tenant = employee.tenant;
@@ -99,18 +101,24 @@ export async function POST(req: NextRequest) {
       const isQrValid = Boolean(qrToken && qrToken === expectedQrToday);
 
       if (!isQrValid) {
-        if (typeof lat === "number" && typeof lng === "number") {
-          const tenantCoords = getTenantCoords(tenant.city, tenant.address);
-          const distanceKm = haversineKm(lat, lng, tenantCoords.lat, tenantCoords.lng);
-          const distanceMeters = Math.round(distanceKm * 1000);
+        // Si aucun QR code valide du salon n'est fourni, la géolocalisation GPS est OBLIGATOIRE
+        if (typeof lat !== "number" || typeof lng !== "number") {
+          return jsonError(
+            `Pointage refusé : vous devez être physiquement présente dans l'institut ${tenant.name}. Veuillez activer la géolocalisation de votre téléphone ou scanner le QR code de présence affiché au salon.`,
+            403
+          );
+        }
 
-          // Rayon de tolérance : 1000 mètres (1 km) pour absorber toute dispersion d'antenne relais ou imprécision d'Abidjan
-          if (distanceKm > 1.0) {
-            return jsonError(
-              `Présence non confirmée : vous êtes localisé à ${distanceMeters}m de l'institut ${tenant.name}. Veuillez vérifier l'autorisation de localisation précise de votre téléphone ou enregistrer votre position exacte dans Paramètres.`,
-              403
-            );
-          }
+        const tenantCoords = getTenantCoords(tenant.city, tenant.address);
+        const distanceKm = haversineKm(lat, lng, tenantCoords.lat, tenantCoords.lng);
+        const distanceMeters = Math.round(distanceKm * 1000);
+
+        // Rayon de tolérance : 1000 mètres (1 km) pour absorber toute dispersion d'antenne relais ou imprécision urbaine
+        if (distanceKm > 1.0) {
+          return jsonError(
+            `Présence non confirmée : vous êtes localisée à ${distanceMeters}m de l'institut ${tenant.name}. Le pointage à distance hors de l'établissement est formellement interdit.`,
+            403
+          );
         }
       }
     }

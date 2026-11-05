@@ -579,19 +579,23 @@ export function ProEnterpriseShell() {
       let lat: number | undefined;
       let lng: number | undefined;
 
-      if (action === "in" && typeof navigator !== "undefined" && "geolocation" in navigator) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 6000,
-              maximumAge: 30000,
+      if (action === "in") {
+        if (typeof navigator !== "undefined" && "geolocation" in navigator) {
+          try {
+            const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 8000,
+                maximumAge: 10000,
+              });
             });
-          });
-          lat = pos.coords.latitude;
-          lng = pos.coords.longitude;
-        } catch {
-          // Si l'employé refuse la géolocalisation ou délai dépassé
+            lat = pos.coords.latitude;
+            lng = pos.coords.longitude;
+          } catch {
+            throw new Error("Localisation requise : veuillez autoriser le GPS de votre appareil pour valider votre présence à l'institut.");
+          }
+        } else {
+          throw new Error("Votre navigateur ne supporte pas la géolocalisation nécessaire pour pointer votre présence.");
         }
       }
 

@@ -200,8 +200,32 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
 
   async function point(employeeId: string, action: "in" | "out", name: string) {
     try {
-      await apiPost("/api/pro/employees/attendance", { employeeId, action });
-      toast.success(action === "in" ? `Arrivée pointée — ${name}` : `Départ pointé — ${name}`);
+      let lat: number | undefined;
+      let lng: number | undefined;
+
+      // Lors d'un pointage manuel d'arrivée, exiger la géolocalisation de présence physique
+      if (action === "in") {
+        if (typeof navigator !== "undefined" && "geolocation" in navigator) {
+          try {
+            const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 8000,
+                maximumAge: 10000,
+              });
+            });
+            lat = pos.coords.latitude;
+            lng = pos.coords.longitude;
+          } catch {
+            throw new Error("Localisation requise : veuillez activer le GPS de votre appareil pour certifier la présence au salon.");
+          }
+        } else {
+          throw new Error("Géolocalisation non supportée par votre navigateur.");
+        }
+      }
+
+      await apiPost("/api/pro/employees/attendance", { employeeId, action, lat, lng });
+      toast.success(action === "in" ? `Arrivée pointée sur place — ${name}` : `Départ pointé — ${name}`);
       await employees.refetch();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Pointage impossible");
