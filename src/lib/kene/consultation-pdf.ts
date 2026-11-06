@@ -151,7 +151,7 @@ export interface TenantLogoInput {
   height: number;
 }
 
-/** En-tête officiel de prestige Kènè Pro (net, contrasté, avec logo officiel de l'institut) */
+/** En-tête officiel de prestige Kènè Pro (net, contrasté, économe en toner) */
 function headerBanner(
   doc: PdfDoc,
   mainTitle: string,
@@ -174,35 +174,20 @@ function headerBanner(
   // Ruban supérieur signature Kènè (Bissap 45% + Or 35% + Terre 20%)
   doc.drawBrandRibbon(M_X, topY, CONTENT_W, 3.2);
 
-  // Logo officiel de l'institut (ou emblème certifié)
-  const hasLogo = Boolean(tenantInfo.logo && tenantInfo.logo.jpegBytes && tenantInfo.logo.jpegBytes.length > 20);
-  const leftOffset = hasLogo ? 48 : 12;
-
-  if (hasLogo && tenantInfo.logo) {
-    const logoId = `tenant_logo_${Math.floor(topY)}`;
-    doc.addImage(logoId, tenantInfo.logo.jpegBytes, tenantInfo.logo.width, tenantInfo.logo.height);
-    // Vignette logo prestige aux angles adoucis
-    const logoSize = 32;
-    const logoY = topY + 10;
-    doc.rect(M_X + 10, logoY, logoSize, logoSize, [255, 255, 255]);
-    doc.rectStroke(M_X + 10, logoY, logoSize, logoSize, GOLD, 0.8);
-    doc.drawImage(logoId, M_X + 10, logoY, logoSize, logoSize);
-  }
-
   // Colonne Gauche : Marque en Bissap + Titre du document
-  doc.text("KÈNÈ PRO", M_X + leftOffset, topY + 16, {
+  doc.text("KÈNÈ PRO", M_X + 12, topY + 16, {
     font: "bold",
     size: 11,
     color: BISSAP,
     letterSpace: 1.8,
   });
-  doc.text(mainTitle, M_X + leftOffset, topY + 28, {
+  doc.text(mainTitle, M_X + 12, topY + 28, {
     font: "bold",
-    size: 9.2,
+    size: 9.5,
     color: INK,
-    letterSpace: 0.2,
+    letterSpace: 0.3,
   });
-  doc.text(subtitle, M_X + leftOffset, topY + 40, {
+  doc.text(subtitle, M_X + 12, topY + 40, {
     size: 7.2,
     color: SOFT,
     font: "oblique",
