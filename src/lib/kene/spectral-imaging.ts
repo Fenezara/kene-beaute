@@ -981,7 +981,7 @@ async function renderRealPhotoBandBuffer(
   const filters = SPECTRAL_CSS_FILTERS[id] ?? [];
   applyCssFiltersOnRgbBuffer(data, filters);
 
-  // 3. Encoder le résultat avec sharp
+  // 3. Encoder le résultat avec sharp en PNG pour composition avec le HUD
   return sharp(data, {
     raw: {
       width: info.width,
@@ -990,6 +990,7 @@ async function renderRealPhotoBandBuffer(
     },
   })
     .sharpen({ sigma: id === "uv365" || id === "blue405" ? 1.1 : 0.8 })
+    .png()
     .toBuffer();
 }
 
