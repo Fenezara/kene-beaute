@@ -105,6 +105,33 @@ export function CommercialKitModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-[24px]">
+        {/* Style d'impression dédié au Kit Commercial (A5 / A6) */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .kene-print-container, .kene-print-container * {
+              visibility: visible;
+            }
+            .kene-print-container {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              margin: 0;
+              padding: 1.5cm;
+              background: #FFFDF9 !important;
+              color: #18120C !important;
+              box-shadow: none !important;
+              border: 2px solid #C8951E !important;
+              page-break-inside: avoid;
+            }
+            .no-print {
+              display: none !important;
+            }
+          }
+        `}} />
         <DialogHeader className="no-print">
           <div className="flex items-center gap-2">
             <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text">
@@ -175,7 +202,7 @@ export function CommercialKitModal({
             </div>
 
             {/* Zone imprimable Chevalet A5 */}
-            <div className="print-area rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 text-center space-y-4 shadow-sm text-foreground">
+            <div className="kene-print-container rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 text-center space-y-4 shadow-sm text-foreground">
               <div className="flex flex-col items-center justify-center space-y-1">
                 <span className="grid size-12 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-white shadow-xs">
                   <DuafeIcon size={24} />
@@ -266,7 +293,7 @@ export function CommercialKitModal({
             </div>
 
             {/* Zone imprimable Carte A6 */}
-            <div className="print-area rounded-2xl border-2 border-gold/50 bg-[#FFFCF6] dark:bg-[#1A1410] p-5 space-y-3 max-w-lg mx-auto shadow-sm text-foreground">
+            <div className="kene-print-container rounded-2xl border-2 border-gold/50 bg-[#FFFCF6] dark:bg-[#1A1410] p-5 space-y-3 max-w-lg mx-auto shadow-sm text-foreground">
               <div className="flex items-center justify-between border-b border-gold/30 pb-2">
                 <div className="flex items-center gap-2">
                   <span className="grid size-8 place-items-center rounded-full bg-gold text-white">
@@ -506,7 +533,7 @@ export function CommercialKitModal({
             </div>
 
             {/* Zone imprimable Attestation / Convention */}
-            <div className="print-area rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 space-y-4 text-foreground shadow-sm">
+            <div className="kene-print-container rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 space-y-4 text-foreground shadow-sm">
               <div className="flex items-center justify-between border-b border-gold/30 pb-3">
                 <div className="flex items-center gap-2.5">
                   <span className="grid size-10 place-items-center rounded-xl bg-gold text-white">

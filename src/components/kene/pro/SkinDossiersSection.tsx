@@ -808,18 +808,36 @@ function ClientSkinDossierDetail({
         });
       }
     }
-    // 2. Photos de bilan cabine
+    // 2. Photos de bilan cabine (support multi-clichés)
     for (const pd of d?.proDiagnoses ?? []) {
       if (pd.photoData && pd.photoData.trim()) {
         const parsed = parseProDiagnosis(pd.resultJson || (pd as any).questionnaireJson);
-        list.push({
-          id: pd.id,
-          url: diagImgSrc(pd.photoData),
-          date: pd.createdAt,
-          zone: `${pd.zone.replace("_", " ")} · Bilan Cabine`,
-          score: pd.scoreGlobal,
-          indicators: (parsed as any)?.indicateurs,
-          source: "cabine",
+        
+        // Vérifier si photoData contient un tableau JSON multi-photos
+        let photosList: string[] = [];
+        if (pd.photoData.trim().startsWith("[")) {
+          try {
+            const arr = JSON.parse(pd.photoData);
+            if (Array.isArray(arr)) {
+              photosList = arr.filter((p) => typeof p === "string" && p.trim().length > 0);
+            }
+          } catch {
+            photosList = [pd.photoData];
+          }
+        } else {
+          photosList = [pd.photoData];
+        }
+
+        photosList.forEach((rawPhoto, photoIdx) => {
+          list.push({
+            id: `${pd.id}-p${photoIdx}`,
+            url: diagImgSrc(rawPhoto),
+            date: pd.createdAt,
+            zone: `${pd.zone.replace("_", " ")} · Bilan Cabine${photosList.length > 1 ? ` (Cliché ${photoIdx + 1}/${photosList.length})` : ""}`,
+            score: pd.scoreGlobal,
+            indicators: (parsed as any)?.indicateurs,
+            source: "cabine",
+          });
         });
       }
     }
