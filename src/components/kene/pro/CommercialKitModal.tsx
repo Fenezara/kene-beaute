@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DuafeIcon } from "@/components/kene/icons";
+import { printCommercialDocument } from "@/lib/hardware/commercial-print";
 
 interface CommercialKitModalProps {
   open: boolean;
@@ -74,10 +75,170 @@ export function CommercialKitModal({
       .catch((err) => console.error("Erreur génération QR code kit:", err));
   }, [open, tenantId, tenantName]);
 
-  function handlePrint() {
-    if (typeof window !== "undefined") {
-      window.print();
-    }
+  function handlePrintChevaletA5() {
+    printCommercialDocument({
+      title: `Chevalet Cabine A5 — ${tenantName}`,
+      format: "A5",
+      orientation: "portrait",
+      htmlContent: `
+        <div style="text-align:center; padding: 10px 0;">
+          <div style="font-size: 26px; margin-bottom: 4px;">👑</div>
+          <div style="font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #C8951E; text-transform: uppercase;">
+            KÈNÈ BEAUTÉ & BIEN-ÊTRE
+          </div>
+          <div style="font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-top: 2px;">
+            Institut Partenaire Certifié · ${tenantName} ${tenantCity ? `(${tenantCity})` : ""}
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #C8951E; border-bottom: 1px solid #C8951E; padding: 12px 0; text-align: center; margin: 10px 0;">
+          <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; color: #18120C;">
+            VOTRE PEAU MÉRITE LA VÉRITÉ
+          </div>
+          <div style="font-size: 11px; color: #555; max-width: 320px; margin: 6px auto 0; line-height: 1.4;">
+            Découvrez la santé profonde de votre épiderme en 10 secondes grâce à notre scanner dermo-biométrique haute précision.
+          </div>
+        </div>
+
+        <div style="text-align: center; margin: 15px 0;">
+          <div style="display: inline-block; padding: 12px; background: #FFF; border: 2px solid #C8951E; border-radius: 16px;">
+            <img src="${qrCodeUrl}" style="width: 200px; height: 200px; display: block;" alt="QR Code">
+          </div>
+          <div style="font-size: 11px; font-weight: 900; color: #C8951E; letter-spacing: 2px; text-transform: uppercase; margin-top: 8px;">
+            SCANNEZ AVEC L'APPAREIL PHOTO
+          </div>
+          <div style="font-size: 10px; color: #777; font-family: monospace; margin-top: 4px;">
+            ${salonLink.replace(/^https?:\/\//, "")}
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px;">
+          <div style="background: #FDF9F2; border: 1px solid #EADBBE; border-radius: 10px; padding: 8px; text-align: left;">
+            <div style="font-size: 11px; font-weight: bold;">🔬 Bilan Précision</div>
+            <div style="font-size: 9px; color: #666; margin-top: 2px;">Analyse taches, hydratation & sébum.</div>
+          </div>
+          <div style="background: #FDF9F2; border: 1px solid #EADBBE; border-radius: 10px; padding: 8px; text-align: left;">
+            <div style="font-size: 11px; font-weight: bold;">🌿 Botanique Pure</div>
+            <div style="font-size: 9px; color: #666; margin-top: 2px;">Karité brut, Baobab & Moringa.</div>
+          </div>
+          <div style="background: #FDF9F2; border: 1px solid #EADBBE; border-radius: 10px; padding: 8px; text-align: left;">
+            <div style="font-size: 11px; font-weight: bold;">✨ 30 Jours Offerts</div>
+            <div style="font-size: 9px; color: #666; margin-top: 2px;">Pass VIP Kènè+ offert sans engagement.</div>
+          </div>
+        </div>
+
+        <div style="text-align: center; font-size: 10px; font-style: italic; color: #777; margin-top: 15px;">
+          🌸 Demandez votre bilan cabine instantané à votre praticienne dès maintenant.
+        </div>
+      `,
+    });
+  }
+
+  function handlePrintCarteA6() {
+    printCommercialDocument({
+      title: `Carte Pass A6 — ${tenantName}`,
+      format: "A6",
+      orientation: "landscape",
+      htmlContent: `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #C8951E; padding-bottom: 8px;">
+          <div>
+            <div style="font-size: 14px; font-weight: 900; color: #C8951E; text-transform: uppercase;">
+              CARTE PRIVILÈGE & BILAN CABINE
+            </div>
+            <div style="font-size: 9px; color: #666;">
+              ${tenantName} ${tenantCity ? `(${tenantCity})` : ""}
+            </div>
+          </div>
+          <div style="background: #C8951E; color: #FFF; font-size: 9px; font-weight: bold; padding: 3px 8px; border-radius: 6px;">
+            PASS VIP 30 JOURS OFFERTS
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 15px; align-items: center; margin: 12px 0;">
+          <div style="background: #FFF; border: 1.5px solid #C8951E; border-radius: 10px; padding: 6px; flex-shrink: 0;">
+            <img src="${qrCodeUrl}" style="width: 110px; height: 110px; display: block;" alt="QR Code">
+          </div>
+          <div style="font-size: 10px; color: #444; line-height: 1.4;">
+            <p style="margin: 0 0 6px 0; font-weight: bold; font-size: 11px; color: #18120C;">
+              Scannez pour retrouver votre diagnostic de peau et votre ordonnance personnalisée.
+            </p>
+            <p style="margin: 0; color: #666;">
+              ✓ Suivi hebdomadaire de votre routine<br>
+              ✓ Scanner d'ingrédients anti-contrefaçon<br>
+              ✓ Réservation prioritaire en cabine
+            </p>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #EADBBE; padding-top: 6px; display: flex; justify-content: space-between; font-size: 8px; color: #777;">
+          <span>Établi par votre praticienne Kènè</span>
+          <span style="font-family: monospace;">${salonLink.replace(/^https?:\/\//, "")}</span>
+        </div>
+      `,
+    });
+  }
+
+  function handlePrintConvention() {
+    printCommercialDocument({
+      title: `Attestation d'Agrément — ${tenantName}`,
+      format: "A5",
+      orientation: "portrait",
+      htmlContent: `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #C8951E; padding-bottom: 10px;">
+          <div>
+            <div style="font-size: 15px; font-weight: 900; color: #C8951E; text-transform: uppercase;">
+              ATTESTATION D'AGRÉMENT INSTITUT PARTENAIRE
+            </div>
+            <div style="font-size: 9px; color: #777;">
+              Écosystème Dermo-Botanique Kènè Technologies · Réf: KENE-CERT-${tenantId.substring(0, 8).toUpperCase()}
+            </div>
+          </div>
+          <div style="background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; font-size: 9px; font-weight: bold; padding: 4px 10px; border-radius: 99px;">
+            CERTIFIÉ CONFORME
+          </div>
+        </div>
+
+        <div style="margin: 15px 0; font-size: 11px; line-height: 1.5; color: #333;">
+          <p>Par la présente, la direction de <strong>KÈNÈ TECHNOLOGIES SAS</strong> certifie que l'établissement :</p>
+          <div style="background: #FAF6ED; border: 1px solid #EADBBE; padding: 10px; border-radius: 8px; margin: 8px 0; font-weight: bold; font-size: 12px; color: #18120C;">
+            ${tenantName} ${tenantCity ? `(${tenantCity})` : ""}
+          </div>
+          <p>Est officiellement agréé pour la délivrance des bilans dermo-biométriques Kènè et s'engage sur les 4 engagements fondamentaux :</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 15px 0; font-size: 10px;">
+          <div style="background: #FAF6ED; border: 1px solid #EADBBE; padding: 8px; border-radius: 8px;">
+            <strong style="color: #2E7D32;">✓ Zéro Dépigmentant</strong><br>
+            <span style="color: #666;">Interdiction stricte d'Hydroquinone, corticoïdes et mercure.</span>
+          </div>
+          <div style="background: #FAF6ED; border: 1px solid #EADBBE; padding: 8px; border-radius: 8px;">
+            <strong>✓ Caisse SYSCOHADA</strong><br>
+            <span style="color: #666;">Traçabilité comptable et reçus conformes.</span>
+          </div>
+          <div style="background: #FAF6ED; border: 1px solid #EADBBE; padding: 8px; border-radius: 8px;">
+            <strong>✓ Propriété des Données</strong><br>
+            <span style="color: #666;">Clientèle et chiffre d'affaires 100% vôtres.</span>
+          </div>
+          <div style="background: #FAF6ED; border: 1px solid #EADBBE; padding: 8px; border-radius: 8px;">
+            <strong style="color: #C8951E;">✓ Avantage Salariées Kènè+</strong><br>
+            <span style="color: #666;">Pass VIP offert à vos employées déclarées.</span>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #C8951E; padding-top: 15px; display: flex; justify-content: space-between; font-size: 10px; color: #555; margin-top: 25px;">
+          <div>
+            <strong>Pour KÈNÈ TECHNOLOGIES</strong><br>
+            <em>Direction Dermo-Scientifique</em><br>
+            <span style="font-family: monospace; font-size: 8px; color: #C8951E;">CERT-SHA256-OK</span>
+          </div>
+          <div style="text-align: right;">
+            <strong>Pour l'Institut Partenaire</strong><br>
+            <em>La Direction / Gérante</em><br>
+            <span style="font-family: monospace; font-size: 8px; color: #777;">Cachet & Signature</span>
+          </div>
+        </div>
+      `,
+    });
   }
 
   function handleCopyLink() {
@@ -193,10 +354,10 @@ export function CommercialKitModal({
                 </button>
                 <button
                   type="button"
-                  onClick={handlePrint}
+                  onClick={handlePrintChevaletA5}
                   className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
                 >
-                  <Printer size={13} /> Imprimer A5
+                  <Printer size={13} /> Imprimer Chevalet A5
                 </button>
               </div>
             </div>
@@ -285,7 +446,7 @@ export function CommercialKitModal({
               </p>
               <button
                 type="button"
-                onClick={handlePrint}
+                onClick={handlePrintCarteA6}
                 className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
               >
                 <Printer size={13} /> Imprimer Carte A6
@@ -525,7 +686,7 @@ export function CommercialKitModal({
               </p>
               <button
                 type="button"
-                onClick={handlePrint}
+                onClick={handlePrintConvention}
                 className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
               >
                 <Printer size={13} /> Imprimer l&apos;Attestation
