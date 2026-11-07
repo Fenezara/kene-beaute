@@ -72,6 +72,7 @@ const Body = z.object({
   practitionerName: z.string().optional(),
   practitionerId: z.string().optional(),
   depositDeducted: z.number().int().min(0).optional(),
+  clientDepositId: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = Body.safeParse(sanitizePayload(await req.json().catch(() => null)));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, items, paymentMethod, discount, appointmentId, practitionerName, depositDeducted } = parsed.data;
+    const { tenantId, items, paymentMethod, discount, appointmentId, practitionerName, depositDeducted, clientDepositId } = parsed.data;
 
     const tenant = await resolveTenant(req, tenantId);
     if (!tenant) return jsonError("Institut introuvable ou non autorisé", 404);
@@ -294,6 +295,8 @@ export async function POST(req: NextRequest) {
         paymentMethod,
         paymentRef: payRef,
         cashierName: cashier,
+        depositUsed: depositUsed > 0 ? depositUsed : 0,
+        clientDepositId: clientDepositId || null,
         status: "completed",
         items: {
           create: lines.map(({ kind, serviceId, productId, label, qty, unitPrice, total: lineTotal, customPriceReason }) => ({
@@ -313,6 +316,23 @@ export async function POST(req: NextRequest) {
         clientProfile: { select: { id: true, name: true, phone: true } },
       },
     });
+
+    // Mise à jour de l'acompte ClientDeposit si utilisé
+    if (clientDepositId && depositUsed > 0) {
+      const dep = await db.clientDeposit.findUnique({ where: { id: clientDepositId } });
+      if (dep) {
+        const nextUsed = dep.usedAmount + depositUsed;
+        const nextRemaining = Math.max(0, dep.amount - nextUsed);
+        await db.clientDeposit.update({
+          where: { id: clientDepositId },
+          data: {
+            usedAmount: nextUsed,
+            remainingAmount: nextRemaining,
+            status: nextRemaining <= 0 ? "consumed" : "available",
+          },
+        });
+      }
+    }
 
     // Sceau d'audit comptable inaltérable
     void audit({

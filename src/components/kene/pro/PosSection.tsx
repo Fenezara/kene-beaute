@@ -159,6 +159,7 @@ export function PosSection({
 
   const [linkedAppointmentId, setLinkedAppointmentId] = useState<string | null>(null);
   const [depositDeducted, setDepositDeducted] = useState<number>(0);
+  const [selectedClientDepositId, setSelectedClientDepositId] = useState<string | null>(null);
 
   // ⚡ Modes d'encaissement : Direct (1 mode) vs Multi-moyens (Mixte)
   const [paymentMode, setPaymentMode] = useState<"single" | "split">("single");
@@ -356,6 +357,25 @@ export function PosSection({
   const selectedPosClient = useMemo(() => {
     return (clients.data ?? []).find((c) => c.id === clientId) || null;
   }, [clients.data, clientId]);
+
+  // Avance client disponible (si la cliente sélectionnée a un acompte/avance)
+  const clientAvailableDeposit = useMemo(() => {
+    if (!selectedPosClient) return 0;
+    if (typeof selectedPosClient.availableDeposit === "number") {
+      return selectedPosClient.availableDeposit;
+    }
+    return 0;
+  }, [selectedPosClient]);
+
+  // Si on change de cliente et qu'une avance était déduite via un autre client, réinitialiser
+  useEffect(() => {
+    if (!clientId && selectedClientDepositId) {
+      setSelectedClientDepositId(null);
+      if (!linkedAppointmentId) {
+        setDepositDeducted(0);
+      }
+    }
+  }, [clientId, selectedClientDepositId, linkedAppointmentId]);
 
   const filteredPosClients = useMemo(() => {
     return (clients.data ?? []).filter((c) =>
@@ -847,6 +867,7 @@ export function PosSection({
         discount: Math.min(discount, subtotal),
         appointmentId: linkedAppointmentId || undefined,
         depositDeducted: depositDeducted > 0 ? depositDeducted : undefined,
+        clientDepositId: selectedClientDepositId || undefined,
         practitionerName: assignedPractitioner,
       });
       const sale: ProSale = {
@@ -867,6 +888,7 @@ export function PosSection({
         setClientId("");
         setLinkedAppointmentId(null);
         setDepositDeducted(0);
+        setSelectedClientDepositId(null);
         setPractitionerName(resolvedSessionPractitioner);
         resetSplitAmounts();
         void sales.refetch();
@@ -910,6 +932,7 @@ export function PosSection({
           setClientId("");
           setLinkedAppointmentId(null);
           setDepositDeducted(0);
+          setSelectedClientDepositId(null);
           setPractitionerName(resolvedSessionPractitioner);
           resetSplitAmounts();
         }, 1300);
@@ -1571,6 +1594,58 @@ export function PosSection({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            {/* Bannière Déduction d'Avance / Acompte Client disponible */}
+            {selectedPosClient && clientAvailableDeposit > 0 && !linkedAppointmentId && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-900 dark:text-emerald-200 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span>💰</span>
+                    <span>Avance client disponible :</span>
+                    <span className="font-mono">{xof(clientAvailableDeposit)}</span>
+                  </div>
+                  {depositDeducted > 0 ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setDepositDeducted(0);
+                        setSelectedClientDepositId(null);
+                      }}
+                      className="h-6 text-[11px] text-destructive hover:bg-destructive/10 px-2 font-semibold"
+                    >
+                      Annuler la déduction
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const maxDeductible = Math.min(clientAvailableDeposit, Math.max(0, subtotal - discount));
+                        if (maxDeductible <= 0) {
+                          toast.info("Ajoutez d'abord des articles au ticket pour déduire l'avance.");
+                          return;
+                        }
+                        setDepositDeducted(maxDeductible);
+                        // Associer le premier acompte disponible
+                        const firstAvail = selectedPosClient.deposits?.find((d) => d.status === "available" && d.remainingAmount > 0);
+                        if (firstAvail) {
+                          setSelectedClientDepositId(firstAvail.id);
+                        }
+                        toast.success(`Avance de ${xof(maxDeductible)} déduite du ticket !`);
+                      }}
+                      className="h-6 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-2.5"
+                    >
+                      Déduire l&apos;avance
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80">
+                  {depositDeducted > 0
+                    ? `Déduction active : -${xof(depositDeducted)}. Le solde sera mis à jour à la validation du ticket.`
+                    : "Cette cliente possède une avance versée en amont (WhatsApp / Comptoir)."}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-1.5 border-t border-dashed border-border pt-2 text-sm">
               <div className="flex justify-between text-xs text-muted-foreground">

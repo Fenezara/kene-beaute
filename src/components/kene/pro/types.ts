@@ -196,7 +196,29 @@ export interface ProClient {
   sharesGranted?: boolean;
   isReferent?: boolean;
   unlinkedAt?: string | null;
+  availableDeposit?: number;
+  deposits?: ProClientDeposit[];
   _count?: { sales: number };
+}
+
+export interface ProClientDeposit {
+  id: string;
+  tenantId?: string;
+  clientProfileId: string;
+  amount: number;
+  usedAmount: number;
+  remainingAmount: number;
+  paymentMethod: string;
+  paymentRef?: string | null;
+  purpose?: string | null;
+  status: "available" | "consumed" | "refunded";
+  receiptNumber?: string | null;
+  notes?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  clientProfile?: { id: string; name: string; phone: string };
+  sales?: Array<{ id: string; total: number; createdAt: string }>;
 }
 
 export interface ProSaleItemView {
@@ -235,6 +257,7 @@ export interface ProClientDetail {
   proDiagnoses: ProDiagnosisItem[];
   orders: ProOrderView[];
   reviews: ProReviewView[];
+  deposits?: ProClientDeposit[];
   /** la cliente a-t-elle partagé ses self-scans avec CET institut ? */
   scansShared: boolean;
 }
@@ -404,6 +427,7 @@ export interface ProSale {
   practitionerName?: string | null;
   appointmentId?: string | null;
   depositDeducted?: number;
+  clientDepositId?: string | null;
   clientProfile?: { name: string; phone?: string } | null;
   items?: ProSaleItemView[];
 }

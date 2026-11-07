@@ -92,7 +92,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
-    const [sales, appointments, sales12m, allDiagnoses, proDiagnoses, orders, reviews] = await Promise.all([
+    const [sales, appointments, sales12m, allDiagnoses, proDiagnoses, orders, reviews, deposits] = await Promise.all([
       db.sale.findMany({
         where: { clientProfileId: id },
         include: {
@@ -162,6 +162,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             take: 10,
           })
         : Promise.resolve([]),
+      // Acomptes & Avances (WhatsApp, Cabine, MoMo, Espèces)
+      db.clientDeposit.findMany({
+        where: { clientProfileId: id, tenantId: tenant.id },
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
 
     const diagnoses = scanVisibility
@@ -183,6 +188,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       proDiagnoses,
       orders,
       reviews,
+      deposits,
       scansShared,
     });
   } catch (err) {

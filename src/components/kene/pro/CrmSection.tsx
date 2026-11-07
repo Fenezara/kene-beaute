@@ -517,7 +517,14 @@ export function CrmSection({
                     <TableCell className="hidden sm:table-cell font-mono text-xs">{formatPhoneDisplay(c.phone)}</TableCell>
                     <TableCell className="text-xs">{c.lastVisit ? formatDate(c.lastVisit) : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="text-right font-mono text-xs tabular-nums">{c.visitsCount}</TableCell>
-                    <TableCell className="text-right"><Money value={c.totalSpent} className="text-xs font-semibold" /></TableCell>
+                    <TableCell className="text-right">
+                      <Money value={c.totalSpent} className="text-xs font-semibold" />
+                      {Boolean(c.availableDeposit && c.availableDeposit > 0) && (
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap mt-0.5">
+                          💰 Avance: {xof(c.availableDeposit!)}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>{segmentBadge(c.rfmSegment)}</TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
@@ -737,6 +744,15 @@ function ClientSheet({
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
 
+  // Encaisser une avance / acompte (WhatsApp, Wave, Orange, MTN, Espèces)
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositMethod, setDepositMethod] = useState<"wave" | "orange" | "mtn" | "moov" | "cash" | "card">("wave");
+  const [depositPurpose, setDepositPurpose] = useState("");
+  const [depositRef, setDepositRef] = useState("");
+  const [depositNotes, setDepositNotes] = useState("");
+  const [depositBusy, setDepositBusy] = useState(false);
+
   async function handleArchiveClient() {
     setArchiveBusy(true);
     try {
@@ -759,6 +775,56 @@ function ClientSheet({
 
   const d = detail.data;
   const c = d?.client;
+
+  // Total des avances actives / disponibles pour cette cliente
+  const availableDepositTotal = useMemo(() => {
+    return (d?.deposits ?? [])
+      .filter((dep) => dep.status === "available" && dep.remainingAmount > 0)
+      .reduce((sum, dep) => sum + dep.remainingAmount, 0);
+  }, [d?.deposits]);
+
+  async function handleCreateDeposit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const parsedAmount = parseInt(depositAmount.replace(/\D/g, ""), 10);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast.error("Veuillez saisir un montant d'avance valide supérieur à 0 F");
+      return;
+    }
+    setDepositBusy(true);
+    try {
+      const res = await apiPost<{ deposit: any }>("/api/pro/deposits", {
+        tenantId,
+        clientProfileId: clientId,
+        amount: parsedAmount,
+        paymentMethod: depositMethod,
+        purpose: depositPurpose.trim() || undefined,
+        paymentRef: depositRef.trim() || undefined,
+        notes: depositNotes.trim() || undefined,
+      });
+
+      toast.success(`Avance de ${xof(parsedAmount)} enregistrée avec succès !`, {
+        description: `Reçu N° ${res.deposit.receiptNumber} généré.`,
+      });
+
+      // Proposer d'envoyer la confirmation WhatsApp
+      if (c?.phone) {
+        const confirmMsg = `Bonjour ${c.name} 🌸\nNous confirmons la bonne réception de votre acompte de ${xof(parsedAmount)} (${depositPurpose.trim() || "réservation soin/produit"}).\nReçu : ${res.deposit.receiptNumber}.\nCe solde est crédité sur votre compte et sera automatiquement déduit lors de votre encaissement en cabine ou livraison. Merci pour votre confiance ! ✨🌿`;
+        openWhatsApp(c.phone, confirmMsg);
+      }
+
+      setDepositOpen(false);
+      setDepositAmount("");
+      setDepositPurpose("");
+      setDepositRef("");
+      setDepositNotes("");
+      detail.refetch();
+      onRefreshClients?.();
+    } catch (err) {
+      proToastError(err, "Impossible d'enregistrer l'avance");
+    } finally {
+      setDepositBusy(false);
+    }
+  }
 
   // Initialisation synchronisée avec la fiche cliente en base
   useEffect(() => {
@@ -886,6 +952,29 @@ function ClientSheet({
                   <p className="text-[9px] uppercase text-muted-foreground">Dernière visite</p>
                   <p className="text-sm font-semibold">{c.lastVisit ? formatDate(c.lastVisit, { day: "numeric", month: "short" }) : "—"}</p>
                 </div>
+              </div>
+
+              {/* Solde d'avance / Acompte disponible */}
+              <div className="mt-2.5 flex items-center justify-between p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">💰</span>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                      Avance / Acompte disponible
+                    </p>
+                    <p className="font-mono text-sm font-black text-emerald-700 dark:text-emerald-300">
+                      {xof(availableDepositTotal)}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setDepositOpen(true)}
+                  className="h-7 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 px-2.5"
+                >
+                  <Plus className="size-3" />
+                  + Encaisser une avance
+                </Button>
               </div>
             </SheetHeader>
 
@@ -1076,15 +1165,80 @@ function ClientSheet({
                 <RfmDots client={c} />
               </section>
 
-              {/* Onglets CRM (Ventes, RDV, Commandes, Avis, Notes) */}
+              {/* Onglets CRM (Ventes, Avances, RDV, Commandes, Avis, Notes) */}
               <Tabs defaultValue="sales">
                 <TabsList className="w-full">
                   <TabsTrigger value="sales" className="text-[11px] flex-1">Ventes</TabsTrigger>
+                  <TabsTrigger value="deposits" className="text-[11px] flex-1">
+                    Avances {(d.deposits && d.deposits.length > 0) ? `(${d.deposits.length})` : ""}
+                  </TabsTrigger>
                   <TabsTrigger value="appts" className="text-[11px] flex-1">RDV</TabsTrigger>
                   <TabsTrigger value="orders" className="text-[11px] flex-1">Commandes</TabsTrigger>
                   <TabsTrigger value="reviews" className="text-[11px] flex-1">Avis</TabsTrigger>
                   <TabsTrigger value="notes" className="text-[11px] flex-1">Notes</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="deposits" className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-xs font-semibold text-foreground">Acomptes &amp; Avances reçus</span>
+                    <Button
+                      size="sm"
+                      onClick={() => setDepositOpen(true)}
+                      className="h-7 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                    >
+                      <Plus className="size-3" /> Nouvelle avance
+                    </Button>
+                  </div>
+                  {(!d.deposits || d.deposits.length === 0) ? (
+                    <EmptyState
+                      label="Aucun acompte enregistré"
+                      sub="Enregistrez les avances reçues par Wave, Orange Money ou espèces pour réservation de soins ou produits."
+                    />
+                  ) : (
+                    <ul className="space-y-2 max-h-72 overflow-y-auto pretty-scroll pr-1">
+                      {d.deposits.map((dep) => (
+                        <li key={dep.id} className="rounded-xl border border-border p-2.5 bg-card/60 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-mono font-semibold text-foreground">
+                              {dep.receiptNumber} · {formatDate(dep.createdAt)}
+                            </span>
+                            <span
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-full font-bold",
+                                dep.status === "available"
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                                  : dep.status === "consumed"
+                                  ? "bg-muted text-muted-foreground border border-border"
+                                  : "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                              )}
+                            >
+                              {dep.status === "available"
+                                ? "Disponible"
+                                : dep.status === "consumed"
+                                ? "Consommé"
+                                : "Remboursé"}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline justify-between text-xs">
+                            <span className="text-muted-foreground truncate mr-2">
+                              {dep.purpose || "Avance sur soin ou produit"} · <span className="uppercase font-semibold">{dep.paymentMethod}</span>
+                            </span>
+                            <span className="font-mono font-bold text-foreground shrink-0">{xof(dep.amount)}</span>
+                          </div>
+                          {dep.usedAmount > 0 && (
+                            <div className="flex items-center justify-between text-[10.5px] text-muted-foreground pt-1 border-t border-border/50">
+                              <span>Utilisé : {xof(dep.usedAmount)}</span>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                Reste : {xof(dep.remainingAmount)}
+                              </span>
+                            </div>
+                          )}
+                          {dep.notes && <p className="text-[10px] text-muted-foreground italic">Note: {dep.notes}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </TabsContent>
 
                 <TabsContent value="sales" className="mt-3">
                   {d.sales.length === 0 ? (
@@ -1311,6 +1465,118 @@ function ClientSheet({
                   Archiver du salon
                 </Button>
               </div>
+
+              {/* Dialogue d'enregistrement d'une avance / acompte */}
+              <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-heading font-black text-base flex items-center gap-2">
+                      <span className="text-lg">💰</span>
+                      Encaisser une avance / acompte
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                      Enregistrez le versement reçu de <strong>{c?.name}</strong> (via WhatsApp, Wave, Orange Money ou espèces). Le solde sera déductible d&apos;un clic lors de la facturation en caisse.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <form onSubmit={handleCreateDeposit} className="space-y-3.5 py-1">
+                    <div className="space-y-1.5">
+                      <label htmlFor="deposit-amount" className="text-xs font-semibold block text-foreground">
+                        Montant de l&apos;avance (FCFA) <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="deposit-amount"
+                        type="text"
+                        inputMode="numeric"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value.replace(/\D/g, ""))}
+                        placeholder="Ex: 10000"
+                        className="font-mono text-base font-bold"
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="deposit-method" className="text-xs font-semibold block text-foreground">
+                        Moyen de paiement <span className="text-destructive">*</span>
+                      </label>
+                      <select
+                        id="deposit-method"
+                        value={depositMethod}
+                        onChange={(e) => setDepositMethod(e.target.value as any)}
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus-visible:outline-2 focus-visible:outline-ring"
+                      >
+                        <option value="wave">Wave Mobile Money</option>
+                        <option value="orange">Orange Money</option>
+                        <option value="mtn">MTN MoMo</option>
+                        <option value="moov">Moov Money</option>
+                        <option value="cash">Espèces (Comptoir)</option>
+                        <option value="card">Carte bancaire</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="deposit-purpose" className="text-xs font-semibold block text-foreground">
+                        Motif de l&apos;avance (Soin réservé ou Produits commandés)
+                      </label>
+                      <Input
+                        id="deposit-purpose"
+                        value={depositPurpose}
+                        onChange={(e) => setDepositPurpose(e.target.value)}
+                        placeholder="Ex: Avance soin visage Kènè Éclat + Crème réparatrice"
+                        className="text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="deposit-ref" className="text-xs font-semibold block text-foreground">
+                        Référence de transaction (Optionnel)
+                      </label>
+                      <Input
+                        id="deposit-ref"
+                        value={depositRef}
+                        onChange={(e) => setDepositRef(e.target.value)}
+                        placeholder="Ex: Réf Wave TX-98421..."
+                        className="text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="deposit-notes" className="text-xs font-semibold block text-foreground">
+                        Notes internes (Optionnel)
+                      </label>
+                      <Input
+                        id="deposit-notes"
+                        value={depositNotes}
+                        onChange={(e) => setDepositNotes(e.target.value)}
+                        placeholder="Reçu sur WhatsApp, confirmation téléphonique faite..."
+                        className="text-xs"
+                      />
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:justify-end pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setDepositOpen(false)}
+                        disabled={depositBusy}
+                        className="text-xs"
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={depositBusy || !depositAmount || parseInt(depositAmount, 10) <= 0}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5"
+                      >
+                        {depositBusy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                        Valider l&apos;avance &amp; WhatsApp
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
               {/* Dialogue de confirmation d'archivage CRM */}
               <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>

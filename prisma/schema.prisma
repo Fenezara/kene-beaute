@@ -131,6 +131,7 @@ model Tenant {
   followUpMarks  FollowUpMark[]
   proDiagnoses   ProDiagnosis[]
   leaves        LeaveRequest[]
+  clientDeposits ClientDeposit[]
   selectedByUsers User[] @relation("UserSelectedTenant")
 }
 
@@ -211,6 +212,7 @@ model ClientProfile {
   appointments Appointment[]
   sales        Sale[]
   proDiagnoses ProDiagnosis[]
+  deposits     ClientDeposit[]
 }
 
 // ─────────────────────────── Diagnostic en institut (questionnaire ± photo) ───────────────────────────
@@ -328,6 +330,9 @@ model Sale {
   paymentRef     String?
   cashierName    String   @default("Caisse 1")
   status         String   @default("completed") // pending | completed | refunded
+  depositUsed    Int      @default(0) // Acompte/avance déduite sur cette vente
+  clientDepositId String? // Lien vers l'acompte ClientDeposit utilisé le cas échéant
+  clientDeposit  ClientDeposit? @relation(fields: [clientDepositId], references: [id])
   createdAt      DateTime @default(now())
 
   @@index([tenantId, createdAt]) // KPIs ventes + compta par période
@@ -347,6 +352,33 @@ model SaleItem {
   unitPrice Int
   total     Int
   customPriceReason String? // Motif d'ajustement du prix dans le dossier patient
+}
+
+// ─────────────────────────── Acomptes & Avances Clientes (Cabine / WhatsApp / Produits) ───────────────────────────
+
+model ClientDeposit {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientProfileId String
+  clientProfile  ClientProfile @relation(fields: [clientProfileId], references: [id], onDelete: Cascade)
+  amount         Int           // Montant total versé en avance (ex: 15000 FCFA)
+  usedAmount     Int           @default(0) // Montant déjà consommé lors des ventes
+  remainingAmount Int          // Montant restant disponible (amount - usedAmount)
+  paymentMethod  String        // wave | orange | mtn | moov | cash | card
+  paymentRef     String?       // Référence transaction Mobile Money ou reçu
+  purpose        String?       // Soin spécifique, réservation produit, avance libre WhatsApp, etc.
+  status         String        @default("available") // available | consumed | refunded
+  receiptNumber  String?       // N° officiel de reçu d'acompte (ex: AC-2026-0042)
+  notes          String?       // Remarques de la gérante / dermo-conseillère
+  createdBy      String?       // Nom de l'opératrice / gérante ayant encaissé l'avance
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  sales          Sale[]        // Ventes sur lesquelles cette avance a été appliquée
+
+  @@index([tenantId, clientProfileId, status])
+  @@index([tenantId, createdAt])
 }
 
 model InventoryMovement {

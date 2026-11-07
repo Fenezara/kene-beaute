@@ -170,7 +170,13 @@ export async function GET(req: NextRequest) {
           { name: { contains: "invitée" } },
         ],
       },
-      include: { _count: { select: { sales: true, appointments: true } } },
+      include: {
+        _count: { select: { sales: true, appointments: true } },
+        deposits: {
+          where: { status: "available" },
+          select: { id: true, amount: true, usedAmount: true, remainingAmount: true, purpose: true, receiptNumber: true },
+        },
+      },
       orderBy: { totalSpent: "desc" },
     });
 
@@ -241,8 +247,11 @@ export async function GET(req: NextRequest) {
         connectionStatus = "offline_only";
       }
 
+      const availableDeposit = (c.deposits || []).reduce((sum, d) => sum + d.remainingAmount, 0);
+
       return {
         ...c,
+        availableDeposit,
         connectionStatus,
         sharesGranted,
         isReferent,
