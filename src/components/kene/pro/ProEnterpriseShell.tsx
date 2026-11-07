@@ -61,6 +61,7 @@ import { unlockAudioContext } from "../client/ttsAudio";
 import { syncOfflineSales } from "@/lib/pos/offline-queue";
 import { CreateBranchDialog } from "./CreateBranchDialog";
 import { DashboardSection } from "./DashboardSection";
+import { EmployeeDashboardSection } from "./EmployeeDashboardSection";
 import { AgendaSection } from "./AgendaSection";
 import { PosSection } from "./PosSection";
 import { CrmSection } from "./CrmSection";
@@ -478,12 +479,12 @@ export function ProEnterpriseShell() {
 
   const allowedIds: ProSectionId[] | null = isEmployee
     ? normalizedPermissions && normalizedPermissions.length > 0
-      ? ([...new Set([...normalizedPermissions, "parametres"])].filter(
+      ? ([...new Set(["dashboard", ...normalizedPermissions, "parametres"])].filter(
           (id) => id !== "paie" && id !== "compta"
         ) as ProSectionId[])
       : employeeRole
-      ? ([...new Set([...(EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant"]), "parametres"])] as ProSectionId[])
-      : (["agenda", "diagnostic", "assistant", "parametres"] as ProSectionId[])
+      ? ([...new Set(["dashboard", ...(EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant"]), "parametres"])] as ProSectionId[])
+      : (["dashboard", "agenda", "diagnostic", "assistant", "parametres"] as ProSectionId[])
     : null;
 
   const isOwner = sessionUser?.role === "admin" || (serverViewer ? serverViewer.isOwner : !isEmployee);
@@ -1757,14 +1758,31 @@ export function ProEnterpriseShell() {
             className={cn("min-w-0", activeSection === "assistant" && "flex-1 min-h-0 flex flex-col")}
           >
             {activeSection === "dashboard" && (
-              <DashboardSection
-                tenantId={tid}
-                overview={overview}
-                loadingOverview={overview.loading}
-                onNavigate={openSection}
-                onOpenInciScanner={() => setInciScannerOpen(true)}
-                onOpenMirrorKiosk={() => setMirrorKioskOpen(true)}
-              />
+              isOwner ? (
+                <DashboardSection
+                  tenantId={tid}
+                  overview={overview}
+                  loadingOverview={overview.loading}
+                  onNavigate={openSection}
+                  onOpenInciScanner={() => setInciScannerOpen(true)}
+                  onOpenMirrorKiosk={() => setMirrorKioskOpen(true)}
+                />
+              ) : (
+                <EmployeeDashboardSection
+                  tenantId={tid}
+                  tenantName={tenant?.name ?? "Institut"}
+                  employeeName={chipName}
+                  employeeRole={employeeRole || "Praticienne"}
+                  allowedSections={allowedIds ?? undefined}
+                  overview={overview.data}
+                  attendance={staffAttendance}
+                  onPointage={handleSelfPointage}
+                  pointageBusy={attendanceBusy}
+                  onNavigate={openSection}
+                  onOpenInciScanner={() => setInciScannerOpen(true)}
+                  onOpenMirrorKiosk={() => setMirrorKioskOpen(true)}
+                />
+              )
             )}
             {activeSection === "assistant" && (
               <AssistantSection
