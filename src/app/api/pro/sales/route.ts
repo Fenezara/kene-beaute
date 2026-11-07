@@ -201,8 +201,12 @@ export async function POST(req: NextRequest) {
     const disc = Math.min(discount ?? 0, subtotal);
     const total = subtotal - disc;
     const { tva } = splitTVA(total);
-    const servicesAmount = lines.filter((l) => l.kind === "service").reduce((s, l) => s + l.total, 0);
-    const productsAmount = subtotal - servicesAmount;
+    
+    // Ventilation du montant net facturé au prorata entre prestations et produits
+    const rawServicesAmount = lines.filter((l) => l.kind === "service").reduce((s, l) => s + l.total, 0);
+    const rawProductsAmount = subtotal - rawServicesAmount;
+    const servicesAmount = subtotal > 0 ? Math.round((rawServicesAmount / subtotal) * total) : 0;
+    const productsAmount = total - servicesAmount;
 
     // Validation du paiement mixte / multi-moyens
     const splitPayments = parsed.data.splitPayments;
