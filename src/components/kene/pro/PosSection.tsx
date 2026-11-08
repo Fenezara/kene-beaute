@@ -83,6 +83,8 @@ const METHOD_LABELS: Record<string, string> = {
   split: "Mixte (Multi-moyens)",
 };
 
+import { DailyAuditCalendarModal } from "./DailyAuditCalendarModal";
+
 export function PosSection({
   tenantId,
   tenantName,
@@ -977,6 +979,8 @@ export function PosSection({
               <ArrowDownCircle className="size-3.5" />
               Sortie de Caisse / Dépense
             </Button>
+
+            <DailyAuditCalendarModal tenantId={tenantId} tenantName={tenantName} />
 
             <Button
               size="sm"

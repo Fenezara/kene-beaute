@@ -54,6 +54,8 @@ import type { ProOverview, ProReviewView, ProReviewSummary, ProReviewsResponse }
 import type { UseApiResult } from "./useApi";
 import type { ProSectionId } from "./ProApp";
 
+import { DailyAuditCalendarModal } from "./DailyAuditCalendarModal";
+
 const PAYMENT_COLORS: Record<string, string> = {
   saspay: "#D4AF37",
   winipayer: "#9B6D12",
@@ -214,30 +216,35 @@ export function DashboardSection({
           </div>
         </div>
 
-        {/* Toggle Vue Opérationnelle / Analyse Financière */}
-        <div className="flex rounded-xl bg-muted/70 border border-gold/25 p-1 text-xs">
-          <button
-            type="button"
-            onClick={() => setViewMode("operations")}
-            className={cn(
-              "rounded-lg px-3 py-1.5 font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
-              viewMode === "operations" ? "k-btn-gold text-[#18120C] shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <LayoutDashboard className="size-3.5" />
-            Vue Opérationnelle
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("finance")}
-            className={cn(
-              "rounded-lg px-3 py-1.5 font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
-              viewMode === "finance" ? "k-btn-gold text-[#18120C] shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <BarChart3 className="size-3.5" />
-            Analyse Financière &amp; KPIs
-          </button>
+        {/* Actions & Sélecteur de Mode */}
+        <div className="flex flex-wrap items-center gap-2">
+          <DailyAuditCalendarModal tenantId={data.tenant.id} tenantName={data.tenant.name} />
+
+          {/* Toggle Vue Opérationnelle / Analyse Financière */}
+          <div className="flex rounded-xl bg-muted/70 border border-gold/25 p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode("operations")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
+                viewMode === "operations" ? "k-btn-gold text-[#18120C] shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <LayoutDashboard className="size-3.5" />
+              Vue Opérationnelle
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("finance")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
+                viewMode === "finance" ? "k-btn-gold text-[#18120C] shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <BarChart3 className="size-3.5" />
+              Analyse Financière &amp; KPIs
+            </button>
+          </div>
         </div>
       </div>
 

@@ -127,6 +127,8 @@ function workingDays(startIso: string, endIso: string): number {
   return days;
 }
 
+import { DailyAuditCalendarModal } from "./DailyAuditCalendarModal";
+
 export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; defaultCountry: string }) {
   const sessionUser = useKene((s) => s.user);
   const isOwner = sessionUser?.role === "admin" || (sessionUser?.role === "pro" && !sessionUser?.employeeRole);
@@ -290,6 +292,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         sub="Registre du personnel — postes, contrats, comptes app et pointage du jour"
         actions={
           <div className="flex items-center gap-2 shrink-0">
+            <DailyAuditCalendarModal tenantId={tenantId} tenantName="Équipe & Salon" />
             <Button
               variant="outline"
               onClick={handleExportAttendance}
