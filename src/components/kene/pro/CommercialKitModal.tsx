@@ -20,6 +20,7 @@ import {
   Heart,
   Calendar,
   Award,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -355,10 +356,18 @@ export function CommercialKitModal({
                 <button
                   type="button"
                   onClick={handlePrintChevaletA5}
+                  className="h-8 px-3 rounded-lg border border-gold/40 text-xs font-bold inline-flex items-center gap-1.5 hover:bg-gold/10 active:scale-95 transition-all shadow-xs"
+                >
+                  <Printer size={13} /> Imprimer
+                </button>
+                <a
+                  href={`/api/pro/marketing/pdf?type=flyer-a5&tenantId=${encodeURIComponent(tenantId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
                 >
-                  <Printer size={13} /> Imprimer Chevalet A5
-                </button>
+                  <Download size={13} /> Télécharger PDF A5
+                </a>
               </div>
             </div>
 
@@ -444,13 +453,31 @@ export function CommercialKitModal({
               <p className="text-xs text-muted-foreground">
                 Format carte de sortie A6 à remettre en main propre à la cliente en caisse avec ses notes de soin.
               </p>
-              <button
-                type="button"
-                onClick={handlePrintCarteA6}
-                className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
-              >
-                <Printer size={13} /> Imprimer Carte A6
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrintCarteA6}
+                  className="h-8 px-3 rounded-lg border border-gold/40 text-xs font-bold inline-flex items-center gap-1.5 hover:bg-gold/10 active:scale-95 transition-all shadow-xs"
+                >
+                  <Printer size={13} /> Imprimer
+                </button>
+                <a
+                  href={`/api/pro/marketing/pdf?type=pass-a6&tenantId=${encodeURIComponent(tenantId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                >
+                  <Download size={13} /> Télécharger PDF A6
+                </a>
+                <a
+                  href={`/api/pro/marketing/pdf?type=parrainage-carte&tenantId=${encodeURIComponent(tenantId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-8 px-3 rounded-lg border border-gold/60 text-gold-text text-xs font-bold inline-flex items-center gap-1.5 hover:bg-gold/10 active:scale-95 transition-all shadow-xs"
+                >
+                  <Download size={13} /> 4 Cartes VIP (Planche)
+                </a>
+              </div>
             </div>
 
             {/* Zone imprimable Carte A6 */}
@@ -684,13 +711,23 @@ export function CommercialKitModal({
               <p className="text-xs text-muted-foreground">
                 Attestation officielle d&apos;agrément Kènè Pro et engagement déontologique pour {tenantName}.
               </p>
-              <button
-                type="button"
-                onClick={handlePrintConvention}
-                className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
-              >
-                <Printer size={13} /> Imprimer l&apos;Attestation
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrintConvention}
+                  className="h-8 px-3 rounded-lg border border-gold/40 text-xs font-bold inline-flex items-center gap-1.5 hover:bg-gold/10 active:scale-95 transition-all shadow-xs"
+                >
+                  <Printer size={13} /> Imprimer
+                </button>
+                <a
+                  href={`/api/pro/marketing/pdf?type=attestation-a4&tenantId=${encodeURIComponent(tenantId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                >
+                  <Download size={13} /> Télécharger Agrément PDF
+                </a>
+              </div>
             </div>
 
             {/* Zone imprimable Attestation / Convention */}
