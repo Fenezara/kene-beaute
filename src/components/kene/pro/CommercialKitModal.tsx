@@ -21,6 +21,7 @@ import {
   Calendar,
   Award,
   Download,
+  BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -337,6 +338,9 @@ export function CommercialKitModal({
             </TabsTrigger>
             <TabsTrigger value="convention" className="text-[11px] font-semibold gap-1 py-1.5 rounded-lg">
               <FileCheck2 size={12} /> Convention
+            </TabsTrigger>
+            <TabsTrigger value="manuel" className="text-[11px] font-semibold gap-1 py-1.5 rounded-lg">
+              <BookOpen size={12} /> Manuel Pro
             </TabsTrigger>
           </TabsList>
 
@@ -806,6 +810,77 @@ export function CommercialKitModal({
                   <p className="italic">La Direction / Gérante</p>
                   <div className="mt-1 font-mono text-[9px] text-muted-foreground">Cachet &amp; Signature</div>
                 </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ─── TAB 7 : MANUEL OFFICIEL D'UTILISATION KÈNÈ PRO ─── */}
+          <TabsContent value="manuel" className="space-y-4 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-gold/10 border border-gold/30 no-print">
+              <p className="text-xs text-muted-foreground">
+                Manuel de formation et maîtrise intégrale de Kènè Pro (3 volumes : Praticiennes, Direction &amp; Relations).
+              </p>
+              <a
+                href={`/api/pro/marketing/pdf?type=manuel-pro&tenantId=${encodeURIComponent(tenantId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+              >
+                <Download size={13} /> Télécharger le Manuel PDF (A4)
+              </a>
+            </div>
+
+            <div className="rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 space-y-4 text-foreground shadow-sm">
+              <div className="flex items-center gap-3 border-b border-gold/30 pb-3">
+                <KeneEmblem size={38} />
+                <div>
+                  <h4 className="font-heading font-black text-sm text-gold-text uppercase tracking-wide">
+                    MANUEL D&apos;UTILISATION OFFICIEL · KÈNÈ PRO 2026
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground">
+                    Document de référence opérationnel pour {tenantName} ({tenantCity || "Abidjan"})
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                <div className="p-3 rounded-xl bg-background/80 border border-border space-y-1.5">
+                  <span className="text-xs font-bold text-[#E04E75] uppercase">Volume 1 : Cabine</span>
+                  <p className="text-[11px] font-bold text-foreground">Guide Praticienne</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Pointage smartphone, scan de peau 10s, ordonnance botanique WhatsApp et scanner INCI anti-contrefaçon.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-background/80 border border-border space-y-1.5">
+                  <span className="text-xs font-bold text-gold-text uppercase">Volume 2 : Pilotage</span>
+                  <p className="text-[11px] font-bold text-foreground">Guide Gérante</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Caisse POS SYSCOHADA, consultation historique par calendrier, alertes stocks et paie CNPS.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-background/80 border border-border space-y-1.5">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">Volume 3 : Relations</span>
+                  <p className="text-[11px] font-bold text-foreground">Kit &amp; Objections</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Flyers A5, pass A6, cartes parrainage et argumentaire face aux 3 objections clientes majeures.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-between gap-3 text-xs">
+                <p className="text-muted-foreground text-[11px]">
+                  💡 <em>Conseil : Vous pouvez télécharger et imprimer le manuel pour le relier ou le transférer en PDF à votre équipe.</em>
+                </p>
+                <a
+                  href={`/api/pro/marketing/pdf?type=manuel-pro&tenantId=${encodeURIComponent(tenantId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 font-bold text-gold-text hover:underline inline-flex items-center gap-1"
+                >
+                  <Download size={12} /> Télécharger
+                </a>
               </div>
             </div>
           </TabsContent>

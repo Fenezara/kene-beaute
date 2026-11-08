@@ -16,6 +16,7 @@ const VALID_TYPES: CommercialDocType[] = [
   "pass-a6",
   "parrainage-carte",
   "attestation-a4",
+  "manuel-pro",
 ];
 
 export async function GET(req: NextRequest) {
