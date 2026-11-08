@@ -31,7 +31,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DuafeIcon } from "@/components/kene/icons";
+import { DuafeIcon, KeneEmblem } from "@/components/kene/icons";
 import { printCommercialDocument } from "@/lib/hardware/commercial-print";
 
 interface CommercialKitModalProps {
@@ -83,7 +83,9 @@ export function CommercialKitModal({
       orientation: "portrait",
       htmlContent: `
         <div style="text-align:center; padding: 10px 0;">
-          <div style="font-size: 26px; margin-bottom: 4px;">👑</div>
+          <div style="margin-bottom: 8px;">
+            <img src="${window.location.origin}/brand/kene-emblem-dark.png" style="width: 54px; height: 54px; border-radius: 14px; display: inline-block;" alt="Kènè">
+          </div>
           <div style="font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #C8951E; text-transform: uppercase;">
             KÈNÈ BEAUTÉ & BIEN-ÊTRE
           </div>
@@ -142,12 +144,15 @@ export function CommercialKitModal({
       orientation: "landscape",
       htmlContent: `
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #C8951E; padding-bottom: 8px;">
-          <div>
-            <div style="font-size: 14px; font-weight: 900; color: #C8951E; text-transform: uppercase;">
-              CARTE PRIVILÈGE & BILAN CABINE
-            </div>
-            <div style="font-size: 9px; color: #666;">
-              ${tenantName} ${tenantCity ? `(${tenantCity})` : ""}
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <img src="${window.location.origin}/brand/kene-emblem-dark.png" style="width: 32px; height: 32px; border-radius: 8px; display: inline-block;" alt="Kènè">
+            <div>
+              <div style="font-size: 13px; font-weight: 900; color: #C8951E; text-transform: uppercase;">
+                CARTE PRIVILÈGE & BILAN CABINE
+              </div>
+              <div style="font-size: 9px; color: #666;">
+                ${tenantName} ${tenantCity ? `(${tenantCity})` : ""}
+              </div>
             </div>
           </div>
           <div style="background: #C8951E; color: #FFF; font-size: 9px; font-weight: bold; padding: 3px 8px; border-radius: 6px;">
@@ -186,12 +191,15 @@ export function CommercialKitModal({
       orientation: "portrait",
       htmlContent: `
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #C8951E; padding-bottom: 10px;">
-          <div>
-            <div style="font-size: 15px; font-weight: 900; color: #C8951E; text-transform: uppercase;">
-              ATTESTATION D'AGRÉMENT INSTITUT PARTENAIRE
-            </div>
-            <div style="font-size: 9px; color: #777;">
-              Écosystème Dermo-Botanique Kènè Technologies · Réf: KENE-CERT-${tenantId.substring(0, 8).toUpperCase()}
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="${window.location.origin}/brand/kene-emblem-dark.png" style="width: 36px; height: 36px; border-radius: 9px; display: inline-block;" alt="Kènè">
+            <div>
+              <div style="font-size: 15px; font-weight: 900; color: #C8951E; text-transform: uppercase;">
+                ATTESTATION D'AGRÉMENT INSTITUT PARTENAIRE
+              </div>
+              <div style="font-size: 9px; color: #777;">
+                Écosystème Dermo-Botanique Kènè Technologies · Réf: KENE-CERT-${tenantId.substring(0, 8).toUpperCase()}
+              </div>
             </div>
           </div>
           <div style="background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; font-size: 9px; font-weight: bold; padding: 4px 10px; border-radius: 99px;">
@@ -373,10 +381,8 @@ export function CommercialKitModal({
 
             {/* Zone imprimable Chevalet A5 */}
             <div className="kene-print-container rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 text-center space-y-4 shadow-sm text-foreground">
-              <div className="flex flex-col items-center justify-center space-y-1">
-                <span className="grid size-12 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-white shadow-xs">
-                  <DuafeIcon size={24} />
-                </span>
+              <div className="flex flex-col items-center justify-center space-y-1.5">
+                <KeneEmblem size={48} className="drop-shadow-sm" />
                 <p className="font-heading font-black text-xl tracking-wide uppercase pt-1 text-gold-text">
                   KÈNÈ BEAUTÉ &amp; BIEN-ÊTRE
                 </p>
@@ -484,9 +490,7 @@ export function CommercialKitModal({
             <div className="kene-print-container rounded-2xl border-2 border-gold/50 bg-[#FFFCF6] dark:bg-[#1A1410] p-5 space-y-3 max-w-lg mx-auto shadow-sm text-foreground">
               <div className="flex items-center justify-between border-b border-gold/30 pb-2">
                 <div className="flex items-center gap-2">
-                  <span className="grid size-8 place-items-center rounded-full bg-gold text-white">
-                    <DuafeIcon size={16} />
-                  </span>
+                  <KeneEmblem size={32} />
                   <div>
                     <p className="font-heading font-black text-sm text-gold-text uppercase leading-none">
                       KÈNÈ VIP PASS
@@ -734,9 +738,7 @@ export function CommercialKitModal({
             <div className="kene-print-container rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 space-y-4 text-foreground shadow-sm">
               <div className="flex items-center justify-between border-b border-gold/30 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="grid size-10 place-items-center rounded-xl bg-gold text-white">
-                    <DuafeIcon size={20} />
-                  </span>
+                  <KeneEmblem size={38} />
                   <div>
                     <h4 className="font-heading font-black text-sm text-gold-text uppercase tracking-wide">
                       ATTESTATION D&apos;AGRÉMENT INSTITUT PARTENAIRE
