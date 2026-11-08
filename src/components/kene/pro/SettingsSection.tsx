@@ -10,7 +10,7 @@
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Camera, Check, CheckCircle2, ChevronRight, Clock, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogIn, LogOut, MapPin, Moon, Phone, Receipt, ShieldCheck, Award, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, CheckCircle2, ChevronRight, Clock, CreditCard, Crown, Headphones, ImageOff, KeyRound, Languages, Loader2, Lock, LogIn, LogOut, MapPin, Moon, Phone, Receipt, ShieldCheck, Award, SunMedium } from "lucide-react";
 import { DuafeIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -29,6 +29,7 @@ import { getTenantPosSettings, saveTenantPosSettings, type TenantPosSettings } f
 import { formatRole } from "@/lib/kene/hr-constants";
 import { CommercialKitModal } from "./CommercialKitModal";
 import { TierThemeSelector } from "@/components/kene/TierThemeSelector";
+import { ContactKeneModal } from "@/components/kene/client/ContactKeneModal";
 
 /* Porte d'hydratation: false pendant le rendu serveur + l'hydratation, true
  * ensuite — l'état actif Clair/Sombre ne s'affiche qu'une fois le thème
@@ -231,6 +232,7 @@ export function SettingsSection({
   const [changePhoneOpen, setChangePhoneOpen] = useState(false);
   const [changePinOpen, setChangePinOpen] = useState(false);
   const [commercialKitOpen, setCommercialKitOpen] = useState(false);
+  const [contactKeneOpen, setContactKeneOpen] = useState(false);
 
  /** Langue de l'interface — même logique que côté cliente. */
   function selectLang(l: Lang) {
@@ -891,6 +893,28 @@ export function SettingsSection({
             </div>
           )}
 
+          {/* Assistance & Contact Équipe Éditrice Kènè */}
+          <div className="k-card-awwwards p-5 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <IconBadge icon={<Headphones size={18} />} tone="gold" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-foreground">Support &amp; Direction Kènè Technologies</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                    Une question technique, un partenariat ou besoin d&apos;assistance ? Contactez directement l&apos;équipe créatrice.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setContactKeneOpen(true)}
+                className="h-10 px-4 rounded-xl border border-gold/40 bg-gold/15 hover:bg-gold/25 text-gold-text text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-all shrink-0 cursor-pointer shadow-xs"
+              >
+                <Headphones size={14} /> Contacter l&apos;équipe Kènè
+              </button>
+            </div>
+          </div>
+
           {/* Session & À propos */}
           <div className="k-card-awwwards p-5 space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -933,6 +957,12 @@ export function SettingsSection({
         tenantId={tenantId}
         tenantName={tenantName}
         tenantCity={tenantCity}
+      />
+
+      <ContactKeneModal
+        open={contactKeneOpen}
+        onOpenChange={setContactKeneOpen}
+        userName={managerName}
       />
     </div>
   );
