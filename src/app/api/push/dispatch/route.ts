@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
     const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
-    const subject = process.env.VAPID_SUBJECT?.trim() || "mailto:contact@kene.app";
+    const subject = process.env.VAPID_SUBJECT?.trim() || "mailto:contact@kene-beaute.com";
     if (!publicKey || !privateKey) {
       // VAPID non configuré: rien à envoyer, mais la route reste verte
       // (le notify-service ne doit jamais crasher là-dessus).

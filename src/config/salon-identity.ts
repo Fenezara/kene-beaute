@@ -69,7 +69,7 @@ export const SALON_CONFIG: SalonIdentityConfig = {
   contact: {
     phone: "+225 27 22 00 00 00",
     whatsapp: "2250700000000",
-    email: "contact@kene.app",
+    email: "contact@kene-beaute.com",
   },
   accounting: {
     currency: "XOF",

@@ -16,7 +16,7 @@ export const KENE_SUPPORT_PHONE =
 export const KENE_SUPPORT_EMAIL =
   process.env.KENE_SUPPORT_EMAIL ||
   process.env.NEXT_PUBLIC_KENE_SUPPORT_EMAIL ||
-  "contact@kene.ci";
+  "contact@kene-beaute.com";
 
 /**
  * Formatage d'affichage aéré et lisible pour l'UI (ex: "+225 07 48 89 42 70")
