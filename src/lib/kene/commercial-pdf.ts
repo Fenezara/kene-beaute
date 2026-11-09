@@ -633,33 +633,33 @@ function buildManuelPro(
     color: SOFT,
   });
 
-  // Section 1 : Prise de poste & Cabine
+  // Section 1 : Prise de poste, Cabine & Consultation
   y = 185;
-  doc.text("VOLUME 1 : PROTOCOLE CABINE & DIAGNOSTIC MELANODERME", M_X, y, { font: "bold", size: 12, color: BISSAP_DARK });
+  doc.text("VOLUME 1 : CABINE, CONSULTATION DERMO-CONSEIL & DIAGNOSTIC", M_X, y, { font: "bold", size: 12, color: BISSAP_DARK });
   doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1.2);
 
   // Étape 1
   y += 20;
   doc.rect(M_X, y - 4, CONTENT_W, 34, CARD);
   doc.rectStroke(M_X, y - 4, CONTENT_W, 34, GOLD, 0.8);
-  doc.text("ETAPE 1 : PRISE DE POSTE & POINTAGE BIOMETRIQUE HORODATE", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("ETAPE 1 : PRISE DE POSTE & POINTAGE HORODATE D'EQUIPE", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
   doc.text("Connexion sur kene-beaute.com/pro -> [Pointer mon arrivee]. Validation des heures et primes.", M_X + 14, y + 22, { font: "regular", size: 8.5, color: INK });
 
-  // Étape 2
+  // Étape 2 : Consultation Spécialisée
   y += 42;
-  doc.rect(M_X, y - 4, CONTENT_W, 44, CARD);
-  doc.rectStroke(M_X, y - 4, CONTENT_W, 44, GOLD, 0.8);
-  doc.text("ETAPE 2 : SCAN DERMO-CUTANE CABINE (PHOTOTYPES IV A VI)", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
-  doc.text("Prise de 3 cliches sous eclairage neutre (Face, Profil Droit, Profil Gauche).", M_X + 14, y + 21, { font: "regular", size: 8.5, color: INK });
-  doc.text("Calcul instantane : Taux d'hydratation, Score Eclat /100, Taches pigmentaires et alerte comedons.", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
+  doc.rect(M_X, y - 4, CONTENT_W, 46, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 46, GOLD, 0.8);
+  doc.text("ETAPE 2 : CONSULTATION DERMO-CUTANEE & SCAN CABINE (PHOTOTYPES IV A VI)", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Entretien anamnese, analyse 3 zones et 3 cliches sous eclairage neutre (Face, Profils Droit/Gauche).", M_X + 14, y + 21, { font: "regular", size: 8.5, color: INK });
+  doc.text("Calcul instantane : Taux d'hydratation, Score Eclat /100, Taches pigmentaires PIH et alerte comedons.", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
 
   // Étape 3
-  y += 52;
+  y += 54;
   doc.rect(M_X, y - 4, CONTENT_W, 44, CARD);
   doc.rectStroke(M_X, y - 4, CONTENT_W, 44, GOLD, 0.8);
-  doc.text("ETAPE 3 : ORDONNANCE BOTANIQUE CHIFFREE & TRANSMISSION WHATSAPP", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
-  doc.text("Selection des actifs africains nobles (Karite brut de savane, Baobab, Moringa, Kinkeliba, SPF50).", M_X + 14, y + 21, { font: "regular", size: 8.5, color: INK });
-  doc.text("Envoi securise en 1 clic sur le smartphone de la cliente. Suivi de l'evolution a J+30.", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
+  doc.text("ETAPE 3 : FICHE DE CONSULTATION & ORDONNANCE BOTANIQUE SUR SMARTPHONE", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Impression ou transmission WhatsApp de la Fiche de Consultation avec actifs purs (Karite, Moringa, Baobab).", M_X + 14, y + 21, { font: "regular", size: 8.5, color: INK });
+  doc.text("Suivi de cure et programmation du controle cutane d'evolution a J+15 et J+30.", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
 
   // ILLUSTRATION CAPTURE ACCUEIL & INSTITUT
   y += 52;
@@ -683,12 +683,12 @@ function buildManuelPro(
 
   // Module Caisse
   y += 24;
-  doc.rect(M_X, y - 4, CONTENT_W, 56, CARD);
-  doc.rectStroke(M_X, y - 4, CONTENT_W, 56, GOLD, 0.8);
-  doc.text("1. CAISSE POS TACTILE & ENCAISSEMENTS MULTI-FLUX AFRICAINS", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
-  doc.text("Modes acceptes : Wave (QR Code), Orange Money, MTN MoMo, Carte Bancaire, Especes.", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
-  doc.text("Emission instantanee : Recu numerique direct par WhatsApp/SMS ou impression ticket thermique 58/80mm.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
-  doc.text("Securite : Lettrage automatique des acomptes de reservation en ligne.", M_X + 14, y + 49, { font: "regular", size: 8.5, color: SOFT });
+  doc.rect(M_X, y - 4, CONTENT_W, 62, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 62, GOLD, 0.8);
+  doc.text("1. CAISSE POS TACTILE : ENCAISSEMENTS DES SOINS & CONSULTATIONS", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Classement Caisse : Categorie 'Consultations' (Bilan, Diagnostic 15 000 F) ou 'Soins Visage/Corps'.", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
+  doc.text("Reglement Multi-Flux : Wave (QR Code), Orange Money, MTN MoMo, Carte Bancaire, Especes.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+  doc.text("Emission du Recu : Recu numerique instantane par SMS/WhatsApp ou ticket thermique 58/80mm.", M_X + 14, y + 49, { font: "regular", size: 8.5, color: SOFT });
 
   // Module Journal de bord
   y += 66;

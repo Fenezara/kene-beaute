@@ -101,9 +101,9 @@ export default function ManuelPage() {
               <span className="text-xs font-black uppercase tracking-wider text-gold-text">
                 Volume 1
               </span>
-              <h4 className="font-heading font-bold text-base">Praticiennes & Cabine</h4>
+              <h4 className="font-heading font-bold text-base">Cabinets, Consultation &amp; Cabine</h4>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Connexion sécurisée par PIN d&apos;équipe, protocole de diagnostic Dermo Kènè pour peaux mélanodermes (phototypes IV à VI), analyse INCI et éthique non-médicale.
+                Pointage d&apos;équipe, entretien d&apos;anamnèse, édition de la Fiche de Consultation officielle, protocole de diagnostic Dermo Kènè pour peaux mélanodermes (phototypes IV à VI), ordonnance d&apos;actifs purs et suivi à J+30.
               </p>
             </div>
 
@@ -112,9 +112,9 @@ export default function ManuelPage() {
               <span className="text-xs font-black uppercase tracking-wider text-gold-text">
                 Volume 2
               </span>
-              <h4 className="font-heading font-bold text-base">Gérantes & Pilotage</h4>
+              <h4 className="font-heading font-bold text-base">Caisse, Reçus &amp; Pilotage SYSCOHADA</h4>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Encaissements Mobile Money (Wave, Orange Money, MTN), reçus WhatsApp instantanés, clôture de caisse quotidienne et conformité SYSCOHADA.
+                Classement caisse des consultations (badge violet) et soins cabine, encaissements Mobile Money (Wave, Orange Money, MTN), reçus WhatsApp / SMS instantanés, clôture de caisse quotidienne et conformité SYSCOHADA.
               </p>
             </div>
 
