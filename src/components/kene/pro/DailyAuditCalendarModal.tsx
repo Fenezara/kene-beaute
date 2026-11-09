@@ -150,9 +150,9 @@ export function DailyAuditCalendarModal({ tenantId, tenantName, trigger }: Daily
         )}
       </DialogTrigger>
 
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-3xl border-gold/30">
+      <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[92vh] overflow-y-auto overflow-x-hidden p-0 rounded-3xl border-gold/30">
         <KenteTop />
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5 overflow-x-hidden">
           {/* En-tête avec Sélecteur de Date & Raccourcis */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
             <div>
@@ -300,7 +300,7 @@ export function DailyAuditCalendarModal({ tenantId, tenantName, trigger }: Daily
               {/* VUE 1 : SYNTHÈSE GLOBALE DU JOUR */}
               {activeTab === "vue_globale" && (
                 <div className="space-y-5">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <Card className="rounded-2xl border-gold/40 bg-gradient-to-br from-gold/5 via-card to-card p-4 space-y-1">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Recette Encaissée</p>
                       <Money value={data.summary.caTotal} className="font-heading text-xl sm:text-2xl font-black text-gold-text" />
@@ -341,7 +341,7 @@ export function DailyAuditCalendarModal({ tenantId, tenantName, trigger }: Daily
                       <CauriIcon size={16} className="text-gold-text" />
                       <span>Ventilation des modes de règlement de la journée</span>
                     </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
                       <div className="p-2.5 rounded-xl bg-muted/40 border border-border">
                         <p className="text-[10px] text-muted-foreground">Wave Digital</p>
                         <Money value={data.summary.payments.wave} className="font-bold text-sky-500" />
