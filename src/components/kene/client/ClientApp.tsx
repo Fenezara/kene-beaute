@@ -761,7 +761,7 @@ export function ClientApp() {
             </div>
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
-          <div className="mx-auto w-full max-w-5xl xl:max-w-6xl px-2.5 sm:px-5 lg:px-6 pt-2.5 sm:pt-3 pb-[calc(84px+env(safe-area-inset-bottom,0px))] md:pb-8">
+          <div className="mx-auto w-full max-w-5xl xl:max-w-6xl px-2.5 sm:px-5 lg:px-6 pt-2.5 sm:pt-3 pb-[calc(88px+max(env(safe-area-inset-bottom,0px),16px))] md:pb-8">
             {/* Bannière incitative d'installation PWA si sur navigateur smartphone */}
             <SmartInstallBar />
 
@@ -840,7 +840,7 @@ export function ClientApp() {
         {/* ───────── Tab-bar mobile flottante « Capsule Bijou » — calibrée pour Android 320px-360px (1 ligne stricte, zéro débordement) ───────── */}
         <nav
           aria-label="Navigation principale mobile"
-          className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
+          className="md:hidden fixed inset-x-0 bottom-0 z-40 pointer-events-none pb-[max(env(safe-area-inset-bottom,0px),16px)]"
         >
           <div className="pointer-events-auto mx-2.5 sm:mx-3.5 mb-2.5 px-1.5 grid grid-cols-5 h-[66px] items-center rounded-[30px] k-capsule-dock relative overflow-visible">
             {NAV_MOBILE.map((n) => {
