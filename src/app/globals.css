@@ -860,7 +860,16 @@
     cursor: not-allowed;
   }
 
-  /* 5) Entrées & squelettes */
+  /* 5) Entrées & squelettes (Font-size ≥ 16px sur mobile pour empêcher le zoom automatique iOS Safari) */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  @media (min-width: 640px) {
+    input, textarea, select {
+      font-size: inherit !important;
+    }
+  }
+
   .k-input {
     background: color-mix(in srgb, var(--card) 55%, transparent);
     border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
