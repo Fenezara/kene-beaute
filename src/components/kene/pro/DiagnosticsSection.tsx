@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, Camera, ChevronLeft, ChevronRight, FileDown, Filter, ImagePlus, Info,
-  Loader2, OctagonAlert, PenLine, Pill, Printer, Search, Share2, ShieldAlert, ShieldCheck,
+  Loader2, OctagonAlert, PenLine, Pill, Printer, RotateCcw, Search, Share2, ShieldAlert, ShieldCheck,
   ShoppingBag, Sparkles, SlidersHorizontal, ScanFace, Trash2, UserPlus, Users, Video,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -743,10 +743,32 @@ function DiagWizard({
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent: (d: { indicators: Indicator[]; score: number; zoneLabel: string }) => void;
 }) {
-  const [step, setStep] = useState(1);
-  const [zone, setZone] = useState<BodyZone>("visage");
-  const [selected, setSelected] = useState<WizardClient | null>(null);
-  const [answers, setAnswers] = useState<QAnswers>(defaultAnswers);
+  const draftStorageKey = useMemo(() => `kene_diag_draft_${tenantId || "default"}`, [tenantId]);
+
+  // Restauration du brouillon actif (en cas de rechargement ou réouverture)
+  const [draftState] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(draftStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Validité du brouillon : 12 heures max
+      if (parsed && parsed.ts && Date.now() - parsed.ts < 12 * 3600 * 1000) {
+        return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
+
+  const [step, setStep] = useState<number>(() => {
+    if (draftState?.step && draftState.step >= 1 && draftState.step <= 3) return draftState.step;
+    return 1;
+  });
+  const [zone, setZone] = useState<BodyZone>(() => (draftState?.zone as BodyZone) || "visage");
+  const [selected, setSelected] = useState<WizardClient | null>(() => draftState?.selected || null);
+  const [answers, setAnswers] = useState<QAnswers>(() => draftState?.answers || defaultAnswers());
   const [photo, setPhoto] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const sessionUser = useKene((s) => s.user);
@@ -761,10 +783,37 @@ function DiagWizard({
   const [result, setResult] = useState<ProDiagnosisResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysisMsg, setAnalysisMsg] = useState(ANALYSIS_STEPS[0]);
-  const [consent, setConsent] = useState({ photo: false, data: false });
+  const [consent, setConsent] = useState(() => draftState?.consent || { photo: false, data: false });
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [createdCosmeticsUsed, setCreatedCosmeticsUsed] = useState<string | null>(null);
+
+  // Sauvegarde automatique en continu du brouillon dans localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Si l'analyse est terminée avec succès (étape 4 et résultat obtenu), le brouillon est nettoyé
+    if (step === 4 && result) {
+      window.localStorage.removeItem(draftStorageKey);
+      return;
+    }
+    // Ne sauvegarder que s'il y a du contenu (cliente sélectionnée ou réponses cochées)
+    const hasAnswers = Object.keys(answers).length > 0;
+    if (selected || hasAnswers) {
+      try {
+        const payload = {
+          step: Math.min(step, 3),
+          zone,
+          selected,
+          answers,
+          consent,
+          ts: Date.now(),
+        };
+        window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+      } catch {
+        // quota dépassé ou stockage désactivé
+      }
+    }
+  }, [step, zone, selected, answers, consent, result, draftStorageKey]);
 
   // Message rotatif
   const msgIdx = useRef(0);
@@ -785,6 +834,9 @@ function DiagWizard({
   const zoneLabel = BODY_ZONES.find((z) => z.id === zone)?.label ?? zone;
 
   const reset = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(draftStorageKey);
+    }
     setStep(1);
     setZone("visage");
     setSelected(null);
@@ -869,9 +921,23 @@ function DiagWizard({
         )}
       >
         <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40 sticky top-0 z-10">
-          <SheetTitle className="font-heading text-lg leading-tight">
-            Diagnostic en cabine {result ? "— résultat 3D" : `— étape ${step}/3`}
-          </SheetTitle>
+          <div className="flex items-center justify-between gap-2">
+            <SheetTitle className="font-heading text-lg leading-tight">
+              Diagnostic en cabine {result ? "— résultat 3D" : `— étape ${step}/3`}
+            </SheetTitle>
+            {!result && (selected || Object.keys(answers).length > 0) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={reset}
+                className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive gap-1 shrink-0"
+                title="Effacer le brouillon et recommencer à zéro"
+              >
+                <RotateCcw className="size-3" />
+                <span>Recommencer</span>
+              </Button>
+            )}
+          </div>
           <SheetDescription className="text-xs">
             {result
               ? `${selected?.name ?? ""} · ${zoneLabel.toLowerCase()} · ${practitioner || "praticienne"}`.replace(/^ · /, "")
