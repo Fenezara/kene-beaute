@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useKene } from "@/store/kene";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -98,6 +99,9 @@ interface DailyAuditCalendarModalProps {
 }
 
 export function DailyAuditCalendarModal({ tenantId, tenantName, trigger }: DailyAuditCalendarModalProps) {
+  const sessionUser = useKene((s) => s.user);
+  const isOwner = sessionUser?.role === "admin" || (sessionUser?.role === "pro" && !sessionUser?.employeeRole);
+
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
@@ -132,6 +136,11 @@ export function DailyAuditCalendarModal({ tenantId, tenantName, trigger }: Daily
 
   const parsedSelected = new Date(selectedDate);
   const isToday = selectedDate === new Date().toISOString().slice(0, 10);
+
+  // Sécurité Direction : Seule la gérante / direction a accès à l'audit historique
+  if (!isOwner) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

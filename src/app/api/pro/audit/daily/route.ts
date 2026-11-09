@@ -2,8 +2,8 @@
 // Bilan complet d'une journée passée ou présente : Présences/Pointages, Recettes/Caisse, Soins & RDV, Factures
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
-import { guardProRole } from "@/lib/kene/session";
+import { jsonError, serverError, resolveTenant, resolveUserProContext } from "@/lib/kene/server";
+import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 
@@ -15,6 +15,25 @@ export async function GET(req: NextRequest) {
     const tenantId = req.nextUrl.searchParams.get("tenantId");
     const tenant = await resolveTenant(req, tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
+
+    // Verrouillage strict : Seule la direction (Gérante / Admin) peut consulter le journal de bord
+    const sess = sessionFromRequest(req);
+    const queryUserId = req.nextUrl.searchParams.get("userId");
+    const targetUserId = sess?.userId || queryUserId;
+    if (targetUserId) {
+      const dbUser = await db.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true, phone: true, name: true, role: true },
+      });
+      if (dbUser) {
+        const proCtx = await resolveUserProContext(dbUser);
+        if (!proCtx.isOwner && dbUser.role !== "admin") {
+          return jsonError("Accès restreint : Seule la gérante ou la direction de l'établissement est autorisée à consulter le journal de bord financier et RH.", 403);
+        }
+      }
+    } else if (sess && sess.role !== "admin" && sess.role !== "pro") {
+      return jsonError("Accès interdit", 403);
+    }
 
     const dateParam = req.nextUrl.searchParams.get("date");
     let targetDate = new Date();
