@@ -577,168 +577,166 @@ function buildManuelPro(
   doc: PdfDoc,
   data: { tenantName: string; tenantCity: string | null; tenantPhone: string; appUrl: string }
 ) {
-  // PAGE 1 : COUVERTURE & VOLUME 1 (PRATICIENNE & CABINE)
-  let y = 30;
-  doc.rect(M_X, y, CONTENT_W, 90, KARITE);
-  doc.rectStroke(M_X, y, CONTENT_W, 90, GOLD, 1.2);
-  doc.drawBrandRibbon(M_X, y, CONTENT_W, 4);
+  // PAGE 1 : COUVERTURE PRESTIGE & CHARTE D'ENGAGEMENT CABINE
+  let y = 35;
+  // Grand cadre d'apparat doré
+  doc.rect(M_X, y, CONTENT_W, 140, KARITE);
+  doc.rectStroke(M_X, y, CONTENT_W, 140, GOLD, 1.8);
+  doc.drawBrandRibbon(M_X, y, CONTENT_W, 5);
 
-  doc.text("KENE PRO 2026 · GUIDE OPERATIONNEL OFFICIEL", M_X + 20, y + 26, {
+  doc.text("KENE PRO 2026", M_X + 24, y + 36, {
     font: "bold",
-    size: 15,
+    size: 22,
+    color: GOLD_DARK,
+    letterSpace: 2,
+  });
+  doc.text("MANUEL DE MAITRISE DERMO-COSMETIQUE & GESTION DE SALON", M_X + 24, y + 58, {
+    font: "bold",
+    size: 11,
+    color: BISSAP_DARK,
+    letterSpace: 0.5,
+  });
+  doc.hline(M_X + 24, M_RIGHT - 24, y + 68, GOLD, 1);
+
+  doc.text("DOCUMENT OFFICIEL CONFIDENTIEL · ACCREDITATION 2026", M_X + 24, y + 84, {
+    font: "bold",
+    size: 8.5,
     color: GOLD_DARK,
     letterSpace: 1,
   });
-  doc.text("MANUEL DE MAITRISE · PRATICIENNE & DIRECTION DE SALON", M_X + 20, y + 42, {
+  doc.text(`Etablissement Partenaire Titulaire : ${data.tenantName.toUpperCase()}`, M_X + 24, y + 100, {
     font: "bold",
     size: 10,
-    color: BISSAP_DARK,
+    color: INK,
   });
-  doc.text(
-    `Etablissement Partenaire : ${data.tenantName.toUpperCase()} · ${data.tenantCity || "Abidjan"} · Support : contact@kene-beaute.com`,
-    M_X + 20,
-    y + 58,
-    { font: "regular", size: 8.5, color: SOFT }
-  );
+  doc.text(`Localisation : ${data.tenantCity || "Abidjan"} · Direction Kene : contact@kene-beaute.com`, M_X + 24, y + 116, {
+    font: "regular",
+    size: 9,
+    color: SOFT,
+  });
 
-  // Rubrique Volume 1
-  y += 115;
-  doc.text("VOLUME 1 : GUIDE PRATICIENNE & CABINE", M_X, y, { font: "bold", size: 12, color: BISSAP_DARK });
-  doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1);
+  // Section 1 : Prise de poste & Cabine
+  y = 200;
+  doc.text("VOLUME 1 : PROTOCOLE CABINE & DIAGNOSTIC MELANODERME", M_X, y, { font: "bold", size: 12, color: BISSAP_DARK });
+  doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1.2);
 
-  y += 20;
-  doc.text("1. PRISE DE POSTE & POINTAGE HORODATE", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("A l'arrivee au salon, connectez-vous sur kene-beaute.com/pro puis cliquez sur [Pointer mon arrivee].", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("L'heure exacte est horodatee. En fin de journee, cliquez sur [Pointer sortie] pour valider vos heures et primes.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-
-  y += 20;
-  doc.text("2. BILAN DERMO-BIOMETRIQUE CABINE EN 10 SECONDES", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("- Cliquez sur [Scan Cabine] : prenez les 3 cliches sous bon eclairage (Face, Profil Gauche, Profil Droit).", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- L'algorithme calcule instantanement le Score Eclat /100, le taux d'hydratation et les taches pigmentaires.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Montrez le resultat a la cliente. A la fin du soin, effectuez le comparatif Avant/Apres (+15% a +25% d'eclat).", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-
-  y += 20;
-  doc.text("3. DOSSIER PEAU & ORDONNANCE BOTANIQUE SUR SMARTPHONE", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("- Retrouvez l'historique complet de chaque cliente dans [Dossiers Cutanes].", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Selectionnez les soins recommandes (Karite brut sauvage, Baobab, Moringa, Solaire SPF50).", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Transmettez l'ordonnance chiffree directement sur le WhatsApp de la cliente en un clic.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-
-  y += 20;
-  doc.text("4. SCANNER D'INGREDIENTS ANTI-CONTREFACON (INCI)", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("- Cliquez sur [Scanner INCI] et scannez la composition au dos du produit apporte par la cliente.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Alerte automatique en cas d'Hydroquinone, Corticoides (clobetasol) ou Mercure toxique pour les peaux noires.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-
-  // PAGE 2 : VOLUME 2 (GERANTE & PILOTAGE SYSCOHADA)
-  doc.newPage();
-  y = 30;
-  doc.text("VOLUME 2 : GUIDE GERANTE & PILOTAGE D'ETABLISSEMENT", M_X, y, { font: "bold", size: 12, color: GOLD_DARK });
-  doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1);
-
-  y += 22;
-  doc.text("1. CAISSE POS, MODES DE REGLEMENT & CLOTURE JOURNALIERE (SYSCOHADA)", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("- Cliquez sur [Encaisser POS] : ajoutez soins et produits au panier.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Reglements multi-flux : Especes, Wave, Orange Money, MTN MoMo, Carte bancaire.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Impression automatique sur imprimante thermique Bluetooth (58mm/80mm) ou envoi WhatsApp.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Cloture de Caisse (Ticket Z) : calcul automatique de la TVA (18%) et journal des ventes journalier.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-
-  y += 22;
-  doc.text("2. AUDIT HISTORIQUE PAR CALENDRIER (CONSULTATION DES JOURS PASSES)", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("- Sur le tableau de bord, cliquez sur [Calendrier Journal de Bord].", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Cliquez sur n'importe quel jour (hier, avant-hier, mois passe) pour afficher le bilan complet :", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("  * Chiffre d'affaires exact encaisse et ventilation des reglements.", M_X + 18, y, { font: "regular", size: 8.5, color: INK });
-  y += 12;
-  doc.text("  * Pointages d'equipe (heures d'arrivee et de depart de chaque collaboratrice).", M_X + 18, y, { font: "regular", size: 8.5, color: INK });
-  y += 12;
-  doc.text("  * Nombre de soins cabine et diagnostics realises.", M_X + 18, y, { font: "regular", size: 8.5, color: INK });
-
-  y += 22;
-  doc.text("3. GESTION DE STOCK, ALERTES SEUILS & REASSORTS", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("- Suivi en temps reel dans [Pôle Caisse & Stock] -> [Stock].", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Alertes visuelles automatiques : Vert (disponible), Orange (reassort proche), Rouge (rupture).", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-
-  y += 22;
-  doc.text("4. GESTION DES PRATICIENNES, PERMISSIONS & PAIE (CNPS / IPM)", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("- Parametrez les taux de commissions par collaboratrice (ex: 10% sur les soins, 5% sur la boutique).", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Generation des fiches de paie integrees conforme aux normes regionales OHADA / CNPS.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-
-  // PAGE 3 : VOLUME 3 (KIT MARKETING, OBJECTIONS & CONTACT DIRECTION)
-  doc.newPage();
-  y = 30;
-  doc.text("VOLUME 3 : KIT COMMERCIAL & RELATIONS CLIENTELES", M_X, y, { font: "bold", size: 12, color: BISSAP_DARK });
-  doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1);
-
-  y += 22;
-  doc.text("1. SUPPORTS D'IMPRESSION OFFICIELS PRETS A L'EMPLOI", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("- Flyer Cabine A5 : Accroche Bilan Offert pour comptoir et gueridons de cabine.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Pass Decouverte VIP A6 : Remis en main propre en caisse avec les 30 jours Kène+ offerts.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Planche 4 Cartes Parrainage (85x55mm) : Bon de -5 000 FCFA pour la cliente et sa filleule.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-  y += 12;
-  doc.text("- Attestation d'Agrement Officiel A4 : Cadre mural attestant de la certification Zéro Dépigmentant.", M_X + 12, y, { font: "regular", size: 8.5, color: SOFT });
-
+  // Étape 1
   y += 24;
-  doc.text("2. ARGUMENTAIRE & REPONSES AUX 3 OBJECTIONS MAJEURES", M_X, y, { font: "bold", size: 9.5, color: INK });
-  y += 14;
-  doc.text("Q : Le diagnostic de peau est-il payant ?", M_X + 12, y, { font: "bold", size: 8.5, color: GOLD_DARK });
-  y += 12;
-  doc.text("-> [Reponse] : Non, il vous est totalement offert lors de votre venue dans notre institut.", M_X + 18, y, { font: "regular", size: 8, color: SOFT });
-  y += 14;
-  doc.text("Q : Que faites-vous de mes photos de visage ?", M_X + 12, y, { font: "bold", size: 8.5, color: GOLD_DARK });
-  y += 12;
-  doc.text("-> [Reponse] : Vos cliches restent 100% confidentiels et chiffres dans votre Passeport personnel.", M_X + 18, y, { font: "regular", size: 8, color: SOFT });
-  y += 14;
-  doc.text("Q : Pourquoi utiliser l'application a la maison ?", M_X + 12, y, { font: "bold", size: 8.5, color: GOLD_DARK });
-  y += 12;
-  doc.text("-> [Reponse] : Pour perenniser les resultats de cabine et eviter les pieges des faux cosmetiques.", M_X + 18, y, { font: "regular", size: 8, color: SOFT });
+  doc.rect(M_X, y - 4, CONTENT_W, 36, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 36, GOLD, 0.8);
+  doc.text("ETAPE 1 : PRISE DE POSTE & POINTAGE BIOMETRIQUE HORODATE", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Connexion sur kene-beaute.com/pro -> [Pointer mon arrivee]. Validation des heures et primes a la sortie.", M_X + 14, y + 24, { font: "regular", size: 8.5, color: INK });
 
-  // Cadre Contact Officiel
-  y += 35;
+  // Étape 2
+  y += 46;
+  doc.rect(M_X, y - 4, CONTENT_W, 48, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 48, GOLD, 0.8);
+  doc.text("ETAPE 2 : SCAN DERMO-CUTANE CABINE (PHOTOTYPES IV A VI)", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Prise de 3 cliches sous eclairage neutre (Face, Profil Droit, Profil Gauche).", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
+  doc.text("Calcul instantane : Taux d'hydratation, Score Eclat /100, Taches pigmentaires et alerte comedons.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+
+  // Étape 3
+  y += 58;
+  doc.rect(M_X, y - 4, CONTENT_W, 48, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 48, GOLD, 0.8);
+  doc.text("ETAPE 3 : ORDONNANCE BOTANIQUE CHIFFREE & TRANSMISSION WHATSAPP", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Selection des actifs africains nobles (Karite brut de savane, Baobab, Moringa, Kinkeliba, SPF50).", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
+  doc.text("Envoi securise en 1 clic sur le smartphone de la cliente. Suivi de l'evolution a J+30.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+
+  // Encadré Règle d'or
+  y += 62;
+  doc.rect(M_X, y, CONTENT_W, 45, KARITE);
+  doc.rectStroke(M_X, y, CONTENT_W, 45, TERRE, 1);
+  doc.text("REGLE DE CONFORMITE CLINIQUE KENE (NON NEGOCIABLE)", M_X + 16, y + 16, { font: "bold", size: 9, color: BISSAP_DARK });
+  doc.text("Dermo Kene est un algorithme d'assistance cosmetique d'embellissement cutane. Il ne pose aucun", M_X + 16, y + 28, { font: "regular", size: 8, color: INK });
+  doc.text("diagnostic medical. En cas d'affection atypique, orienter imperativement vers un medecin dermatologue.", M_X + 16, y + 39, { font: "regular", size: 8, color: INK });
+
+  // PAGE 2 : VOLUME 2 (PILOTAGE GERANTE, CAISSE & SYSCOHADA)
+  doc.newPage();
+  y = 55;
+  doc.text("VOLUME 2 : PILOTAGE GERANTE, CAISSE POS & CONFORMITE SYSCOHADA", M_X, y, { font: "bold", size: 12, color: GOLD_DARK });
+  doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1.2);
+
+  // Module Caisse
+  y += 24;
+  doc.rect(M_X, y - 4, CONTENT_W, 58, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 58, GOLD, 0.8);
+  doc.text("1. CAISSE POS TACTILE & ENCAISSEMENTS MULTI-FLUX AFRICAINS", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Modes acceptes : Wave (QR Code), Orange Money, MTN MoMo, Carte Bancaire, Especes.", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
+  doc.text("Emission instantanee : Recu numerique direct par WhatsApp/SMS ou impression ticket thermique 58/80mm.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+  doc.text("Securite : Lettrage automatique des acomptes de reservation en ligne.", M_X + 14, y + 49, { font: "regular", size: 8.5, color: SOFT });
+
+  // Module Journal de bord
+  y += 68;
+  doc.rect(M_X, y - 4, CONTENT_W, 52, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 52, GOLD, 0.8);
+  doc.text("2. JOURNAL DE BORD QUOTIDIEN & RECONCILIATION SYSCOHADA", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Cloture de Caisse (Ticket Z) : Calcul automatique de la TVA collectee (18%) et ventilation journaliere.", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
+  doc.text("Consultation historique par calendrier : Rejouez n'importe quelle journee passee en 1 clic.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+  doc.text("Export certifie : Format CSV et liasse SYSCOHADA directement transmise a votre expert-comptable.", M_X + 14, y + 49, { font: "regular", size: 8.5, color: SOFT });
+
+  // Module Stock & RH
+  y += 62;
+  doc.rect(M_X, y - 4, CONTENT_W, 46, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 46, GOLD, 0.8);
+  doc.text("3. GESTION DES REASSORTS DE STOCK & COMMISSIONS D'EQUIPE (CNPS)", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Alertes intelligentes de stock : Alerte automatique avant rupture sur les produits cabine et revente.", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
+  doc.text("Calcul des commissions : Suivi transparent des primes par praticienne (soins realises et ventes boutique).", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+
+  // PAGE 3 : VOLUME 3 (RELATIONS, OBJECTIONS & CONTACT DIRECTION)
+  doc.newPage();
+  y = 55;
+  doc.text("VOLUME 3 : FIDELISATION, PARRAINAGE & GESTION DES OBJECTIONS", M_X, y, { font: "bold", size: 12, color: BISSAP_DARK });
+  doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1.2);
+
+  // Objections
+  y += 24;
+  doc.rect(M_X, y - 4, CONTENT_W, 40, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 40, GOLD, 0.8);
+  doc.text("OBJECTION 1 : 'LE BILAN DE PEAU EST-IL PAYANT ?'", M_X + 14, y + 10, { font: "bold", size: 9, color: GOLD_DARK });
+  doc.text("Reponse recommandee : 'Non, ce diagnostic de pointe est entierement offert par notre institut pour", M_X + 14, y + 22, { font: "regular", size: 8.5, color: INK });
+  doc.text("personnaliser parfaitement vos soins et garantir la sante de votre peau.'", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
+
+  y += 50;
+  doc.rect(M_X, y - 4, CONTENT_W, 40, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 40, GOLD, 0.8);
+  doc.text("OBJECTION 2 : 'QUE FAITES-VOUS DE MES PHOTOS DE VISAGE ?'", M_X + 14, y + 10, { font: "bold", size: 9, color: GOLD_DARK });
+  doc.text("Reponse recommandee : 'Vos photos sont chiffrees conformement a la loi n 2013-450 et au RGPD.", M_X + 14, y + 22, { font: "regular", size: 8.5, color: INK });
+  doc.text("Elles restent strictement confidentielles dans votre Passeport beaute personnel.'", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
+
+  y += 50;
+  doc.rect(M_X, y - 4, CONTENT_W, 40, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 40, GOLD, 0.8);
+  doc.text("OBJECTION 3 : 'POURQUOI UTILISER L'APPLICATION A LA MAISON ?'", M_X + 14, y + 10, { font: "bold", size: 9, color: GOLD_DARK });
+  doc.text("Reponse recommandee : 'Pour prolonger l'effet de votre soin en cabine, scanner vos produits personnels", M_X + 14, y + 22, { font: "regular", size: 8.5, color: INK });
+  doc.text("anti-contrefacon et beneficier du programme de parrainage VIP Kene+.'", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
+
+  // Cadre Direction Kène — Unique canal officiel : Courriel
+  y += 55;
   doc.rect(M_X, y, CONTENT_W, 85, KARITE);
-  doc.rectStroke(M_X, y, CONTENT_W, 85, GOLD, 1.2);
-  doc.drawBrandRibbon(M_X, y, CONTENT_W, 3);
+  doc.rectStroke(M_X, y, CONTENT_W, 85, GOLD, 1.5);
+  doc.drawBrandRibbon(M_X, y, CONTENT_W, 4);
 
-  doc.text("CONTACT OFFICIEL DIRECTION & EDITEUR KENE TECHNOLOGIES", M_X + 20, y + 24, {
+  doc.text("DIRECTION OFFICIELLE & EDITEUR KENE TECHNOLOGIES", M_X + 20, y + 26, {
     font: "bold",
     size: 11,
     color: GOLD_DARK,
-    letterSpace: 0.8,
+    letterSpace: 1,
   });
-  doc.text("Une question technique, un besoin d'assistance ou une commande de materiel ?", M_X + 20, y + 40, {
+  doc.text("Assistance technique d'urgence, formation des equipes ou commande de materiel :", M_X + 20, y + 42, {
     font: "regular",
     size: 9,
     color: INK,
   });
-  doc.text("Directement accessible dans [Paramètres] -> [Support & Direction Kènè Technologies] :", M_X + 20, y + 54, {
+  doc.text("CANAL DIRECT UNIQUE DIRECTION :", M_X + 20, y + 56, {
     font: "bold",
     size: 8.5,
     color: BISSAP_DARK,
   });
-  doc.text("WHATSAPP SUPPORT : +225 07 48 89 42 70   |   COURRIEL : contact@kene-beaute.com", M_X + 20, y + 68, {
+  doc.text("COURRIEL OFFICIEL : contact@kene-beaute.com", M_X + 20, y + 70, {
     font: "bold",
-    size: 8.5,
+    size: 10.5,
     color: GOLD_DARK,
+    letterSpace: 0.5,
   });
 }
