@@ -744,6 +744,16 @@ function ClientSheet({
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
 
+  // Édition des informations personnelles de la cliente
+  const [editClientOpen, setEditClientOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editDistrict, setEditDistrict] = useState("");
+  const [editSkinType, setEditSkinType] = useState("");
+  const [editFitzpatrick, setEditFitzpatrick] = useState("");
+  const [editBirthDate, setEditBirthDate] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+
   // Encaisser une avance / acompte (WhatsApp, Wave, Orange, MTN, Espèces)
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
@@ -823,6 +833,39 @@ function ClientSheet({
       proToastError(err, "Impossible d'enregistrer l'avance");
     } finally {
       setDepositBusy(false);
+    }
+  }
+
+  async function handleSaveClientInfo(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!editName.trim() || editName.trim().length < 2) {
+      toast.error("Le nom de la cliente doit comporter au moins 2 caractères");
+      return;
+    }
+    const cleanPhone = editPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 8) {
+      toast.error("Numéro de téléphone invalide (au moins 8 chiffres)");
+      return;
+    }
+
+    setEditBusy(true);
+    try {
+      await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        district: editDistrict.trim() || null,
+        skinType: editSkinType.trim() || null,
+        fitzpatrick: editFitzpatrick.trim() || null,
+        birthDate: editBirthDate.trim() || null,
+      });
+      toast.success("Informations de la cliente mises à jour avec succès !");
+      setEditClientOpen(false);
+      detail.refetch();
+      onRefreshClients?.();
+    } catch (err) {
+      proToastError(err, "Impossible de modifier la cliente");
+    } finally {
+      setEditBusy(false);
     }
   }
 
@@ -909,7 +952,26 @@ function ClientSheet({
               <div className="flex items-center gap-3">
                 <InitialAvatar name={c.name} userId={c.userId} className="size-12 text-sm" />
                 <div className="min-w-0 flex-1">
-                  <SheetTitle className="font-heading text-lg leading-tight truncate">{c.name}</SheetTitle>
+                  <div className="flex items-center gap-2">
+                    <SheetTitle className="font-heading text-lg leading-tight truncate">{c.name}</SheetTitle>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditName(c.name || "");
+                        setEditPhone(c.phone || "");
+                        setEditDistrict(c.district || "");
+                        setEditSkinType(c.skinType || "mixte");
+                        setEditFitzpatrick(c.fitzpatrick || "V");
+                        setEditBirthDate(c.birthDate || "");
+                        setEditClientOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-gold-text bg-gold/10 hover:bg-gold/20 border border-gold/30 px-2 py-0.5 rounded-md cursor-pointer transition-colors"
+                      title="Modifier les coordonnées et informations de la cliente"
+                    >
+                      <Pencil className="size-3" />
+                      <span>Modifier</span>
+                    </button>
+                  </div>
                   <SheetDescription className="flex flex-wrap items-center gap-2 font-mono text-xs mt-0.5">
                     <span className="flex items-center gap-1">
                       <Phone className="size-3" aria-hidden="true" /> {formatPhoneDisplay(c.phone)}
@@ -1245,19 +1307,28 @@ function ClientSheet({
                     <EmptyState label="Aucune vente" />
                   ) : (
                     <ul className="space-y-2 max-h-72 overflow-y-auto pretty-scroll pr-1">
-                      {d.sales.map((s) => (
-                        <li key={s.id} className="rounded-xl border border-border p-2.5">
+                      {d.sales.map((s) => {
+                        const isRefunded = s.status === "refunded";
+                        return (
+                        <li key={s.id} className={cn("rounded-xl border p-2.5", isRefunded ? "border-rose-500/30 bg-rose-500/5 opacity-80" : "border-border")}>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-muted-foreground font-mono">{formatDate(s.createdAt)} {formatTime(s.createdAt)}</span>
-                            <Money value={s.total} className="text-xs font-semibold" />
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[11px] text-muted-foreground font-mono">{formatDate(s.createdAt)} {formatTime(s.createdAt)}</span>
+                              {isRefunded && (
+                                <Badge variant="outline" className="border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[9.5px] font-bold px-1.5 py-0">
+                                  Annulée / Remboursée
+                                </Badge>
+                              )}
+                            </div>
+                            <Money value={s.total} className={cn("text-xs font-semibold", isRefunded && "line-through text-muted-foreground")} />
                           </div>
                           <div className="mt-1 space-y-1">
                             {s.items.map((it, idx) => (
                               <div key={idx} className="flex items-center justify-between text-xs">
-                                <span>{it.qty}× {it.label}</span>
+                                <span className={cn(isRefunded && "line-through text-muted-foreground")}>{it.qty}× {it.label}</span>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-muted-foreground">{xof(it.total)}</span>
-                                  {it.kind === "product" && (
+                                  <span className={cn("font-mono text-muted-foreground", isRefunded && "line-through")}>{xof(it.total)}</span>
+                                  {!isRefunded && it.kind === "product" && (
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -1284,7 +1355,8 @@ function ClientSheet({
                             ))}
                           </div>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   )}
                 </TabsContent>
@@ -1572,6 +1644,134 @@ function ClientSheet({
                       >
                         {depositBusy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                         Valider l&apos;avance &amp; WhatsApp
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              {/* Dialogue de modification des informations personnelles */}
+              <Dialog open={editClientOpen} onOpenChange={(o) => !o && setEditClientOpen(false)}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="font-heading font-bold text-base flex items-center gap-2">
+                      <Pencil className="size-4 text-gold-text" />
+                      Modifier les coordonnées de {c?.name ?? "la cliente"}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs">
+                      Corrigez le nom, le numéro de téléphone ou les informations cutanées de la cliente.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <form onSubmit={handleSaveClientInfo} className="space-y-3 pt-1">
+                    <div className="space-y-1.5">
+                      <label htmlFor="edit-client-name" className="text-xs font-semibold block text-foreground">
+                        Nom complet de la cliente <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="edit-client-name"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Ex: Djarassouba Matata"
+                        className="text-xs font-medium"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="edit-client-phone" className="text-xs font-semibold block text-foreground">
+                        Numéro de téléphone <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="edit-client-phone"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        placeholder="Ex: +225 07 77 66 92 07"
+                        className="text-xs font-mono"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <label htmlFor="edit-client-district" className="text-xs font-semibold block text-foreground">
+                          Commune / Ville
+                        </label>
+                        <Input
+                          id="edit-client-district"
+                          value={editDistrict}
+                          onChange={(e) => setEditDistrict(e.target.value)}
+                          placeholder="Ex: Cocody, Abidjan"
+                          className="text-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="edit-client-birthdate" className="text-xs font-semibold block text-foreground">
+                          Date d&apos;anniversaire
+                        </label>
+                        <Input
+                          id="edit-client-birthdate"
+                          value={editBirthDate}
+                          onChange={(e) => setEditBirthDate(e.target.value)}
+                          placeholder="JJ/MM (ex: 15/04)"
+                          className="text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <label htmlFor="edit-client-skintype" className="text-xs font-semibold block text-foreground">
+                          Type de peau
+                        </label>
+                        <select
+                          id="edit-client-skintype"
+                          value={editSkinType}
+                          onChange={(e) => setEditSkinType(e.target.value)}
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          <option value="mixte">Mixte</option>
+                          <option value="grasse">Grasse</option>
+                          <option value="seche">Sèche</option>
+                          <option value="normale">Normale</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label htmlFor="edit-client-fitzpatrick" className="text-xs font-semibold block text-foreground">
+                          Phototype
+                        </label>
+                        <select
+                          id="edit-client-fitzpatrick"
+                          value={editFitzpatrick}
+                          onChange={(e) => setEditFitzpatrick(e.target.value)}
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus-visible:outline-2 focus-visible:outline-ring font-mono"
+                        >
+                          <option value="IV">Phototype IV (Métisse)</option>
+                          <option value="V">Phototype V (Noire mate)</option>
+                          <option value="VI">Phototype VI (Noire foncée)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:justify-end pt-3 border-t border-border/50">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditClientOpen(false)}
+                        disabled={editBusy}
+                        className="text-xs"
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={editBusy || !editName.trim() || !editPhone.trim()}
+                        className="k-btn-gold text-primary-foreground font-bold text-xs gap-1.5"
+                      >
+                        {editBusy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                        Enregistrer les modifications
                       </Button>
                     </DialogFooter>
                   </form>

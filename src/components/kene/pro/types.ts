@@ -243,6 +243,7 @@ export interface ProClientDetail {
     createdAt: string;
     total: number;
     paymentMethod: string;
+    status?: string;
     items: ProSaleItemView[];
   }[];
   appointments: ProAppointment[];

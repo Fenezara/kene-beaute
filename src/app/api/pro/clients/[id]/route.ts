@@ -197,6 +197,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 const PatchBody = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  phone: z.string().trim().min(8).max(30).optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
   cosmeticsUsed: z.string().trim().max(3000).nullable().optional(),
   productObservations: z.string().trim().max(5000).nullable().optional(),
@@ -227,6 +229,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const data: Record<string, unknown> = {};
 
+    if (parsed.data.name !== undefined) data.name = parsed.data.name;
+    if (parsed.data.phone !== undefined) data.phone = canonicalPhone(parsed.data.phone) || parsed.data.phone;
     if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
     if (parsed.data.cosmeticsUsed !== undefined) data.cosmeticsUsed = parsed.data.cosmeticsUsed;
     if (parsed.data.productObservations !== undefined) data.productObservations = parsed.data.productObservations;
