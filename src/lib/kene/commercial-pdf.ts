@@ -653,7 +653,7 @@ function buildManuelPro(
 
   // PAGE 2 : VOLUME 2 (PILOTAGE GERANTE, CAISSE & SYSCOHADA)
   doc.newPage();
-  y = 55;
+  y = 70;
   doc.text("VOLUME 2 : PILOTAGE GERANTE, CAISSE POS & CONFORMITE SYSCOHADA", M_X, y, { font: "bold", size: 12, color: GOLD_DARK });
   doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1.2);
 
@@ -685,7 +685,7 @@ function buildManuelPro(
 
   // PAGE 3 : VOLUME 3 (RELATIONS, OBJECTIONS & CONTACT DIRECTION)
   doc.newPage();
-  y = 55;
+  y = 70;
   doc.text("VOLUME 3 : FIDELISATION, PARRAINAGE & GESTION DES OBJECTIONS", M_X, y, { font: "bold", size: 12, color: BISSAP_DARK });
   doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1.2);
 
