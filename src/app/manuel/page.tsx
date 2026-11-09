@@ -177,7 +177,10 @@ export default function ManuelPage() {
             Besoin d&apos;une session de formation personnalisée pour votre salon ?
           </p>
           <p>
-            Contactez la direction Kènè au <strong className="text-gold-text">+225 07 48 89 42 70</strong> ou par courriel à <strong className="text-gold-text">contact@kene-beaute.com</strong>.
+            Contactez la direction Kènè directement par courriel à{" "}
+            <a href="mailto:contact@kene-beaute.com" className="font-bold text-gold-text underline underline-offset-4">
+              contact@kene-beaute.com
+            </a>.
           </p>
           <p className="text-[10px] text-muted-foreground/60 pt-2">
             © 2026 Kènè Technologies — Tous droits réservés.
