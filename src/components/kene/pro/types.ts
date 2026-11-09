@@ -345,6 +345,7 @@ export interface ProDiagnosisItem {
   questionnaireJson?: string;
   photoData?: string | null;
   userId?: string | null;
+  cosmeticsUsed?: string | null;
   [k: string]: unknown;
 }
 

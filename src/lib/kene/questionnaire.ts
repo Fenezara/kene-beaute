@@ -64,6 +64,7 @@ export type ProDiagSource = "questionnaire" | "vlm+questionnaire" | "vlm" | "fal
 
 export interface ProDiagnosisResult extends Omit<DiagnosisResult, "source"> {
   source: ProDiagSource;
+  reportSlots?: Array<{ viewId: string; photoIdx: number }>;
   questionnaire: {
     score: number; // score du questionnaire seul
     flags: QFlag[];

@@ -72,10 +72,14 @@ export async function GET(req: NextRequest) {
     }
 
     let parsedIndicators: Array<{ nom: string; pourcentage: number }> | undefined;
+    let savedReportSlots: unknown = undefined;
     try {
       const parsed = JSON.parse(diag.resultJson);
       if (parsed && Array.isArray(parsed.indicateurs)) {
         parsedIndicators = parsed.indicateurs;
+      }
+      if (parsed && Array.isArray(parsed.reportSlots) && parsed.reportSlots.length > 0) {
+        savedReportSlots = parsed.reportSlots;
       }
     } catch {
       // ignore
@@ -90,12 +94,17 @@ export async function GET(req: NextRequest) {
       ? parseInt(rawPhotoIdx, 10)
       : null;
 
-    const selectedViews = rawViewsParam
-      ? rawViewsParam
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : undefined;
+    let selectedViews: string[] | undefined = undefined;
+    if (rawViewsParam) {
+      selectedViews = rawViewsParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    } else if (Array.isArray(savedReportSlots)) {
+      // Reconstitution du paramètre depuis les reportSlots sauvegardés
+      selectedViews = (savedReportSlots as Array<{ viewId: string; photoIdx?: number }>)
+        .map((s) => `${s.viewId}:${s.photoIdx ?? 0}`);
+    }
 
     const spectral = await processMultiSpectralSuite(resolvedPhotoData, {
       clientName: diag.clientProfile.name,

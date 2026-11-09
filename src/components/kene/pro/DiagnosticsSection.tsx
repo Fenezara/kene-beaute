@@ -9,8 +9,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, Camera, ChevronLeft, ChevronRight, FileDown, Filter, ImagePlus, Info,
-  Loader2, OctagonAlert, PenLine, Printer, Search, Share2, ShieldAlert, ShieldCheck,
-  SlidersHorizontal, ScanFace, Trash2, UserPlus, Users, Video,
+  Loader2, OctagonAlert, PenLine, Pill, Printer, Search, Share2, ShieldAlert, ShieldCheck,
+  ShoppingBag, Sparkles, SlidersHorizontal, ScanFace, Trash2, UserPlus, Users, Video,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { CABIN_SAFETY_CHECKLIST, evaluateSafetyChecklist, type CosmetovigilanceIncident, type ReactionType, type ReactionSeverity } from "@/lib/kene/cosmetovigilance";
-import { apiGet, apiPost, apiDelete, resizeImage } from "@/lib/kene/api";
+import { apiGet, apiPost, apiPatch, apiDelete, resizeImage } from "@/lib/kene/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,7 +41,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatDate, formatTime, scoreVar } from "@/lib/kene/format";
-import { BODY_ZONES, ZONE_PHOTO_SLOTS, recommend4SpectralViews, serializeReportSlots, parseReportSlots, type BodyZone, type Indicator, type SpectralViewId, type SelectedReportSlot } from "@/lib/kene/types";
+import {
+  BODY_ZONES,
+  ZONE_PHOTO_SLOTS,
+  recommend4SpectralViews,
+  recommend4SpectralSlots,
+  serializeReportSlots,
+  parseReportSlots,
+  type BodyZone,
+  type Indicator,
+  type SpectralViewId,
+  type SelectedReportSlot,
+} from "@/lib/kene/types";
+import {
+  parseStructuredPrescription,
+  type StructuredPrescription,
+} from "@/lib/kene/prescription-schema";
 import {
   getSectionsForZone, getQuestionsForZone, defaultAnswers, questionnaireProgress, parseProDiagnosis,
 } from "@/lib/kene/questionnaire";
@@ -749,6 +764,7 @@ function DiagWizard({
   const [consent, setConsent] = useState({ photo: false, data: false });
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [createdCosmeticsUsed, setCreatedCosmeticsUsed] = useState<string | null>(null);
 
   // Message rotatif
   const msgIdx = useRef(0);
@@ -780,6 +796,7 @@ function DiagWizard({
     setConsent({ photo: false, data: false });
     setSignatureData(null);
     setSavedId(null);
+    setCreatedCosmeticsUsed(null);
   };
 
   const submit = async () => {
@@ -807,6 +824,9 @@ function DiagWizard({
       );
       setResult(res.result);
       setSavedId(res.diagnosis.id);
+      if (res.diagnosis.cosmeticsUsed) {
+        setCreatedCosmeticsUsed(res.diagnosis.cosmeticsUsed);
+      }
       toast.success(`Diagnostic enregistré — ${res.diagnosis.clientName} · ${res.result.score_global}/100`, {
         description:
           res.result.questionnaire.flags.length > 0
@@ -932,6 +952,7 @@ function DiagWizard({
               zoneLabel={zoneLabel}
               tenantId={tenantId}
               savedId={savedId}
+              cosmeticsUsed={createdCosmeticsUsed}
               onRetryBack={() => setStep(3)}
               onNew={reset}
               onDone={onClose}
@@ -1690,6 +1711,7 @@ function ResultStep({
   zoneLabel,
   tenantId,
   savedId,
+  cosmeticsUsed,
   onRetryBack,
   onNew,
   onDone,
@@ -1706,6 +1728,7 @@ function ResultStep({
   zoneLabel: string;
   tenantId: string;
   savedId: string | null;
+  cosmeticsUsed?: string | null;
   onRetryBack: () => void;
   onNew: () => void;
   onDone: () => void;
@@ -1713,10 +1736,32 @@ function ResultStep({
   onOpenDescent: (d: { indicators: Indicator[]; score: number; zoneLabel: string }) => void;
 }) {
   const [reportSlots, setReportSlots] = useState<SelectedReportSlot[]>(() => {
-    const rec = recommend4SpectralViews(result?.indicateurs);
-    return rec.map((vid, idx) => ({ viewId: vid, photoIdx: 0 }));
+    let photoCount = 1;
+    if (photo) {
+      try {
+        const parsed = JSON.parse(photo);
+        if (Array.isArray(parsed)) photoCount = parsed.length;
+      } catch {
+        photoCount = 1;
+      }
+    }
+    return recommend4SpectralSlots(result?.indicateurs, photoCount);
   });
   const [selectedPhotoIdx, setSelectedPhotoIdx] = useState<number>(0);
+
+  // Synchroniser la sélection des 4 vues avec l'enregistrement en base
+  const handleReportSlotsChange = (newSlots: SelectedReportSlot[]) => {
+    setReportSlots(newSlots);
+    if (savedId && tenantId) {
+      apiPatch("/api/pro/diagnoses", {
+        id: savedId,
+        tenantId,
+        reportSlots: newSlots,
+      }).catch((e) => {
+        console.warn("[ResultStep] Auto-save reportSlots failed", e);
+      });
+    }
+  };
 
   const printUrl = savedId
     ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}&views=${serializeReportSlots(reportSlots)}&photoIdx=${selectedPhotoIdx}`
@@ -1752,8 +1797,9 @@ function ResultStep({
         clientName={clientName}
         clientPhone={clientPhone}
         photo={photo}
+        cosmeticsUsed={cosmeticsUsed}
         reportSlots={reportSlots}
-        onChangeReportSlots={setReportSlots}
+        onChangeReportSlots={handleReportSlotsChange}
         photoIdx={selectedPhotoIdx}
         onChangePhotoIdx={setSelectedPhotoIdx}
         onPrintPdf={() => printUrl && window.open(printUrl, "_blank")}
@@ -1806,6 +1852,7 @@ export function ResultView({
   photo,
   meta,
   tenantName,
+  cosmeticsUsed,
   reportSlots: propReportSlots,
   onChangeReportSlots,
   photoIdx,
@@ -1820,6 +1867,7 @@ export function ResultView({
   photo?: string | null;
   meta?: { zone?: string; createdAt?: string; practitioner?: string | null };
   tenantName?: string;
+  cosmeticsUsed?: string | null;
   reportSlots?: SelectedReportSlot[];
   onChangeReportSlots?: (slots: SelectedReportSlot[]) => void;
   photoIdx?: number;
@@ -1828,13 +1876,38 @@ export function ResultView({
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent?: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"spectra" | "biomarkers" | "protocol" | "all">(
+  const [activeTab, setActiveTab] = useState<"spectra" | "biomarkers" | "protocol" | "prescription" | "all">(
     photo ? "spectra" : "biomarkers"
   );
 
+  // Décoder l'ordonnance beauté structurée
+  const prescription = useMemo(() => {
+    return parseStructuredPrescription(cosmeticsUsed, tenantName);
+  }, [cosmeticsUsed, tenantName]);
+
+  const hasPrescriptionData =
+    prescription.products.length > 0 ||
+    prescription.cabineServices.length > 0 ||
+    Boolean(prescription.notes) ||
+    Boolean(cosmeticsUsed);
+
   const [localSlots, setLocalSlots] = useState<SelectedReportSlot[]>(() => {
-    const rec = recommend4SpectralViews(result.indicateurs);
-    return rec.map((vid) => ({ viewId: vid, photoIdx: 0 }));
+    if (result.reportSlots && result.reportSlots.length === 4) {
+      return result.reportSlots.map((s) => ({
+        viewId: s.viewId as SpectralViewId,
+        photoIdx: s.photoIdx ?? 0,
+      }));
+    }
+    let photoCount = 1;
+    if (photo) {
+      try {
+        const parsed = JSON.parse(photo);
+        if (Array.isArray(parsed)) photoCount = parsed.length;
+      } catch {
+        photoCount = 1;
+      }
+    }
+    return recommend4SpectralSlots(result.indicateurs, photoCount);
   });
 
   const reportSlots = propReportSlots ?? localSlots;
@@ -2021,6 +2094,24 @@ export function ResultView({
           )}
         >
           <span>🌿 Protocole &amp; Projection J+60</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("prescription")}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0",
+            activeTab === "prescription"
+              ? "bg-card text-foreground shadow-xs border border-border"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span>💊 Ordonnance Beauté</span>
+          {hasPrescriptionData && (
+            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+              Active
+            </Badge>
+          )}
         </button>
 
         <button
@@ -2264,6 +2355,166 @@ export function ResultView({
           )}
         </div>
       )}
+
+      {/* ── CONTENU : ONGLET 4 — ORDONNANCE BEAUTÉ & PRESCRIPTION OFFICIELLE ── */}
+      {(activeTab === "prescription" || activeTab === "all") && (
+        <div className="space-y-4">
+          <Card className="rounded-2xl border border-gold/40 bg-card overflow-hidden shadow-xs">
+            <CardContent className="p-4 sm:p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid size-10 place-items-center rounded-xl bg-gold/15 text-gold-text border border-gold/30 shrink-0">
+                    <Pill className="size-5" />
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-heading text-base font-bold text-foreground">
+                        Ordonnance Dermo-Cosmétique Active
+                      </h4>
+                      <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
+                        Cure #{prescription.cureNumber || 1}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {clientName ? `Prescription officielle pour ${clientName}` : "Prescription personnalisée en cabine"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {onNavigate && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onNavigate("crm")}
+                      className="h-8 text-xs font-semibold gap-1.5"
+                    >
+                      <PenLine className="size-3.5" />
+                      Ajuster l&apos;ordonnance
+                    </Button>
+                  )}
+                  {clientPhone && waUrl && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => window.open(waUrl, "_blank")}
+                      className="h-8 text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      <Share2 className="size-3.5" />
+                      WhatsApp
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Volet Produits Prescrits à domicile */}
+              {prescription.products && prescription.products.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <ShoppingBag className="size-3.5 text-gold-text" />
+                    <span>Produits cosmétiques prescrits pour le domicile ({prescription.products.length})</span>
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {prescription.products.map((prod, pIdx) => {
+                      const momentBadge =
+                        prod.moment === "matin"
+                          ? { label: "☀️ Matin", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30" }
+                          : prod.moment === "soir"
+                          ? { label: "🌙 Soir", cls: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30" }
+                          : prod.moment === "matin_soir"
+                          ? { label: "☀️🌙 Matin & Soir", cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" }
+                          : { label: "Hebdo", cls: "bg-pink-500/15 text-pink-600 dark:text-pink-400 border-pink-500/30" };
+
+                      return (
+                        <div key={pIdx} className="p-3 rounded-xl border border-border bg-muted/30 flex flex-col justify-between gap-2">
+                          <div>
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-semibold text-xs sm:text-sm text-foreground">{prod.name}</span>
+                              <Badge variant="outline" className={cn("text-[9.5px] px-2 py-0.5 font-bold shrink-0", momentBadge.cls)}>
+                                {momentBadge.label}
+                              </Badge>
+                            </div>
+                            {prod.posology && (
+                              <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                                <strong className="text-foreground/90 font-medium">Posologie :</strong> {prod.posology}
+                              </p>
+                            )}
+                          </div>
+                          {prod.price && prod.price > 0 && (
+                            <p className="text-[11px] font-mono font-bold text-gold-text text-right">
+                              {prod.price.toLocaleString("fr-FR")} FCFA
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Volet Soins cabine prescrits */}
+              {prescription.cabineServices && prescription.cabineServices.length > 0 ? (
+                <div className="space-y-2 pt-2 border-t border-border/40">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-gold-text" />
+                    <span>Rituels &amp; Soins cabine programmés ({prescription.cabineServices.length})</span>
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {prescription.cabineServices.map((srv, sIdx) => (
+                      <div key={sIdx} className="p-3 rounded-xl border border-border bg-muted/30 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-xs sm:text-sm text-foreground">{srv.name}</span>
+                          {srv.frequency && (
+                            <Badge variant="outline" className="text-[9.5px] bg-gold/10 text-gold-text border-gold/30">
+                              {srv.frequency}
+                            </Badge>
+                          )}
+                        </div>
+                        {srv.objective && (
+                          <p className="text-[11px] text-muted-foreground">{srv.objective}</p>
+                        )}
+                        {srv.durationMin && (
+                          <p className="text-[10px] text-muted-foreground font-mono">Durée : {srv.durationMin} min</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Remarques & Conseils spécifiques */}
+              {prescription.notes && (
+                <div className="p-3 rounded-xl border border-gold/30 bg-gold/5 space-y-1 text-xs">
+                  <p className="font-bold text-gold-text flex items-center gap-1.5">
+                    <Info className="size-3.5" />
+                    Conseils &amp; Recommandations de la Praticienne :
+                  </p>
+                  <p className="text-muted-foreground leading-relaxed">{prescription.notes}</p>
+                </div>
+              )}
+
+              {!hasPrescriptionData && (
+                <div className="text-center py-6 px-4 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Aucune ordonnance beauté n&apos;a encore été saisie pour cette cliente.
+                  </p>
+                  {onNavigate && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onNavigate("crm")}
+                      className="text-xs font-semibold gap-1.5"
+                    >
+                      <PenLine className="size-3.5" />
+                      Créer l&apos;ordonnance beauté dans la fiche CRM
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -2275,6 +2526,7 @@ function DetailResultContent({
   item,
   clientPhone,
   photoData,
+  cosmeticsUsed,
   tenantId,
   onNavigate,
   onOpenDescent,
@@ -2285,6 +2537,7 @@ function DetailResultContent({
   item: ProDiagnosisItem;
   clientPhone?: string;
   photoData?: string | null;
+  cosmeticsUsed?: string | null;
   tenantId: string;
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent: (d: { indicators: Indicator[]; score: number; zoneLabel: string }) => void;
@@ -2292,10 +2545,36 @@ function DetailResultContent({
   onDeleteClick: () => void;
 }) {
   const [reportSlots, setReportSlots] = useState<SelectedReportSlot[]>(() => {
-    const rec = recommend4SpectralViews(result.indicateurs);
-    return rec.map((vid) => ({ viewId: vid, photoIdx: 0 }));
+    if (result.reportSlots && result.reportSlots.length === 4) {
+      return result.reportSlots.map((s) => ({
+        viewId: s.viewId as SpectralViewId,
+        photoIdx: s.photoIdx ?? 0,
+      }));
+    }
+    let photoCount = 1;
+    if (photoData) {
+      try {
+        const parsed = JSON.parse(photoData);
+        if (Array.isArray(parsed)) photoCount = parsed.length;
+      } catch {
+        photoCount = 1;
+      }
+    }
+    return recommend4SpectralSlots(result.indicateurs, photoCount);
   });
   const [selectedPhotoIdx, setSelectedPhotoIdx] = useState<number>(0);
+
+  // Synchroniser et sauvegarder immédiatement le choix des 4 vues
+  const handleReportSlotsChange = (newSlots: SelectedReportSlot[]) => {
+    setReportSlots(newSlots);
+    apiPatch("/api/pro/diagnoses", {
+      id: item.id,
+      tenantId,
+      reportSlots: newSlots,
+    }).catch((e) => {
+      console.warn("[DetailResultContent] Auto-save reportSlots failed", e);
+    });
+  };
 
   const printUrl = `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}&views=${serializeReportSlots(reportSlots)}&photoIdx=${selectedPhotoIdx}`;
 
@@ -2307,8 +2586,9 @@ function DetailResultContent({
         clientPhone={clientPhone}
         photo={photoData}
         meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }}
+        cosmeticsUsed={cosmeticsUsed}
         reportSlots={reportSlots}
-        onChangeReportSlots={setReportSlots}
+        onChangeReportSlots={handleReportSlotsChange}
         photoIdx={selectedPhotoIdx}
         onChangePhotoIdx={setSelectedPhotoIdx}
         onPrintPdf={() => window.open(printUrl, "_blank")}
@@ -2425,6 +2705,7 @@ function DetailSheet({
                 item={item}
                 clientPhone={clientPhone}
                 photoData={fullItem?.photoData ?? null}
+                cosmeticsUsed={detail.data?.client?.cosmeticsUsed ?? item.cosmeticsUsed ?? null}
                 tenantId={tenantId}
                 onNavigate={onNavigate}
                 onOpenDescent={onOpenDescent}

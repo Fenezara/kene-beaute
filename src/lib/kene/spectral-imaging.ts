@@ -7,6 +7,7 @@ import sharp from "sharp";
 import {
   ALL_SPECTRAL_VIEW_IDS,
   recommend4SpectralViews,
+  recommend4SpectralSlots,
   parseReportSlots,
   type SelectedReportSlot,
   type SpectralViewId,
@@ -811,7 +812,8 @@ const BAND_STATIC_META: Record<
 function resolveSelectedFourSlots(
   requested?: string[] | null,
   indicators?: Array<{ nom: string; pourcentage: number }>,
-  fallbackPhotoIdx = 0
+  fallbackPhotoIdx = 0,
+  photoCount = 1
 ): [SelectedReportSlot, SelectedReportSlot, SelectedReportSlot, SelectedReportSlot] {
   const parsed = parseReportSlots(requested, fallbackPhotoIdx);
   const slots: SelectedReportSlot[] = [];
@@ -821,10 +823,10 @@ function resolveSelectedFourSlots(
     if (slots.length === 4) break;
   }
 
-  const recommended = recommend4SpectralViews(indicators);
-  for (const fallbackId of recommended) {
+  const recommended = recommend4SpectralSlots(indicators, photoCount);
+  for (const fallbackSlot of recommended) {
     if (slots.length >= 4) break;
-    slots.push({ viewId: fallbackId, photoIdx: fallbackPhotoIdx });
+    slots.push(fallbackSlot);
   }
 
   for (const anyId of ALL_SPECTRAL_VIEW_IDS) {
@@ -1035,9 +1037,9 @@ export async function processMultiSpectralSuite(
   const targetH = 380;
   const zone = meta?.zoneLabel || "Visage";
   const fallbackPhotoIdx = meta?.photoIndex !== undefined && meta?.photoIndex !== null ? meta.photoIndex : 0;
-  const chosenSlots = resolveSelectedFourSlots(meta?.selectedViews, meta?.indicators, fallbackPhotoIdx);
-
   const photoBuffers = extractPhotoBuffers(photoBase64);
+  const photoCount = Math.max(1, photoBuffers.length);
+  const chosenSlots = resolveSelectedFourSlots(meta?.selectedViews, meta?.indicators, fallbackPhotoIdx, photoCount);
 
   if (photoBuffers.length > 0) {
     try {

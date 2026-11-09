@@ -308,7 +308,7 @@ export async function GET(req: NextRequest) {
         consentTs: true,
         createdAt: true,
         userId: true,
-        clientProfile: { select: { name: true, phone: true } },
+        clientProfile: { select: { name: true, phone: true, cosmeticsUsed: true } },
       },
     });
 
@@ -327,11 +327,55 @@ export async function GET(req: NextRequest) {
         ...r,
         clientName: r.clientProfile?.name ?? "Cliente",
         clientPhone: r.clientProfile?.phone ?? "",
+        cosmeticsUsed: r.clientProfile?.cosmeticsUsed ?? null,
       })),
       kpis,
     });
   } catch (err) {
     return serverError("pro/diagnoses:GET", err);
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const guard = guardProRole(req, "pro:diagnoses:patch");
+    if (guard) return guard;
+
+    const body = await req.json().catch(() => null);
+    const id = body?.id as string | undefined;
+    const tenantId = body?.tenantId as string | undefined;
+    const reportSlots = body?.reportSlots;
+
+    if (!id || typeof id !== "string") return jsonError("Identifiant du diagnostic requis", 400);
+    const tenant = await resolveTenant(req, tenantId);
+    if (!tenant) return jsonError("Institut introuvable", 404);
+
+    const proDiag = await db.proDiagnosis.findUnique({ where: { id } });
+    if (!proDiag || proDiag.tenantId !== tenant.id) {
+      return jsonError("Diagnostic cabine introuvable", 404);
+    }
+
+    let parsedResult: Record<string, unknown> = {};
+    try {
+      parsedResult = JSON.parse(proDiag.resultJson);
+    } catch {
+      parsedResult = {};
+    }
+
+    if (Array.isArray(reportSlots)) {
+      parsedResult.reportSlots = reportSlots;
+    }
+
+    const updated = await db.proDiagnosis.update({
+      where: { id },
+      data: {
+        resultJson: JSON.stringify(parsedResult),
+      },
+    });
+
+    return NextResponse.json({ ok: true, diagnosis: updated });
+  } catch (err) {
+    return serverError("pro/diagnoses:PATCH", err);
   }
 }
 

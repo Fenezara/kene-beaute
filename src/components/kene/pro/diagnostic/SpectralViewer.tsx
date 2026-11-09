@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import {
   SPECTRAL_VIEWS,
   recommend4SpectralViews,
+  recommend4SpectralSlots,
   type SpectralViewDefinition,
   type SpectralViewId,
   type SelectedReportSlot,
@@ -209,11 +210,8 @@ export function SpectralViewer({
         photoIdx: Math.min(idx, Math.max(0, photoList.length - 1)),
       }));
     }
-    const rec = recommend4SpectralViews(indicators);
-    return rec.map((vid, idx) => ({
-      viewId: vid,
-      photoIdx: Math.min(idx, Math.max(0, photoList.length - 1)),
-    }));
+    const rec = recommend4SpectralSlots(indicators, photoList.length);
+    return rec;
   }, [propReportSlots, propSelectedPdfViews, indicators, photoList.length]);
 
   const [localSlots, setLocalSlots] = useState<SelectedReportSlot[]>(initialSlots);
@@ -275,11 +273,7 @@ export function SpectralViewer({
   };
 
   const resetToAiQuad = () => {
-    const rec = recommend4SpectralViews(indicators);
-    const next: SelectedReportSlot[] = rec.map((vid, idx) => ({
-      viewId: vid,
-      photoIdx: Math.min(idx, Math.max(0, photoList.length - 1)),
-    }));
+    const next = recommend4SpectralSlots(indicators, photoList.length);
     setSlots(next);
     toast.success("4 vues cliniques réinitialisées selon la recommandation IA !");
   };

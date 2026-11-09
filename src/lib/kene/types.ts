@@ -340,6 +340,55 @@ export function recommend4SpectralViews(
 }
 
 /**
+ * Recommande intelligemment 4 slots (longueur d'onde + angle photo)
+ * en répartissant les vues prioritaires sur les différentes photos/angles capturés.
+ */
+export function recommend4SpectralSlots(
+  indicators?: Array<{ nom: string; pourcentage: number }>,
+  photoCount = 1
+): [SelectedReportSlot, SelectedReportSlot, SelectedReportSlot, SelectedReportSlot] {
+  const views = recommend4SpectralViews(indicators);
+  const count = Math.max(1, photoCount);
+
+  if (count === 1) {
+    return [
+      { viewId: views[0], photoIdx: 0 },
+      { viewId: views[1], photoIdx: 0 },
+      { viewId: views[2], photoIdx: 0 },
+      { viewId: views[3], photoIdx: 0 },
+    ];
+  }
+
+  if (count === 2) {
+    // 2 photos (ex: face + profil) : 2 vues par angle
+    return [
+      { viewId: views[0], photoIdx: 0 }, // Face Standard
+      { viewId: views[1], photoIdx: 1 }, // Profil Ambre
+      { viewId: views[2], photoIdx: 0 }, // Face Vert
+      { viewId: views[3], photoIdx: 1 }, // Profil Bleu
+    ];
+  }
+
+  if (count === 3) {
+    // 3 photos (ex: face, profil gauche, profil droit) : répartir sur les 3
+    return [
+      { viewId: views[0], photoIdx: 0 }, // Face Standard
+      { viewId: views[1], photoIdx: 1 }, // Profil Gauche Ambre
+      { viewId: views[2], photoIdx: 2 }, // Profil Droit Vert
+      { viewId: views[3], photoIdx: 0 }, // Face Bleu (pores centro-faciaux)
+    ];
+  }
+
+  // 4 photos ou plus : 1 vue spectrale par cliché différent
+  return [
+    { viewId: views[0], photoIdx: 0 },
+    { viewId: views[1], photoIdx: 1 },
+    { viewId: views[2], photoIdx: 2 },
+    { viewId: views[3], photoIdx: Math.min(3, count - 1) },
+  ];
+}
+
+/**
  * Sélection d'Élite 2026 pour l'Espace Cliente (4 Vues Multi-Spectrales Clés)
  * 1. Lumière Naturelle (400-700 nm) : Référence de surface et carnation visible
  * 2. Ambre (585 nm) : Cartographie pure de la mélanine & taches d'hyperpigmentation HPI
