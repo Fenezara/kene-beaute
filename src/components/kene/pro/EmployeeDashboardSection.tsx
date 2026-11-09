@@ -70,7 +70,7 @@ export function EmployeeDashboardSection({
   const now = new Date();
   const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  // Récupération des commissions personnelles du mois
+  // Récupération des commissions et primes attribuées par la direction
   const commissionsApi = useApi<{
     period: string;
     practitioners: Array<{
@@ -84,6 +84,8 @@ export function EmployeeDashboardSection({
       productsCount: number;
       productCommission: number;
       totalCommission: number;
+      awardedBonus: number;
+      bonuses: Array<{ id: string; amount: number; reason: string; moment: string; createdAt: string; awardedBy: string }>;
       salesCount: number;
     }>;
   }>(
@@ -222,23 +224,25 @@ export function EmployeeDashboardSection({
           </CardContent>
         </Card>
 
-        {/* Ma Prime du Mois */}
+        {/* Prime attribuée par la Direction */}
         <Card className="rounded-2xl border-gold/40 bg-gradient-to-br from-gold/5 via-card/80 to-card hover:border-gold/60 transition-all">
           <CardContent className="p-4 sm:p-5 space-y-1.5">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-gold-text">Ma Prime Estimée</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gold-text">Prime Validée Direction</span>
               <div className="p-2 rounded-xl bg-gold/20 text-gold-text">
                 <CauriIcon size={18} />
               </div>
             </div>
             <div className="flex items-baseline gap-1">
               <Money
-                value={myCommission?.totalCommission ?? 0}
+                value={myCommission?.awardedBonus ?? 0}
                 className="font-heading text-xl sm:text-2xl font-black text-gold-text"
               />
             </div>
             <p className="text-[10px] text-muted-foreground">
-              10% soins ({myCommission?.servicesCount ?? 0}) + 5% ventes ({myCommission?.productsCount ?? 0})
+              {(myCommission?.awardedBonus ?? 0) > 0
+                ? `${myCommission?.bonuses?.length ?? 1} prime(s) accordée(s) ce mois`
+                : "Attribuée discrétionnairement par la Direction"}
             </p>
           </CardContent>
         </Card>

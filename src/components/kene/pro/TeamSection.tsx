@@ -12,6 +12,8 @@ import {
   LogIn,
   LogOut,
   Palmtree,
+  Gift,
+  Sparkles,
   Pencil,
   Plus,
   RotateCcw,
@@ -56,7 +58,7 @@ import { cn } from "@/lib/utils";
 import { apiGet, apiPatch, apiPost, apiDelete } from "@/lib/kene/api";
 import { xof, formatDate } from "@/lib/kene/format";
 import { useApi } from "./useApi";
-import { EmptyState, ErrorState, KpiCard, Money, SectionHeader } from "./ui-bits";
+import { EmptyState, ErrorState, KpiCard, Money, SectionHeader, KenteTop } from "./ui-bits";
 import { DEFAULT_FALLBACK_TEAM } from "@/lib/kene/fallback-catalog";
 import type { EmployeesResponse, LeaveBalance, LeavesResponse, ProEmployee, ProLeave } from "./types";
 import {
@@ -137,7 +139,38 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
   const [editing, setEditing] = useState<ProEmployee | null>(null);
   const [departing, setDeparting] = useState<ProEmployee | null>(null);
   const [deleting, setDeleting] = useState<ProEmployee | null>(null);
+  const [bonusEmployee, setBonusEmployee] = useState<ProEmployee | null>(null);
+  const [bonusAmount, setBonusAmount] = useState<string>("5000");
+  const [bonusReason, setBonusReason] = useState<string>("Félicitations pour l'accueil & les soins du jour");
+  const [bonusMoment, setBonusMoment] = useState<"instant" | "end_of_day" | "end_of_month">("end_of_day");
+  const [bonusSubmitting, setBonusSubmitting] = useState(false);
   const [downloadingExport, setDownloadingExport] = useState(false);
+
+  async function handleAwardBonus() {
+    if (!bonusEmployee) return;
+    const amt = parseInt(bonusAmount, 10);
+    if (!amt || amt <= 0) {
+      toast.error("Montant invalide", { description: "Veuillez renseigner un montant de prime supérieur à 0." });
+      return;
+    }
+    try {
+      setBonusSubmitting(true);
+      const res = await apiPost<{ success: boolean; message: string }>("/api/pro/payroll/commissions", {
+        tenantId,
+        employeeId: bonusEmployee.id,
+        amount: amt,
+        reason: bonusReason.trim() || "Prime exceptionnelle accordée par la Direction",
+        moment: bonusMoment,
+      });
+      toast.success("Prime accordée avec succès 🎉", { description: res.message });
+      setBonusEmployee(null);
+      void refreshTeam();
+    } catch (err: any) {
+      toast.error("Échec de l'attribution", { description: err.message || "Une erreur est survenue." });
+    } finally {
+      setBonusSubmitting(false);
+    }
+  }
 
   async function handleExportAttendance() {
     try {
@@ -529,10 +562,24 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 flex-1 text-[11px] gap-1"
-                        onClick={() => setEditing(emp)}
+                        className="h-8 flex-1 text-[11px] gap-1 border-gold/40 text-gold-text hover:bg-gold/10 font-bold"
+                        onClick={() => {
+                          setBonusEmployee(emp);
+                          setBonusAmount("5000");
+                          setBonusReason("Prime d'excellence accordée par la Direction");
+                        }}
+                        title="Attribuer une prime discrétionnaire à cette collaboratrice"
                       >
-                        <Pencil className="size-3" aria-hidden="true" /> Modifier la fiche
+                        <Gift className="size-3 text-gold-text" aria-hidden="true" /> Attribuer une prime
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2.5 text-[11px] gap-1"
+                        onClick={() => setEditing(emp)}
+                        title="Modifier la fiche"
+                      >
+                        <Pencil className="size-3" aria-hidden="true" />
                       </Button>
                       {emp.active ? (
                         <Button
@@ -730,6 +777,124 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      )}
+      {bonusEmployee && (
+        <Dialog open onOpenChange={(o) => !o && setBonusEmployee(null)}>
+          <DialogContent className="max-w-md rounded-3xl border-gold/30 p-0 overflow-hidden">
+            <KenteTop />
+            <div className="p-5 sm:p-6 space-y-4">
+              <DialogHeader>
+                <DialogTitle className="font-heading text-lg text-foreground flex items-center gap-2">
+                  <Gift className="size-5 text-gold-text" />
+                  <span>Attribuer une prime à {bonusEmployee.name}</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Cette prime est une décision discrétionnaire de la Direction. Elle s'affichera directement sur son tableau de bord et sera intégrée à sa paie.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3.5 text-xs">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-foreground">Moment de l'attribution :</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBonusMoment("instant")}
+                      className={cn(
+                        "p-2 rounded-xl border text-[11px] font-bold text-center transition-all cursor-pointer",
+                        bonusMoment === "instant"
+                          ? "border-gold bg-gold/15 text-gold-text shadow-sm"
+                          : "border-border/70 text-muted-foreground hover:bg-muted/40"
+                      )}
+                    >
+                      ⚡ À l'instant (Vente)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBonusMoment("end_of_day")}
+                      className={cn(
+                        "p-2 rounded-xl border text-[11px] font-bold text-center transition-all cursor-pointer",
+                        bonusMoment === "end_of_day"
+                          ? "border-gold bg-gold/15 text-gold-text shadow-sm"
+                          : "border-border/70 text-muted-foreground hover:bg-muted/40"
+                      )}
+                    >
+                      🌙 Fin de journée
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBonusMoment("end_of_month")}
+                      className={cn(
+                        "p-2 rounded-xl border text-[11px] font-bold text-center transition-all cursor-pointer",
+                        bonusMoment === "end_of_month"
+                          ? "border-gold bg-gold/15 text-gold-text shadow-sm"
+                          : "border-border/70 text-muted-foreground hover:bg-muted/40"
+                      )}
+                    >
+                      📅 Fin de mois
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="b-amount" className="text-xs font-bold text-foreground">Montant de la prime (FCFA) :</Label>
+                  <Input
+                    id="b-amount"
+                    type="number"
+                    value={bonusAmount}
+                    onChange={(e) => setBonusAmount(e.target.value)}
+                    placeholder="Ex: 5000, 10000, 25000..."
+                    className="rounded-xl font-heading font-black text-base text-gold-text border-gold/40"
+                  />
+                  <div className="flex items-center gap-1.5 pt-1">
+                    {[2000, 5000, 10000, 20000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setBonusAmount(String(amt))}
+                        className="px-2 py-0.5 rounded-lg bg-muted text-[10px] font-mono font-bold hover:bg-gold/20 text-foreground transition-all cursor-pointer"
+                      >
+                        +{amt} F
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="b-reason" className="text-xs font-bold text-foreground">Motif ou encouragement du Patron :</Label>
+                  <Input
+                    id="b-reason"
+                    value={bonusReason}
+                    onChange={(e) => setBonusReason(e.target.value)}
+                    placeholder="Ex: Bravo pour la fidélisation de Mme Koné..."
+                    className="rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBonusEmployee(null)}
+                  disabled={bonusSubmitting}
+                  className="rounded-xl text-xs"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void handleAwardBonus()}
+                  disabled={bonusSubmitting}
+                  className="k-btn-gold text-[#18120C] rounded-xl text-xs font-bold gap-1.5 shadow"
+                >
+                  <Sparkles className="size-3.5" />
+                  <span>{bonusSubmitting ? "Attribution..." : "Valider & Verser la Prime"}</span>
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
       {leaveOpen && (
         <LeaveDialog
