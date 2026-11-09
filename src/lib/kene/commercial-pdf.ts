@@ -6,6 +6,8 @@
 // 3. CARTE PARRAINAGE & VIP (85x55mm format standard carte de visite/fidélité)
 // 4. ATTESTATION D'AGRÉMENT OFFICIEL A4 : Label d'excellence Institut Partenaire
 
+import fs from "fs";
+import path from "path";
 import {
   PdfDoc,
   textWidth,
@@ -577,79 +579,101 @@ function buildManuelPro(
   doc: PdfDoc,
   data: { tenantName: string; tenantCity: string | null; tenantPhone: string; appUrl: string }
 ) {
+  // Enregistrement des captures d'écran réelles dans le document PDF
+  try {
+    const screensDir = path.join(process.cwd(), "public", "docs", "manual-screens");
+    const dashPath = path.join(screensDir, "screen-dashboard.jpg");
+    const accueilPath = path.join(screensDir, "screen-accueil.jpg");
+    if (fs.existsSync(dashPath)) {
+      const dashBytes = fs.readFileSync(dashPath);
+      doc.addImage("img_dashboard", new Uint8Array(dashBytes), 900, 563);
+    }
+    if (fs.existsSync(accueilPath)) {
+      const accueilBytes = fs.readFileSync(accueilPath);
+      doc.addImage("img_accueil", new Uint8Array(accueilBytes), 900, 563);
+    }
+  } catch {
+    // Si indisponible à chaud, la mise en page garde sa robustesse
+  }
+
   // PAGE 1 : COUVERTURE PRESTIGE & CHARTE D'ENGAGEMENT CABINE
   let y = 35;
-  // Grand cadre d'apparat doré
-  doc.rect(M_X, y, CONTENT_W, 140, KARITE);
-  doc.rectStroke(M_X, y, CONTENT_W, 140, GOLD, 1.8);
+  doc.rect(M_X, y, CONTENT_W, 130, KARITE);
+  doc.rectStroke(M_X, y, CONTENT_W, 130, GOLD, 1.8);
   doc.drawBrandRibbon(M_X, y, CONTENT_W, 5);
 
-  doc.text("KENE PRO 2026", M_X + 24, y + 36, {
+  doc.text("KENE PRO 2026", M_X + 24, y + 34, {
     font: "bold",
     size: 22,
     color: GOLD_DARK,
     letterSpace: 2,
   });
-  doc.text("MANUEL DE MAITRISE DERMO-COSMETIQUE & GESTION DE SALON", M_X + 24, y + 58, {
+  doc.text("MANUEL DE MAITRISE DERMO-COSMETIQUE & GESTION DE SALON", M_X + 24, y + 54, {
     font: "bold",
     size: 11,
     color: BISSAP_DARK,
     letterSpace: 0.5,
   });
-  doc.hline(M_X + 24, M_RIGHT - 24, y + 68, GOLD, 1);
+  doc.hline(M_X + 24, M_RIGHT - 24, y + 64, GOLD, 1);
 
-  doc.text("DOCUMENT OFFICIEL CONFIDENTIEL · ACCREDITATION 2026", M_X + 24, y + 84, {
+  doc.text("DOCUMENT OFFICIEL CONFIDENTIEL · ACCREDITATION 2026", M_X + 24, y + 78, {
     font: "bold",
     size: 8.5,
     color: GOLD_DARK,
     letterSpace: 1,
   });
-  doc.text(`Etablissement Partenaire Titulaire : ${data.tenantName.toUpperCase()}`, M_X + 24, y + 100, {
+  doc.text(`Etablissement Partenaire Titulaire : ${data.tenantName.toUpperCase()}`, M_X + 24, y + 94, {
     font: "bold",
     size: 10,
     color: INK,
   });
-  doc.text(`Localisation : ${data.tenantCity || "Abidjan"} · Direction Kene : contact@kene-beaute.com`, M_X + 24, y + 116, {
+  doc.text(`Localisation : ${data.tenantCity || "Abidjan"} · Direction Kene : contact@kene-beaute.com`, M_X + 24, y + 109, {
     font: "regular",
     size: 9,
     color: SOFT,
   });
 
   // Section 1 : Prise de poste & Cabine
-  y = 200;
+  y = 185;
   doc.text("VOLUME 1 : PROTOCOLE CABINE & DIAGNOSTIC MELANODERME", M_X, y, { font: "bold", size: 12, color: BISSAP_DARK });
   doc.hline(M_X, M_RIGHT, y + 6, GOLD, 1.2);
 
   // Étape 1
-  y += 24;
-  doc.rect(M_X, y - 4, CONTENT_W, 36, CARD);
-  doc.rectStroke(M_X, y - 4, CONTENT_W, 36, GOLD, 0.8);
-  doc.text("ETAPE 1 : PRISE DE POSTE & POINTAGE BIOMETRIQUE HORODATE", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
-  doc.text("Connexion sur kene-beaute.com/pro -> [Pointer mon arrivee]. Validation des heures et primes a la sortie.", M_X + 14, y + 24, { font: "regular", size: 8.5, color: INK });
+  y += 20;
+  doc.rect(M_X, y - 4, CONTENT_W, 34, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 34, GOLD, 0.8);
+  doc.text("ETAPE 1 : PRISE DE POSTE & POINTAGE BIOMETRIQUE HORODATE", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Connexion sur kene-beaute.com/pro -> [Pointer mon arrivee]. Validation des heures et primes.", M_X + 14, y + 22, { font: "regular", size: 8.5, color: INK });
 
   // Étape 2
-  y += 46;
-  doc.rect(M_X, y - 4, CONTENT_W, 48, CARD);
-  doc.rectStroke(M_X, y - 4, CONTENT_W, 48, GOLD, 0.8);
-  doc.text("ETAPE 2 : SCAN DERMO-CUTANE CABINE (PHOTOTYPES IV A VI)", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
-  doc.text("Prise de 3 cliches sous eclairage neutre (Face, Profil Droit, Profil Gauche).", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
-  doc.text("Calcul instantane : Taux d'hydratation, Score Eclat /100, Taches pigmentaires et alerte comedons.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+  y += 42;
+  doc.rect(M_X, y - 4, CONTENT_W, 44, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 44, GOLD, 0.8);
+  doc.text("ETAPE 2 : SCAN DERMO-CUTANE CABINE (PHOTOTYPES IV A VI)", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Prise de 3 cliches sous eclairage neutre (Face, Profil Droit, Profil Gauche).", M_X + 14, y + 21, { font: "regular", size: 8.5, color: INK });
+  doc.text("Calcul instantane : Taux d'hydratation, Score Eclat /100, Taches pigmentaires et alerte comedons.", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
 
   // Étape 3
-  y += 58;
-  doc.rect(M_X, y - 4, CONTENT_W, 48, CARD);
-  doc.rectStroke(M_X, y - 4, CONTENT_W, 48, GOLD, 0.8);
-  doc.text("ETAPE 3 : ORDONNANCE BOTANIQUE CHIFFREE & TRANSMISSION WHATSAPP", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
-  doc.text("Selection des actifs africains nobles (Karite brut de savane, Baobab, Moringa, Kinkeliba, SPF50).", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
-  doc.text("Envoi securise en 1 clic sur le smartphone de la cliente. Suivi de l'evolution a J+30.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+  y += 52;
+  doc.rect(M_X, y - 4, CONTENT_W, 44, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 44, GOLD, 0.8);
+  doc.text("ETAPE 3 : ORDONNANCE BOTANIQUE CHIFFREE & TRANSMISSION WHATSAPP", M_X + 14, y + 9, { font: "bold", size: 9.5, color: GOLD_DARK });
+  doc.text("Selection des actifs africains nobles (Karite brut de savane, Baobab, Moringa, Kinkeliba, SPF50).", M_X + 14, y + 21, { font: "regular", size: 8.5, color: INK });
+  doc.text("Envoi securise en 1 clic sur le smartphone de la cliente. Suivi de l'evolution a J+30.", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
 
-  // Encadré Règle d'or
-  y += 62;
-  doc.rect(M_X, y, CONTENT_W, 45, KARITE);
-  doc.rectStroke(M_X, y, CONTENT_W, 45, TERRE, 1);
-  doc.text("REGLE DE CONFORMITE CLINIQUE KENE (NON NEGOCIABLE)", M_X + 16, y + 16, { font: "bold", size: 9, color: BISSAP_DARK });
-  doc.text("Dermo Kene est un algorithme d'assistance cosmetique d'embellissement cutane. Il ne pose aucun", M_X + 16, y + 28, { font: "regular", size: 8, color: INK });
-  doc.text("diagnostic medical. En cas d'affection atypique, orienter imperativement vers un medecin dermatologue.", M_X + 16, y + 39, { font: "regular", size: 8, color: INK });
+  // ILLUSTRATION CAPTURE ACCUEIL & INSTITUT
+  y += 52;
+  const imgW = CONTENT_W;
+  const imgH = 150;
+  doc.rect(M_X - 1, y - 1, imgW + 2, imgH + 2, KARITE);
+  doc.rectStroke(M_X - 1, y - 1, imgW + 2, imgH + 2, GOLD, 1.2);
+  doc.drawImage("img_accueil", M_X, y, imgW, imgH);
+  doc.text("FIGURE 1 : INTERFACE D'ACCUEIL KENE & PARCOURS CLIENTE EN CABINE", M_X + 10, y + imgH + 12, {
+    font: "bold",
+    size: 7.5,
+    color: GOLD_DARK,
+    letterSpace: 0.5,
+  });
 
   // PAGE 2 : VOLUME 2 (PILOTAGE GERANTE, CAISSE & SYSCOHADA)
   doc.newPage();
@@ -659,15 +683,15 @@ function buildManuelPro(
 
   // Module Caisse
   y += 24;
-  doc.rect(M_X, y - 4, CONTENT_W, 58, CARD);
-  doc.rectStroke(M_X, y - 4, CONTENT_W, 58, GOLD, 0.8);
+  doc.rect(M_X, y - 4, CONTENT_W, 56, CARD);
+  doc.rectStroke(M_X, y - 4, CONTENT_W, 56, GOLD, 0.8);
   doc.text("1. CAISSE POS TACTILE & ENCAISSEMENTS MULTI-FLUX AFRICAINS", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
   doc.text("Modes acceptes : Wave (QR Code), Orange Money, MTN MoMo, Carte Bancaire, Especes.", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
   doc.text("Emission instantanee : Recu numerique direct par WhatsApp/SMS ou impression ticket thermique 58/80mm.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
   doc.text("Securite : Lettrage automatique des acomptes de reservation en ligne.", M_X + 14, y + 49, { font: "regular", size: 8.5, color: SOFT });
 
   // Module Journal de bord
-  y += 68;
+  y += 66;
   doc.rect(M_X, y - 4, CONTENT_W, 52, CARD);
   doc.rectStroke(M_X, y - 4, CONTENT_W, 52, GOLD, 0.8);
   doc.text("2. JOURNAL DE BORD QUOTIDIEN & RECONCILIATION SYSCOHADA", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
@@ -675,13 +699,18 @@ function buildManuelPro(
   doc.text("Consultation historique par calendrier : Rejouez n'importe quelle journee passee en 1 clic.", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
   doc.text("Export certifie : Format CSV et liasse SYSCOHADA directement transmise a votre expert-comptable.", M_X + 14, y + 49, { font: "regular", size: 8.5, color: SOFT });
 
-  // Module Stock & RH
-  y += 62;
-  doc.rect(M_X, y - 4, CONTENT_W, 46, CARD);
-  doc.rectStroke(M_X, y - 4, CONTENT_W, 46, GOLD, 0.8);
-  doc.text("3. GESTION DES REASSORTS DE STOCK & COMMISSIONS D'EQUIPE (CNPS)", M_X + 14, y + 10, { font: "bold", size: 9.5, color: GOLD_DARK });
-  doc.text("Alertes intelligentes de stock : Alerte automatique avant rupture sur les produits cabine et revente.", M_X + 14, y + 23, { font: "regular", size: 8.5, color: INK });
-  doc.text("Calcul des commissions : Suivi transparent des primes par praticienne (soins realises et ventes boutique).", M_X + 14, y + 36, { font: "regular", size: 8.5, color: SOFT });
+  // ILLUSTRATION CAPTURE TABLEAU DE BORD PRO
+  y += 64;
+  const dashH = 185;
+  doc.rect(M_X - 1, y - 1, imgW + 2, dashH + 2, KARITE);
+  doc.rectStroke(M_X - 1, y - 1, imgW + 2, dashH + 2, GOLD, 1.2);
+  doc.drawImage("img_dashboard", M_X, y, imgW, dashH);
+  doc.text("FIGURE 2 : TABLEAU DE BORD PILOTAGE KENE PRO (CHIFFRES CLES, CABINES & ALERTES)", M_X + 10, y + dashH + 12, {
+    font: "bold",
+    size: 7.5,
+    color: GOLD_DARK,
+    letterSpace: 0.5,
+  });
 
   // PAGE 3 : VOLUME 3 (RELATIONS, OBJECTIONS & CONTACT DIRECTION)
   doc.newPage();
@@ -710,6 +739,14 @@ function buildManuelPro(
   doc.text("OBJECTION 3 : 'POURQUOI UTILISER L'APPLICATION A LA MAISON ?'", M_X + 14, y + 10, { font: "bold", size: 9, color: GOLD_DARK });
   doc.text("Reponse recommandee : 'Pour prolonger l'effet de votre soin en cabine, scanner vos produits personnels", M_X + 14, y + 22, { font: "regular", size: 8.5, color: INK });
   doc.text("anti-contrefacon et beneficier du programme de parrainage VIP Kene+.'", M_X + 14, y + 33, { font: "regular", size: 8.5, color: SOFT });
+
+  // Encadré Règle d'or
+  y += 50;
+  doc.rect(M_X, y, CONTENT_W, 42, KARITE);
+  doc.rectStroke(M_X, y, CONTENT_W, 42, TERRE, 1);
+  doc.text("CHARTE DE CONFORMITE ET PROTECTION DES DONNEES CLIENTES", M_X + 16, y + 15, { font: "bold", size: 9, color: BISSAP_DARK });
+  doc.text("Les dossiers cutanes sont chifftes de bout en bout (AES-256). L'institut s'engage a ne faire aucun", M_X + 16, y + 27, { font: "regular", size: 8, color: INK });
+  doc.text("usage commercial externe des photographies ou informations de sante renseignees.", M_X + 16, y + 38, { font: "regular", size: 8, color: INK });
 
   // Cadre Direction Kène — Unique canal officiel : Courriel
   y += 55;
