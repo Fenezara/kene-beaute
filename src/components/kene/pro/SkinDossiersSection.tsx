@@ -1831,6 +1831,17 @@ function ClientSkinDossierDetail({
                           <input
                             type="text"
                             value={item.name}
+                            onFocus={(e) => {
+                              if (item.name === "Sérum Anti-Taches & Éclat Hibiscus" || item.name === "Produit cosmétique sur-mesure") {
+                                setPrescriptionData((prev) => {
+                                  const next = [...prev.products];
+                                  next[idx] = { ...next[idx], name: "" };
+                                  return { ...prev, products: next };
+                                });
+                              } else {
+                                e.target.select();
+                              }
+                            }}
                             onChange={(e) => {
                               const val = e.target.value;
                               setPrescriptionData((prev) => {
@@ -1910,6 +1921,17 @@ function ClientSkinDossierDetail({
                           <input
                             type="text"
                             value={item.posology}
+                            onFocus={(e) => {
+                              if (item.posology === "3 gouttes le matin avant le fluide hydratant" || item.posology === "Appliquer matin et soir sur peau propre") {
+                                setPrescriptionData((prev) => {
+                                  const next = [...prev.products];
+                                  next[idx] = { ...next[idx], posology: "" };
+                                  return { ...prev, products: next };
+                                });
+                              } else {
+                                e.target.select();
+                              }
+                            }}
                             onChange={(e) => {
                               const val = e.target.value;
                               setPrescriptionData((prev) => {
@@ -2082,6 +2104,17 @@ function ClientSkinDossierDetail({
                           <input
                             type="text"
                             value={srv.name}
+                            onFocus={(e) => {
+                              if (srv.name === "Soin Cabine Dermo-Purifiant & Hydratation Profonde" || srv.name === "Soin Esthétique Cabine Sur-Mesure") {
+                                setPrescriptionData((prev) => {
+                                  const next = [...prev.cabineServices];
+                                  next[idx] = { ...next[idx], name: "" };
+                                  return { ...prev, cabineServices: next };
+                                });
+                              } else {
+                                e.target.select();
+                              }
+                            }}
                             onChange={(e) => {
                               const val = e.target.value;
                               setPrescriptionData((prev) => {
@@ -2141,6 +2174,17 @@ function ClientSkinDossierDetail({
                             <input
                               type="text"
                               value={srv.frequency}
+                              onFocus={(e) => {
+                                if (srv.frequency === "1 séance / mois" || srv.frequency === "1 séance toutes les 2 à 3 semaines") {
+                                  setPrescriptionData((prev) => {
+                                    const next = [...prev.cabineServices];
+                                    next[idx] = { ...next[idx], frequency: "" };
+                                    return { ...prev, cabineServices: next };
+                                  });
+                                } else {
+                                  e.target.select();
+                                }
+                              }}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setPrescriptionData((prev) => {
