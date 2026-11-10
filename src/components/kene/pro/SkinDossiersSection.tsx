@@ -1832,7 +1832,12 @@ function ClientSkinDossierDetail({
                             type="text"
                             value={item.name}
                             onFocus={(e) => {
-                              if (item.name === "Sérum Anti-Taches & Éclat Hibiscus" || item.name === "Produit cosmétique sur-mesure") {
+                              const defaultNames = [
+                                "Sérum Anti-Taches & Éclat Hibiscus",
+                                "Produit cosmétique sur-mesure",
+                                "Autre produit cosmétique",
+                              ];
+                              if (defaultNames.includes(item.name)) {
                                 setPrescriptionData((prev) => {
                                   const next = [...prev.products];
                                   next[idx] = { ...next[idx], name: "" };
@@ -1922,7 +1927,13 @@ function ClientSkinDossierDetail({
                             type="text"
                             value={item.posology}
                             onFocus={(e) => {
-                              if (item.posology === "3 gouttes le matin avant le fluide hydratant" || item.posology === "Appliquer matin et soir sur peau propre") {
+                              const defaultPosologies = [
+                                "3 gouttes le matin avant le fluide hydratant",
+                                "Appliquer matin et soir sur peau propre",
+                                "Appliquer selon recommandations",
+                                "Appliquer délicatement sur peau propre et légèrement humide",
+                              ];
+                              if (defaultPosologies.includes(item.posology)) {
                                 setPrescriptionData((prev) => {
                                   const next = [...prev.products];
                                   next[idx] = { ...next[idx], posology: "" };
@@ -2105,7 +2116,12 @@ function ClientSkinDossierDetail({
                             type="text"
                             value={srv.name}
                             onFocus={(e) => {
-                              if (srv.name === "Soin Cabine Dermo-Purifiant & Hydratation Profonde" || srv.name === "Soin Esthétique Cabine Sur-Mesure") {
+                              const defaultServiceNames = [
+                                "Soin Cabine Dermo-Purifiant & Hydratation Profonde",
+                                "Soin Esthétique Cabine Sur-Mesure",
+                                "Autre soin en cabine",
+                              ];
+                              if (defaultServiceNames.includes(srv.name)) {
                                 setPrescriptionData((prev) => {
                                   const next = [...prev.cabineServices];
                                   next[idx] = { ...next[idx], name: "" };
@@ -2175,7 +2191,13 @@ function ClientSkinDossierDetail({
                               type="text"
                               value={srv.frequency}
                               onFocus={(e) => {
-                                if (srv.frequency === "1 séance / mois" || srv.frequency === "1 séance toutes les 2 à 3 semaines") {
+                                const defaultFrequencies = [
+                                  "1 séance / mois",
+                                  "1 séance toutes les 2 à 3 semaines",
+                                  "1 séance par mois",
+                                  "ex: 1 séance toutes les 2 semaines",
+                                ];
+                                if (defaultFrequencies.includes(srv.frequency)) {
                                   setPrescriptionData((prev) => {
                                     const next = [...prev.cabineServices];
                                     next[idx] = { ...next[idx], frequency: "" };
