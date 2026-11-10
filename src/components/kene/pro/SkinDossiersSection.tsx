@@ -680,6 +680,52 @@ function ClientSkinDossierDetail({
   const isObsInitial = useRef(true);
   const [obsAutoSaveStatus, setObsAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
+  // Auto-sauvegarde debouncée de l'ordonnance beauté en continu (sans bouton obligatoire)
+  const prescSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isPrescInitial = useRef(true);
+  const [prescAutoSaveStatus, setPrescAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  useEffect(() => {
+    if (isPrescInitial.current) {
+      isPrescInitial.current = false;
+      return;
+    }
+    if (!clientId || !tenantId) return;
+
+    if (prescSaveTimeoutRef.current) {
+      clearTimeout(prescSaveTimeoutRef.current);
+    }
+    setPrescAutoSaveStatus("saving");
+
+    prescSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const serialized = serializeStructuredPrescription({
+          ...prescriptionData,
+          prescribedAt: new Date().toISOString(),
+          tenantId,
+        });
+
+        await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
+          cosmeticsUsed: serialized,
+        });
+
+        setCosmeticsUsed(serialized);
+        setPrescAutoSaveStatus("saved");
+        setTimeout(() => {
+          setPrescAutoSaveStatus((s) => (s === "saved" ? "idle" : s));
+        }, 2500);
+      } catch {
+        setPrescAutoSaveStatus("idle");
+      }
+    }, 1000);
+
+    return () => {
+      if (prescSaveTimeoutRef.current) {
+        clearTimeout(prescSaveTimeoutRef.current);
+      }
+    };
+  }, [prescriptionData, clientId, tenantId]);
+
   useEffect(() => {
     if (isObsInitial.current) {
       isObsInitial.current = false;
@@ -1575,6 +1621,16 @@ function ClientSkinDossierDetail({
                   <Badge variant="outline" className="border-[#D49A24]/40 bg-[#D49A24]/15 text-[#F3D98A] text-[10px] font-bold">
                     ✨ Connectée App Cliente
                   </Badge>
+                  {prescAutoSaveStatus === "saving" && (
+                    <span className="text-[10px] font-mono text-[#F3D98A] animate-pulse">
+                      ● Sauvegarde automatique…
+                    </span>
+                  )}
+                  {prescAutoSaveStatus === "saved" && (
+                    <span className="text-[10px] font-mono text-emerald-400">
+                      ✓ Enregistré automatiquement
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-[#E6D5B8]/80 mt-0.5">
                   Prescrite pour {c.name} · Visible en temps réel sur son smartphone dans « Dossier peau » et « Soin &amp; rdv »
