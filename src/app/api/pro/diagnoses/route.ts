@@ -12,6 +12,7 @@ import { BODY_ZONES } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
 import { scoreQuestionnaire, mergeResults, missingRequired, getQuestionsForZone, QUESTIONS } from "@/lib/kene/questionnaire";
 import type { QAnswers } from "@/lib/kene/questionnaire";
+import { recommend4SpectralSlots } from "@/lib/kene/types";
 import { jsonError, serverError, notify, resolveTenant } from "@/lib/kene/server";
 import { pushTenantFeed, pushFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
@@ -202,6 +203,10 @@ export async function POST(req: NextRequest) {
     const result = mergeResults(qr, vlm, zone as BodyZone, rawPhotos.length > 0);
     const photoDataToStore = rawPhotos.length === 0 ? null : rawPhotos.length === 1 ? rawPhotos[0] : JSON.stringify(rawPhotos);
 
+    // Initialiser les 4 slots multi-spectre distribués sur les photos/angles
+    const initialReportSlots = recommend4SpectralSlots(result.indicateurs, rawPhotos.length);
+    (result as any).reportSlots = initialReportSlots;
+
     // 4. Persistance + mise à jour de la fiche CRM (le diagnostic EST une visite)
     const diagnosis = await db.proDiagnosis.create({
       data: {
@@ -300,6 +305,7 @@ export async function GET(req: NextRequest) {
         practitioner: true,
         questionnaireJson: true,
         resultJson: true,
+        photoData: true,
         scoreGlobal: true,
         vlmUsed: true,
         photoUsed: true,
@@ -323,12 +329,36 @@ export async function GET(req: NextRequest) {
     };
 
     return NextResponse.json({
-      diagnoses: rows.map((r) => ({
-        ...r,
-        clientName: r.clientProfile?.name ?? "Cliente",
-        clientPhone: r.clientProfile?.phone ?? "",
-        cosmeticsUsed: r.clientProfile?.cosmeticsUsed ?? null,
-      })),
+      diagnoses: rows.map((r) => {
+        let parsedResult: any = null;
+        try {
+          parsedResult = JSON.parse(r.resultJson);
+        } catch {
+          parsedResult = null;
+        }
+
+        // Si reportSlots n'est pas encore défini et que plusieurs photos existent, auto-injecter la recommandation distribuée
+        if (parsedResult && (!parsedResult.reportSlots || parsedResult.reportSlots.length !== 4)) {
+          let count = 1;
+          if (r.photoData) {
+            try {
+              const p = JSON.parse(r.photoData);
+              if (Array.isArray(p)) count = p.length;
+            } catch {
+              count = 1;
+            }
+          }
+          parsedResult.reportSlots = recommend4SpectralSlots(parsedResult.indicateurs, count);
+        }
+
+        return {
+          ...r,
+          resultJson: parsedResult ? JSON.stringify(parsedResult) : r.resultJson,
+          clientName: r.clientProfile?.name ?? "Cliente",
+          clientPhone: r.clientProfile?.phone ?? "",
+          cosmeticsUsed: r.clientProfile?.cosmeticsUsed ?? null,
+        };
+      }),
       kpis,
     });
   } catch (err) {

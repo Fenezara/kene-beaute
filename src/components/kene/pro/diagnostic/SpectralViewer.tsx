@@ -480,18 +480,38 @@ export function SpectralViewer({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSlot(slotIdx);
-                    }}
-                    className="size-5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 grid place-items-center text-xs transition-colors shrink-0"
-                    title={`Retirer ${viewDef.shortLabel} (Photo #${targetPIdx + 1}) du PDF`}
-                    aria-label={`Retirer ${viewDef.shortLabel}`}
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {photoList.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const nextPIdx = (targetPIdx + 1) % photoList.length;
+                          const next = [...reportSlots];
+                          next[slotIdx] = { ...slot, photoIdx: nextPIdx };
+                          setSlots(next);
+                          setPhotoIdx(nextPIdx);
+                          toast.info(`Slot #${slotIdx + 1} basculé sur la Photo #${nextPIdx + 1}`);
+                        }}
+                        className="px-1.5 py-0.5 rounded text-[8.5px] font-mono bg-muted/60 hover:bg-gold/20 text-muted-foreground hover:text-gold border border-border/60 transition-colors"
+                        title={`Changer l'angle de prise de vue (actuellement Photo #${targetPIdx + 1}/${photoList.length})`}
+                      >
+                        P#{targetPIdx + 1} ↻
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSlot(slotIdx);
+                      }}
+                      className="size-5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 grid place-items-center text-xs transition-colors shrink-0"
+                      title={`Retirer ${viewDef.shortLabel} (Photo #${targetPIdx + 1}) du PDF`}
+                      aria-label={`Retirer ${viewDef.shortLabel}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               );
             }
