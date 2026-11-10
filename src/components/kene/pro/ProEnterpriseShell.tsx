@@ -48,6 +48,7 @@ import {
 } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { applyTierThemeToDom, saveTenantTierTheme, syncActiveTierTheme } from "@/lib/kene/tier-theme";
+import { useHardwareBack } from "@/components/kene/HardwareBackController";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AuroraBackdrop, Eyebrow } from "@/components/kene/ui2026";
@@ -337,6 +338,7 @@ export function ProEnterpriseShell() {
   }
 
   const [section, setSection] = useState<ProSectionId>("dashboard");
+  const sectionHistoryRef = useRef<ProSectionId[]>(["dashboard"]);
   const [salesTab, setSalesTab] = useState<"pos" | "orders">("pos");
   const [catalogTab, setCatalogTab] = useState<"products" | "stock">("products");
   const [settingsTab, setSettingsTab] = useState<"settings" | "subscription">("settings");
@@ -349,6 +351,43 @@ export function ProEnterpriseShell() {
   const [inciScannerOpen, setInciScannerOpen] = useState(false);
   const [mirrorKioskOpen, setMirrorKioskOpen] = useState(false);
   const [assistantNonce, setAssistantNonce] = useState(0);
+
+  // Interception du bouton Retour physique / barre Android pour naviguer dans l'historique de l'application
+  useHardwareBack(() => {
+    // 1. Fermer les modales ouvertes en priorité
+    if (mamanAssistantOpen) {
+      setMamanAssistantOpen(false);
+      return true;
+    }
+    if (inciScannerOpen) {
+      setInciScannerOpen(false);
+      return true;
+    }
+    if (mirrorKioskOpen) {
+      setMirrorKioskOpen(false);
+      return true;
+    }
+    if (skinDossierClientId) {
+      setSkinDossierClientId(null);
+      return true;
+    }
+
+    // 2. Si on est sur une sous-section autre que dashboard, dépiler vers la section précédente
+    if (sectionHistoryRef.current.length > 1) {
+      sectionHistoryRef.current.pop(); // retirer la courante
+      const previous = sectionHistoryRef.current[sectionHistoryRef.current.length - 1] || "dashboard";
+      setSection(previous);
+      return true;
+    }
+
+    if (section !== "dashboard") {
+      setSection("dashboard");
+      sectionHistoryRef.current = ["dashboard"];
+      return true;
+    }
+
+    return false; // laisse le contrôleur racine gérer (toast ou sortie)
+  }, true);
 
   useEffect(() => {
     mainScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
@@ -734,21 +773,33 @@ export function ProEnterpriseShell() {
     if (s === "agenda") setAgendaSeen(live?.pendingAppts ?? 0);
     if (s === "orders") {
       setSalesTab("orders");
+      if (section !== "caisse") {
+        sectionHistoryRef.current.push("caisse");
+      }
       setSection("caisse");
       return;
     }
     if (s === "caisse") {
       setSalesTab("pos");
+      if (section !== "caisse") {
+        sectionHistoryRef.current.push("caisse");
+      }
       setSection("caisse");
       return;
     }
     if (s === "stock") {
       setCatalogTab("stock");
+      if (section !== "stock") {
+        sectionHistoryRef.current.push("stock");
+      }
       setSection("stock");
       return;
     }
     if (s === "catalogue") {
       setCatalogTab("products");
+      if (section !== "catalogue") {
+        sectionHistoryRef.current.push("catalogue");
+      }
       setSection("catalogue");
       return;
     }
@@ -758,8 +809,14 @@ export function ProEnterpriseShell() {
         return;
       }
       setSettingsTab("subscription");
+      if (section !== "parametres") {
+        sectionHistoryRef.current.push("parametres");
+      }
       setSection("parametres");
       return;
+    }
+    if (s !== section) {
+      sectionHistoryRef.current.push(s);
     }
     setSection(s);
   };

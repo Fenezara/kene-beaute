@@ -38,6 +38,7 @@ import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
+import { useHardwareBack } from "@/components/kene/HardwareBackController";
 import { openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
 import { cn } from "@/lib/utils";
 
@@ -146,8 +147,42 @@ export function ClientApp() {
 
   // ─── Direction de transition (sens de navigation) + connectivité ───
   const [navDir, setNavDir] = useState<1 | -1>(1);
+  const clientTabHistoryRef = useRef<ScreenTab[]>(["accueil"]);
   // Bandeau hors-ligne anti-faux-positifs — résilience réseau façon Wave
   const online = useNetworkOnline();
+
+  // Gestion du bouton Retour matériel/gestuel Android dans l'Espace Cliente
+  useHardwareBack(() => {
+    // 1. Fermer les modales ouvertes en priorité
+    if (walkthroughOpen) {
+      setWalkthroughOpen(false);
+      return true;
+    }
+    if (installModalOpen) {
+      setInstallModalOpen(false);
+      return true;
+    }
+    if (pendingZone) {
+      setPendingZone(null);
+      return true;
+    }
+
+    // 2. Si on est sur un onglet autre que l'accueil, dépiler vers l'onglet précédent
+    if (clientTabHistoryRef.current.length > 1) {
+      clientTabHistoryRef.current.pop(); // retirer l'actuel
+      const prev = clientTabHistoryRef.current[clientTabHistoryRef.current.length - 1] || "accueil";
+      setClientTab(prev as ClientTab);
+      return true;
+    }
+
+    if (tab !== "accueil" && tab !== "diagnostic") {
+      setClientTab("accueil");
+      clientTabHistoryRef.current = ["accueil"];
+      return true;
+    }
+
+    return false;
+  }, true);
 
   // Deep-linking / Raccourcis PWA (shortcuts) : ouverture directe d'un onglet via ?tab=...
   useEffect(() => {
@@ -308,6 +343,7 @@ export function ClientApp() {
       const to = SWIPE_ORDER.indexOf(t as ClientTab);
       if (from >= 0 && to >= 0) setNavDir(to > from ? 1 : -1);
       haptic(HAPTIC.tap);
+      clientTabHistoryRef.current.push(t);
     }
     if (t === "chat" || t === "accueil") setChatUnread(false);
     setClientTab(t as ClientTab);

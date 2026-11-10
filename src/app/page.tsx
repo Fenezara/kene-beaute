@@ -24,6 +24,7 @@ import { SessionKeeper } from "@/components/kene/SessionKeeper";
 import { TransportProbe } from "@/components/kene/TransportProbe";
 import { TierThemeBoot } from "@/components/kene/TierThemeBoot";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
+import { HardwareBackController } from "@/components/kene/HardwareBackController";
 import { TurnstileProvider } from "@/components/kene/TurnstileProvider";
 import { ConsoleEntry, ConsoleRedirect, useEntryKind } from "@/components/kene/admin/ConsoleEntry";
 import { MaintenanceScreen } from "@/components/kene/MaintenanceScreen";
@@ -259,6 +260,9 @@ export default function Page() {
 
         {/* Synchronisation de la palette d'abonnement (data-tier sur <html>) */}
         <TierThemeBoot />
+
+        {/* Gestionnaire universel du bouton Retour Android / Navigateur mobile */}
+        <HardwareBackController />
 
         {/* PWA: enregistrement du service worker + mise à jour offline (aucun rendu) */}
         <PwaProvider />
