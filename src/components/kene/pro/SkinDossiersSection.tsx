@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime, scoreVar, xof } from "@/lib/kene/format";
-import { apiGet, apiPatch } from "@/lib/kene/api";
+import { apiGet, apiPatch, apiDelete } from "@/lib/kene/api";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
 import { ProEvolutionCard } from "@/components/kene/evolution/ProEvolutionCard";
@@ -581,6 +581,10 @@ function ClientSkinDossierDetail({
   const [historyFilter, setHistoryFilter] = useState<"all" | "cabine" | "client">("all");
   // Source pour la courbe d'évolution & biomarqueurs
   const [biomarkersSource, setBiomarkersSource] = useState<"all" | "cabine" | "client">("all");
+
+  // État suppression d'un bilan archivé
+  const [deletingDiagId, setDeletingDiagId] = useState<string | null>(null);
+  const [diagToDelete, setDiagToDelete] = useState<{ id: string; zone: string; date: string } | null>(null);
 
   const detail = useApi<ProClientDetail>(
     () => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}?tenantId=${tenantId}`),
@@ -1578,7 +1582,7 @@ function ClientSkinDossierDetail({
                       </div>
                     )}
 
-                    <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2 flex-wrap text-xs">
                       <span className="text-[11px] text-muted-foreground">
                         {isCabine
                           ? item.vlmUsed
@@ -1588,14 +1592,26 @@ function ClientSkinDossierDetail({
                       </span>
 
                       {isCabine && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${encodeURIComponent(tenantId)}&id=${item.id}`, "_blank")}
-                          className="text-[10.5px] h-7 gap-1"
-                        >
-                          <FileDown className="size-3" /> Compte-rendu cabine (PDF)
-                        </Button>
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${encodeURIComponent(tenantId)}&id=${item.id}`, "_blank")}
+                            className="text-[10.5px] h-7 gap-1"
+                          >
+                            <FileDown className="size-3" /> Compte-rendu (PDF)
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDiagToDelete({ id: item.id, zone: item.zone.replace("_", " "), date: formatDate(item.createdAt) })}
+                            className="text-[10.5px] h-7 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive border-border/80"
+                            title="Supprimer ce bilan archivé"
+                          >
+                            <Trash2 className="size-3" />
+                            <span className="sr-only sm:not-sr-only">Supprimer</span>
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </Card>
@@ -2678,6 +2694,65 @@ function ClientSkinDossierDetail({
             >
               <Check className="size-4" />
               <span>Activer la Cure #{(prescriptionData.cureNumber || 1) + 1} &amp; Transmettre</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogue de confirmation de suppression d'un bilan archivé */}
+      <Dialog open={Boolean(diagToDelete)} onOpenChange={(o) => !o && setDiagToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-destructive flex items-center gap-2">
+              <Trash2 className="size-4" /> Supprimer ce bilan cabine archivé ?
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Cette action supprimera définitivement le diagnostic archivé du {diagToDelete?.date} (Zone {diagToDelete?.zone}) pour cette cliente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDiagToDelete(null)}
+              disabled={Boolean(deletingDiagId)}
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={Boolean(deletingDiagId)}
+              onClick={async () => {
+                if (!diagToDelete || !tenantId) return;
+                setDeletingDiagId(diagToDelete.id);
+                try {
+                  await apiDelete(`/api/pro/diagnoses?tenantId=${tenantId}&id=${diagToDelete.id}`);
+                  toast.success("Bilan cabine supprimé avec succès");
+                  setDiagToDelete(null);
+                  detail.refetch();
+                  onRefreshList?.();
+                } catch (e: any) {
+                  toast.error(e?.message || "Impossible de supprimer ce bilan");
+                } finally {
+                  setDeletingDiagId(null);
+                }
+              }}
+              className="gap-1.5 font-bold"
+            >
+              {deletingDiagId ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Suppression…</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-3.5" />
+                  <span>Confirmer la suppression</span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
