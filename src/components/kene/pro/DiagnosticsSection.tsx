@@ -2113,22 +2113,22 @@ export function ResultView({
         </CardContent>
       </Card>
 
-      {/* ── ONGLETS CLINIQUES TACTILES ── */}
-      <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-xl border border-border/70 overflow-x-auto pretty-scroll">
+      {/* ── ONGLETS CLINIQUES TACTILES (Affichage complet sans scrollbar horizontal) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-1.5 p-1 bg-muted/50 rounded-xl border border-border/70">
         {photo && (
           <button
             type="button"
             onClick={() => setActiveTab("spectra")}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0",
+              "px-2.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center",
               activeTab === "spectra"
                 ? "bg-card text-foreground shadow-xs border border-border"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <span>🔬 Imagerie &amp; 8 Spectres</span>
-            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-gold/15 text-gold-text border-gold/30">
-              4/4 PDF
+            <span className="truncate">🔬 Imagerie &amp; Spectres</span>
+            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-gold/15 text-gold-text border-gold/30 shrink-0">
+              4/4
             </Badge>
           </button>
         )}
@@ -2137,14 +2137,14 @@ export function ResultView({
           type="button"
           onClick={() => setActiveTab("biomarkers")}
           className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0",
+            "px-2.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center",
             activeTab === "biomarkers"
               ? "bg-card text-foreground shadow-xs border border-border"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span>📊 Biomarqueurs &amp; Vigilances</span>
-          <Badge variant="outline" className="text-[9px] px-1 py-0">
+          <span className="truncate">📊 Biomarqueurs</span>
+          <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
             {sortedIndicators.length}
           </Badge>
         </button>
@@ -2153,28 +2153,28 @@ export function ResultView({
           type="button"
           onClick={() => setActiveTab("protocol")}
           className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0",
+            "px-2.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center",
             activeTab === "protocol"
               ? "bg-card text-foreground shadow-xs border border-border"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span>🌿 Protocole &amp; Projection J+60</span>
+          <span className="truncate">🌿 Protocole J+60</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("prescription")}
           className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0",
+            "px-2.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center",
             activeTab === "prescription"
               ? "bg-card text-foreground shadow-xs border border-border"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span>💊 Ordonnance Beauté</span>
+          <span className="truncate">💊 Ordonnance</span>
           {hasPrescriptionData && (
-            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shrink-0">
               Active
             </Badge>
           )}
@@ -2184,13 +2184,13 @@ export function ResultView({
           type="button"
           onClick={() => setActiveTab("all")}
           className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ml-auto shrink-0",
+            "col-span-2 md:col-span-4 lg:col-span-1 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center text-center",
             activeTab === "all"
               ? "bg-card text-foreground shadow-xs border border-border"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span>Tout afficher</span>
+          <span>👁️ Tout afficher</span>
         </button>
       </div>
 
