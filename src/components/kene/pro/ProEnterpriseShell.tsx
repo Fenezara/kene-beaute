@@ -345,7 +345,14 @@ export function ProEnterpriseShell() {
   const [diagCommand, setDiagCommand] = useState<{ clientId: string; nonce: number } | null>(null);
   const [skinDossierClientId, setSkinDossierClientId] = useState<string | null>(null);
   const [crmCreateNonce] = useState(0);
-  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1280) {
+      setSidebarExpanded(true);
+    }
+  }, []);
+
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
   const [inciScannerOpen, setInciScannerOpen] = useState(false);
@@ -1032,30 +1039,32 @@ export function ProEnterpriseShell() {
                     type="button"
                     onClick={() => handleSelfPointage("in")}
                     disabled={attendanceBusy}
-                    className="h-8 px-3 rounded-full text-xs font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    className="h-8 px-2 sm:px-3 rounded-full text-xs font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
                     title="Enregistrer mon heure d'arrivée au salon"
                   >
-                    <LogIn size={13} className="text-emerald-600 dark:text-emerald-400" />
-                    <span>Pointer mon arrivée</span>
+                    <LogIn size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="hidden xl:inline">Pointer mon arrivée</span>
                   </button>
                 ) : !staffAttendance?.checkOut ? (
                   <button
                     type="button"
                     onClick={() => handleSelfPointage("out")}
                     disabled={attendanceBusy}
-                    className="h-8 px-3 rounded-full text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    className="h-8 px-2 sm:px-3 rounded-full text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
                     title="Enregistrer mon départ du salon"
                   >
-                    <LogOut size={13} className="text-amber-600 dark:text-amber-400" />
-                    <span>Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
+                    <LogOut size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span className="hidden xl:inline">Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
+                    <span className="xl:hidden">Sortie</span>
                   </button>
                 ) : (
                   <span
-                    className="h-8 px-3 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
+                    className="h-8 px-2 sm:px-2.5 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
                     title={`Pointage effectué aujourd'hui : ${staffAttendance.checkIn} → ${staffAttendance.checkOut} (${staffAttendance.hours || 0}h)`}
                   >
-                    <CheckCircle2 size={13} className="text-emerald-500" />
-                    <span>Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
+                    <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                    <span className="hidden xl:inline">Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
+                    <span className="xl:hidden">Pointé</span>
                   </span>
                 )}
               </div>
@@ -1064,11 +1073,11 @@ export function ProEnterpriseShell() {
             <button
               type="button"
               onClick={goToClientSpace}
-              className="hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 via-primary/15 to-gold/10 hover:from-primary/20 hover:to-gold/20 text-primary border border-primary/30 transition-all shadow-xs active:scale-95 shrink-0"
+              className="hidden md:inline-flex items-center gap-1.5 h-8 px-2 sm:px-3 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 via-primary/15 to-gold/10 hover:from-primary/20 hover:to-gold/20 text-primary border border-primary/30 transition-all shadow-xs active:scale-95 shrink-0"
               title="Accéder à Mon Espace Beauté personnel (Soins, Diagnostic & Rituels)"
             >
               <CauriIcon className="size-3.5 text-primary shrink-0" />
-              <span>Mon Espace Beauté 🌸</span>
+              <span className="hidden xl:inline">Mon Espace Beauté 🌸</span>
             </button>
 
             <SpaceSwitcher variant="compact" />
@@ -1387,7 +1396,7 @@ export function ProEnterpriseShell() {
           </nav>
 
           {/* Actions Express Cabine */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {(!allowedIds || allowedIds.includes("diagnostic")) && (
               <button
                 type="button"
@@ -1395,11 +1404,12 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   openSection("diagnostic");
                 }}
-                className="h-8 px-2.5 lg:px-3 rounded-xl border border-[#E04E75]/50 bg-[#9E2045]/30 hover:bg-[#9E2045]/45 text-[#FFD9E4] text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                className="h-8 px-2 sm:px-2.5 lg:px-3 rounded-xl border border-[#E04E75]/50 bg-[#9E2045]/30 hover:bg-[#9E2045]/45 text-[#FFD9E4] text-[11px] font-bold flex items-center gap-1 sm:gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Lancer un diagnostic de peau multi-vues en cabine"
               >
-                <ScanFace size={13} />
-                <span>Scan Cabine</span>
+                <ScanFace size={13} className="shrink-0" />
+                <span className="hidden xl:inline">Scan Cabine</span>
+                <span className="xl:hidden">Scan</span>
               </button>
             )}
 
@@ -1410,11 +1420,12 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   openSection("caisse");
                 }}
-                className="h-8 px-2.5 lg:px-3 rounded-xl border border-emerald-500/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                className="h-8 px-2 sm:px-2.5 lg:px-3 rounded-xl border border-emerald-500/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-bold flex items-center gap-1 sm:gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Ouvrir la caisse et enregistrer un encaissement"
               >
-                <AbanIcon size={13} />
-                <span>Encaisser POS</span>
+                <AbanIcon size={13} className="shrink-0" />
+                <span className="hidden xl:inline">Encaisser POS</span>
+                <span className="xl:hidden">POS</span>
               </button>
             )}
 
@@ -1424,12 +1435,12 @@ export function ProEnterpriseShell() {
                 haptic(HAPTIC.tap);
                 setInciScannerOpen(true);
               }}
-              className="h-8 px-2.5 rounded-xl border border-[#D49A24]/50 bg-[#D49A24]/20 hover:bg-[#D49A24]/30 text-[#F5D37E] text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              className="h-8 px-2 sm:px-2.5 rounded-xl border border-[#D49A24]/50 bg-[#D49A24]/20 hover:bg-[#D49A24]/30 text-[#F5D37E] text-[11px] font-bold flex items-center gap-1 sm:gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               title="Scanner un cosmétique (Liste Rouge Kènè & Analyse INCI)"
             >
-              <ShieldAlert size={13} />
-              <span className="hidden lg:inline">Scanner INCI</span>
-              <span className="lg:hidden">INCI</span>
+              <ShieldAlert size={13} className="shrink-0" />
+              <span className="hidden xl:inline">Scanner INCI</span>
+              <span className="xl:hidden">INCI</span>
             </button>
 
             {(!allowedIds || allowedIds.includes("diagnostic")) && (
@@ -1439,10 +1450,10 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   setMirrorKioskOpen(true);
                 }}
-                className="h-8 px-2.5 rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-[#FFF9EC] text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                className="h-8 px-2 sm:px-2.5 rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-[#FFF9EC] text-[11px] font-bold flex items-center gap-1 sm:gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
               >
-                <ScanFace size={13} className="text-[#E5A93C]" />
+                <ScanFace size={13} className="text-[#E5A93C] shrink-0" />
                 <span className="hidden 2xl:inline">Kiosque Mirror</span>
                 <span className="2xl:hidden">Mirror</span>
               </button>
@@ -1678,30 +1689,39 @@ export function ProEnterpriseShell() {
                     type="button"
                     onClick={() => handleSelfPointage("in")}
                     disabled={attendanceBusy}
-                    className="h-8 w-full justify-center px-3 rounded-full text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    className={cn(
+                      "h-8 rounded-full text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer",
+                      sidebarExpanded ? "w-full px-3" : "size-9 mx-auto"
+                    )}
                     title="Enregistrer mon heure d'arrivée au salon"
                   >
-                    <LogIn size={13} className="text-emerald-400" />
-                    <span>Pointer mon arrivée</span>
+                    <LogIn size={15} className="text-emerald-400 shrink-0" />
+                    {sidebarExpanded && <span>Pointer mon arrivée</span>}
                   </button>
                 ) : !staffAttendance?.checkOut ? (
                   <button
                     type="button"
                     onClick={() => handleSelfPointage("out")}
                     disabled={attendanceBusy}
-                    className="h-8 w-full justify-center px-3 rounded-full text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    className={cn(
+                      "h-8 rounded-full text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer",
+                      sidebarExpanded ? "w-full px-3" : "size-9 mx-auto"
+                    )}
                     title="Enregistrer mon départ du salon"
                   >
-                    <LogOut size={13} className="text-amber-400" />
-                    <span>Arrivée {staffAttendance.checkIn} · Sortie</span>
+                    <LogOut size={15} className="text-amber-400 shrink-0" />
+                    {sidebarExpanded && <span>Arrivée {staffAttendance.checkIn} · Sortie</span>}
                   </button>
                 ) : (
                   <span
-                    className="h-8 w-full justify-center px-3 rounded-full text-[11px] font-bold bg-white/10 text-[#F5ECDD]/80 border border-white/15 flex items-center gap-1.5"
+                    className={cn(
+                      "h-8 rounded-full text-[11px] font-bold bg-white/10 text-[#F5ECDD]/80 border border-white/15 flex items-center justify-center gap-1.5",
+                      sidebarExpanded ? "w-full px-3" : "size-9 mx-auto"
+                    )}
                     title={`Pointage effectué aujourd'hui : ${staffAttendance.checkIn} → ${staffAttendance.checkOut} (${staffAttendance.hours || 0}h)`}
                   >
-                    <CheckCircle2 size={13} className="text-emerald-400" />
-                    <span>Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
+                    <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                    {sidebarExpanded && <span>Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>}
                   </span>
                 )}
               </div>

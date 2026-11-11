@@ -2185,7 +2185,7 @@ export function ResultView({
       </Card>
 
       {/* ── ONGLETS CLINIQUES TACTILES (Affichage complet sans scrollbar horizontal) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-1.5 p-1 bg-muted/50 rounded-xl border border-border/70">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 p-1 bg-muted/50 rounded-xl border border-border/70">
         {photo && (
           <button
             type="button"

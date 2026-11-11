@@ -173,9 +173,9 @@ export function EmployeeDashboardSection({
                   size="sm"
                   onClick={() => onPointage("in")}
                   disabled={pointageBusy}
-                  className="k-btn-gold text-primary-foreground font-bold h-9 px-3.5 rounded-xl text-xs gap-1.5 shadow"
+                  className="k-btn-gold text-primary-foreground font-bold h-9 px-3.5 rounded-xl text-xs gap-1.5 shadow whitespace-nowrap shrink-0"
                 >
-                  <LogIn className="size-3.5" />
+                  <LogIn className="size-3.5 shrink-0" />
                   <span>Pointer mon arrivée</span>
                 </Button>
               ) : !attendance.checkOut ? (
@@ -377,8 +377,8 @@ export function EmployeeDashboardSection({
       </div>
 
       {/* ── 4. TIMELINE DES SOINS DE LA JOURNÉE ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="md:col-span-1 lg:col-span-2 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <CalendarCheck className="size-4 text-gold-text" />
