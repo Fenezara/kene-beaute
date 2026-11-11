@@ -8,9 +8,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  AlertTriangle, Camera, ChevronLeft, ChevronRight, FileDown, Filter, ImagePlus, Info,
-  Loader2, OctagonAlert, PenLine, Pill, Printer, RotateCcw, Search, Share2, ShieldAlert, ShieldCheck,
-  ShoppingBag, Sparkles, SlidersHorizontal, ScanFace, Trash2, UserPlus, Users, Video,
+  AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, FileDown, Filter, ImagePlus, Info,
+  Loader2, OctagonAlert, PenLine, Pill, Plus, Printer, RotateCcw, Search, Share2, ShieldAlert, ShieldCheck,
+  ShoppingBag, Sparkles, SlidersHorizontal, ScanFace, Trash2, UserPlus, Users, Video, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
@@ -52,6 +52,7 @@ import {
   type Indicator,
   type SpectralViewId,
   type SelectedReportSlot,
+  type RecommendationSet,
 } from "@/lib/kene/types";
 import {
   parseStructuredPrescription,
@@ -1829,6 +1830,22 @@ function ResultStep({
     }
   };
 
+  // Synchroniser les recommandations personnalisées par la praticienne
+  const handleRecommandationsChange = (reco: RecommendationSet) => {
+    if (result) {
+      result.recommandations = reco;
+    }
+    if (savedId && tenantId) {
+      apiPatch("/api/pro/diagnoses", {
+        id: savedId,
+        tenantId,
+        recommandations: reco,
+      }).catch((e) => {
+        console.warn("[ResultStep] Auto-save recommandations failed", e);
+      });
+    }
+  };
+
   const printUrl = savedId
     ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}&views=${serializeReportSlots(reportSlots)}&photoIdx=${selectedPhotoIdx}`
     : null;
@@ -1866,6 +1883,7 @@ function ResultStep({
         cosmeticsUsed={cosmeticsUsed}
         reportSlots={reportSlots}
         onChangeReportSlots={handleReportSlotsChange}
+        onUpdateRecommandations={handleRecommandationsChange}
         photoIdx={selectedPhotoIdx}
         onChangePhotoIdx={setSelectedPhotoIdx}
         onPrintPdf={() => printUrl && window.open(printUrl, "_blank")}
@@ -1926,6 +1944,7 @@ export function ResultView({
   onPrintPdf,
   onNavigate,
   onOpenDescent,
+  onUpdateRecommandations,
 }: {
   result: ProDiagnosisResult;
   clientName?: string;
@@ -1941,6 +1960,7 @@ export function ResultView({
   onPrintPdf?: () => void;
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent?: () => void;
+  onUpdateRecommandations?: (reco: RecommendationSet) => void;
 }) {
   const [activeTab, setActiveTab] = useState<"spectra" | "biomarkers" | "protocol" | "prescription" | "all">(
     photo ? "spectra" : "biomarkers"
@@ -1996,9 +2016,60 @@ export function ResultView({
       ? "Attention ciblée"
       : "Protocole de fond";
 
+  const [localReco, setLocalReco] = useState<RecommendationSet>(() => {
+    return {
+      resume: result.recommandations?.resume || "",
+      routine_matin: Array.isArray(result.recommandations?.routine_matin) ? [...result.recommandations.routine_matin] : [],
+      routine_soir: Array.isArray(result.recommandations?.routine_soir) ? [...result.recommandations.routine_soir] : [],
+      botaniques_conseillees: Array.isArray(result.recommandations?.botaniques_conseillees) ? [...result.recommandations.botaniques_conseillees] : [],
+      produits: Array.isArray(result.recommandations?.produits) ? [...result.recommandations.produits] : [],
+      soins_conseilles: Array.isArray(result.recommandations?.soins_conseilles) ? [...result.recommandations.soins_conseilles] : [],
+      conseils_hygiene_vie: Array.isArray(result.recommandations?.conseils_hygiene_vie) ? [...result.recommandations.conseils_hygiene_vie] : [],
+    };
+  });
+
+  const [recoSaveStatus, setRecoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const recoDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleUpdateField = <K extends keyof RecommendationSet>(field: K, val: RecommendationSet[K]) => {
+    const nextReco: RecommendationSet = {
+      ...localReco,
+      [field]: val,
+    };
+    setLocalReco(nextReco);
+    // Mettre à jour en mémoire pour les PDF / WhatsApp immédiats
+    result.recommandations = nextReco;
+
+    if (onUpdateRecommandations) {
+      setRecoSaveStatus("saving");
+      if (recoDebounceTimerRef.current) clearTimeout(recoDebounceTimerRef.current);
+      recoDebounceTimerRef.current = setTimeout(() => {
+        onUpdateRecommandations(nextReco);
+        setRecoSaveStatus("saved");
+        setTimeout(() => setRecoSaveStatus("idle"), 2500);
+      }, 700);
+    }
+  };
+
+  const handleArrayItemChange = (field: "routine_matin" | "routine_soir" | "botaniques_conseillees" | "soins_conseilles" | "conseils_hygiene_vie", index: number, value: string) => {
+    const list = [...(localReco[field] || [])];
+    list[index] = value;
+    handleUpdateField(field, list);
+  };
+
+  const handleArrayItemRemove = (field: "routine_matin" | "routine_soir" | "botaniques_conseillees" | "soins_conseilles" | "conseils_hygiene_vie", index: number) => {
+    const list = (localReco[field] || []).filter((_, i) => i !== index);
+    handleUpdateField(field, list);
+  };
+
+  const handleArrayItemAdd = (field: "routine_matin" | "routine_soir" | "botaniques_conseillees" | "soins_conseilles" | "conseils_hygiene_vie", defaultValue = "") => {
+    const list = [...(localReco[field] || []), defaultValue];
+    handleUpdateField(field, list);
+  };
+
   const flags = result.questionnaire?.flags ?? [];
   const sortedIndicators = [...result.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
-  const rec = result.recommandations;
+  const rec = localReco;
   const zoneLabel = (meta?.zone ?? result.zone).replace("_", " ");
 
   const waUrl = clientPhone ? buildWhatsAppDiagUrl(clientName || "Cliente", clientPhone, result, tenantName) : null;
@@ -2311,10 +2382,25 @@ export function ResultView({
           {/* Recommandations & Protocole Cabine */}
           {rec && (
             <section aria-label="Recommandations" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-heading text-sm font-bold">
-                  Protocole Personnalisé &amp; Pharmacopée Africaine
-                </h3>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading text-sm font-bold text-foreground">
+                    Protocole Personnalisé &amp; Pharmacopée Africaine
+                  </h3>
+                  <Badge variant="outline" className="text-[10px] bg-gold/10 text-gold-text border-gold/30">
+                    ✍️ Personnalisable
+                  </Badge>
+                  {recoSaveStatus === "saving" && (
+                    <span className="text-[10px] font-mono text-gold-text animate-pulse">
+                      ● Sauvegarde auto…
+                    </span>
+                  )}
+                  {recoSaveStatus === "saved" && (
+                    <span className="text-[10px] font-mono text-emerald-500 font-semibold flex items-center gap-1">
+                      <Check className="size-3" /> Enregistré
+                    </span>
+                  )}
+                </div>
                 {waUrl && (
                   <Button
                     size="sm"
@@ -2330,91 +2416,211 @@ export function ResultView({
 
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {rec.routine_matin?.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
-                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                  {/* Routine Matin */}
+                  <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-bold">
                         ☀️ Routine Matin
                       </p>
-                      <ul className="space-y-1.5">
-                        {rec.routine_matin.map((s, i) => (
-                          <li key={i} className="text-xs flex gap-1.5">
-                            <span className="text-gold-text font-mono font-bold shrink-0" aria-hidden="true">
-                              {i + 1}.
-                            </span>
-                            <span className="text-foreground/90">{s}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <button
+                        type="button"
+                        onClick={() => handleArrayItemAdd("routine_matin")}
+                        className="text-[10px] text-gold-text hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <Plus className="size-3" /> Ajouter une étape
+                      </button>
                     </div>
-                  )}
+                    <div className="space-y-1.5">
+                      {(rec.routine_matin || []).map((s, i) => (
+                        <div key={i} className="flex items-center gap-1.5 group">
+                          <span className="text-gold-text font-mono font-bold text-xs shrink-0 w-4" aria-hidden="true">
+                            {i + 1}.
+                          </span>
+                          <Input
+                            value={s}
+                            onChange={(e) => handleArrayItemChange("routine_matin", i, e.target.value)}
+                            placeholder="Étape du matin..."
+                            className="h-7 text-xs py-1 px-2 bg-muted/30 focus-visible:bg-card border-border/70"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleArrayItemRemove("routine_matin", i)}
+                            className="opacity-40 group-hover:opacity-100 hover:text-destructive p-1 transition-opacity shrink-0"
+                            title="Supprimer cette étape"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {(rec.routine_matin || []).length === 0 && (
+                        <p className="text-xs text-muted-foreground italic">Aucune étape définie pour le matin.</p>
+                      )}
+                    </div>
+                  </div>
 
-                  {rec.routine_soir?.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
-                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                  {/* Routine Soir */}
+                  <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-bold">
                         🌙 Routine Soir
                       </p>
-                      <ul className="space-y-1.5">
-                        {rec.routine_soir.map((s, i) => (
-                          <li key={i} className="text-xs flex gap-1.5">
-                            <span className="text-sunset font-mono font-bold shrink-0" aria-hidden="true">
-                              {i + 1}.
-                            </span>
-                            <span className="text-foreground/90">{s}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <button
+                        type="button"
+                        onClick={() => handleArrayItemAdd("routine_soir")}
+                        className="text-[10px] text-sunset hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <Plus className="size-3" /> Ajouter une étape
+                      </button>
                     </div>
-                  )}
+                    <div className="space-y-1.5">
+                      {(rec.routine_soir || []).map((s, i) => (
+                        <div key={i} className="flex items-center gap-1.5 group">
+                          <span className="text-sunset font-mono font-bold text-xs shrink-0 w-4" aria-hidden="true">
+                            {i + 1}.
+                          </span>
+                          <Input
+                            value={s}
+                            onChange={(e) => handleArrayItemChange("routine_soir", i, e.target.value)}
+                            placeholder="Étape du soir..."
+                            className="h-7 text-xs py-1 px-2 bg-muted/30 focus-visible:bg-card border-border/70"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleArrayItemRemove("routine_soir", i)}
+                            className="opacity-40 group-hover:opacity-100 hover:text-destructive p-1 transition-opacity shrink-0"
+                            title="Supprimer cette étape"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {(rec.routine_soir || []).length === 0 && (
+                        <p className="text-xs text-muted-foreground italic">Aucune étape définie pour le soir.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {rec.botaniques_conseillees?.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
-                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                  {/* Botaniques Africaines */}
+                  <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-bold">
                         🌿 Botaniques Ouest-Africaines
                       </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {rec.botaniques_conseillees.map((b, i) => (
-                          <Badge key={i} variant="outline" className="text-[10px] bg-gold/10 text-gold-text border-gold/25 font-semibold">
-                            {b}
-                          </Badge>
-                        ))}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleArrayItemAdd("botaniques_conseillees")}
+                        className="text-[10px] text-gold-text hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <Plus className="size-3" /> Ajouter
+                      </button>
                     </div>
-                  )}
+                    <div className="space-y-1.5">
+                      {(rec.botaniques_conseillees || []).map((b, i) => (
+                        <div key={i} className="flex items-center gap-1.5 group">
+                          <Input
+                            value={b}
+                            onChange={(e) => handleArrayItemChange("botaniques_conseillees", i, e.target.value)}
+                            placeholder="Ex: Karité, Moringa, Kinkeliba..."
+                            className="h-7 text-xs py-1 px-2 bg-muted/30 focus-visible:bg-card border-border/70"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleArrayItemRemove("botaniques_conseillees", i)}
+                            className="opacity-40 group-hover:opacity-100 hover:text-destructive p-1 transition-opacity shrink-0"
+                            title="Supprimer cette plante"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {(rec.botaniques_conseillees || []).length === 0 && (
+                        <p className="text-xs text-muted-foreground italic">Aucune botanique renseignée.</p>
+                      )}
+                    </div>
+                  </div>
 
-                  {rec.soins_conseilles?.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
-                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                  {/* Soins Conseillés en Cabine */}
+                  <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-bold">
                         💆‍♀️ Soins Recommandés en Cabine
                       </p>
-                      <ul className="space-y-1">
-                        {rec.soins_conseilles.map((s, i) => (
-                          <li key={i} className="text-xs flex gap-1.5">
-                            <span className="text-success font-bold" aria-hidden="true">•</span>
-                            <span className="text-foreground/90">{s}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <button
+                        type="button"
+                        onClick={() => handleArrayItemAdd("soins_conseilles")}
+                        className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <Plus className="size-3" /> Ajouter un soin
+                      </button>
                     </div>
-                  )}
+                    <div className="space-y-1.5">
+                      {(rec.soins_conseilles || []).map((s, i) => (
+                        <div key={i} className="flex items-center gap-1.5 group">
+                          <span className="text-success font-bold text-xs shrink-0" aria-hidden="true">•</span>
+                          <Input
+                            value={s}
+                            onChange={(e) => handleArrayItemChange("soins_conseilles", i, e.target.value)}
+                            placeholder="Ex: Peeling doux, Soin hydratant..."
+                            className="h-7 text-xs py-1 px-2 bg-muted/30 focus-visible:bg-card border-border/70"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleArrayItemRemove("soins_conseilles", i)}
+                            className="opacity-40 group-hover:opacity-100 hover:text-destructive p-1 transition-opacity shrink-0"
+                            title="Supprimer ce soin"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {(rec.soins_conseilles || []).length === 0 && (
+                        <p className="text-xs text-muted-foreground italic">Aucun soin cabine conseillé.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {rec.conseils_hygiene_vie?.length > 0 && (
-                  <div className="rounded-xl border border-border bg-muted/40 p-3 shadow-2xs">
-                    <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                {/* Conseils d'Hygiène de vie */}
+                <div className="rounded-xl border border-border bg-muted/40 p-3 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-bold">
                       Conseils d&apos;Hygiène de Vie &amp; Environnement
                     </p>
-                    <ul className="space-y-1">
-                      {rec.conseils_hygiene_vie.map((s, i) => (
-                        <li key={i} className="text-xs flex gap-1.5">
-                          <Info className="size-3 shrink-0 mt-0.5 text-muted-foreground" aria-hidden="true" />
-                          <span className="text-muted-foreground">{s}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => handleArrayItemAdd("conseils_hygiene_vie")}
+                      className="text-[10px] text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <Plus className="size-3" /> Ajouter un conseil
+                    </button>
                   </div>
-                )}
+                  <div className="space-y-1.5">
+                    {(rec.conseils_hygiene_vie || []).map((s, i) => (
+                      <div key={i} className="flex items-center gap-1.5 group">
+                        <Info className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <Input
+                          value={s}
+                          onChange={(e) => handleArrayItemChange("conseils_hygiene_vie", i, e.target.value)}
+                          placeholder="Conseil de vie ou geste à adopter..."
+                          className="h-7 text-xs py-1 px-2 bg-card border-border/70"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleArrayItemRemove("conseils_hygiene_vie", i)}
+                          className="opacity-40 group-hover:opacity-100 hover:text-destructive p-1 transition-opacity shrink-0"
+                          title="Supprimer ce conseil"
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {(rec.conseils_hygiene_vie || []).length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">Aucun conseil d&apos;hygiène spécifique.</p>
+                    )}
+                  </div>
+                </div>
               </div>
               <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{result.avertissement}</p>
             </section>
@@ -2642,6 +2848,18 @@ function DetailResultContent({
     });
   };
 
+  // Synchroniser et sauvegarder les modifications du protocole personnalisé
+  const handleRecommandationsChange = (reco: RecommendationSet) => {
+    result.recommandations = reco;
+    apiPatch("/api/pro/diagnoses", {
+      id: item.id,
+      tenantId,
+      recommandations: reco,
+    }).catch((e) => {
+      console.warn("[DetailResultContent] Auto-save recommandations failed", e);
+    });
+  };
+
   const printUrl = `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}&views=${serializeReportSlots(reportSlots)}&photoIdx=${selectedPhotoIdx}`;
 
   return (
@@ -2655,6 +2873,7 @@ function DetailResultContent({
         cosmeticsUsed={cosmeticsUsed}
         reportSlots={reportSlots}
         onChangeReportSlots={handleReportSlotsChange}
+        onUpdateRecommandations={handleRecommandationsChange}
         photoIdx={selectedPhotoIdx}
         onChangePhotoIdx={setSelectedPhotoIdx}
         onPrintPdf={() => window.open(printUrl, "_blank")}

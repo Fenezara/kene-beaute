@@ -375,6 +375,7 @@ export async function PATCH(req: NextRequest) {
     const id = body?.id as string | undefined;
     const tenantId = body?.tenantId as string | undefined;
     const reportSlots = body?.reportSlots;
+    const recommandations = body?.recommandations;
 
     if (!id || typeof id !== "string") return jsonError("Identifiant du diagnostic requis", 400);
     const tenant = await resolveTenant(req, tenantId);
@@ -394,6 +395,15 @@ export async function PATCH(req: NextRequest) {
 
     if (Array.isArray(reportSlots)) {
       parsedResult.reportSlots = reportSlots;
+    }
+
+    if (recommandations && typeof recommandations === "object") {
+      parsedResult.recommandations = {
+        ...(typeof parsedResult.recommandations === "object" && parsedResult.recommandations !== null
+          ? parsedResult.recommandations
+          : {}),
+        ...recommandations,
+      };
     }
 
     const updated = await db.proDiagnosis.update({
