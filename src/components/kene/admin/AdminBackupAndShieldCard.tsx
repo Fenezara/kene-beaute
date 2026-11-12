@@ -280,6 +280,16 @@ export function AdminBackupAndShieldCard() {
             <div className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/20 p-2.5">
               <CheckCircle2 className="size-4 text-emerald-600 shrink-0 mt-0.5" />
               <div className="text-xs">
+                <p className="font-semibold text-foreground">Anti-Robots Cloudflare Turnstile (Actif 24/7)</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Protection comportementale invisible intégrée sans captcha contraignant. Les formulaires de connexion et paiements sont blindés.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/20 p-2.5">
+              <CheckCircle2 className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs">
                 <p className="font-semibold text-foreground">Sauvegarde Cron Quotidienne (03h00 UTC)</p>
                 <p className="text-[11px] text-muted-foreground">
                   Copie automatique chaque nuit dans <code className="font-mono text-[10px]">/opt/kene/db/backups</code> avec purge automatique au-delà de 30 jours.
@@ -288,22 +298,21 @@ export function AdminBackupAndShieldCard() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-gold/40 bg-gold/10 p-3 text-xs space-y-1">
-            <p className="font-bold flex items-center gap-1.5 text-foreground">
-              <Cloud className="size-4 text-gold-text" />
-              Bouclier Mondial Cloudflare (Optionnel · Gratuit)
-            </p>
+          <div className="rounded-xl border border-border/80 bg-muted/30 p-3 text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-bold flex items-center gap-1.5 text-foreground">
+                <Cloud className="size-4 text-sky-600" />
+                Réseau &amp; CDN Cloudflare
+              </p>
+              <Badge variant="outline" className="text-[10px] bg-background/60">
+                Mode Serveur Direct Sécurisé
+              </Badge>
+            </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Pour absorber les attaques DDoS internationales de plusieurs millions de requêtes/sec : crée un compte gratuit sur{" "}
-              <a
-                href="https://dash.cloudflare.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-primary underline"
-              >
-                cloudflare.com
-              </a>
-              , ajoute <strong className="text-foreground">kene-beaute.com</strong> et active le nuage orange (Proxy) vers <code className="font-mono">2.29.53.176</code>.
+              Le domaine <strong className="text-foreground">kene-beaute.com</strong> pointe directement sur le VPS (<code className="font-mono">2.29.53.176</code>) protégé par Caddy HTTPS TLS 1.3 et UFW. La passerelle prend déjà en charge les en-têtes <code className="font-mono text-[10px]">CF-Connecting-IP</code>.
+            </p>
+            <p className="text-[10px] text-muted-foreground/80 border-t border-border/50 pt-1.5">
+              💡 <em>Optionnel :</em> Pour ajouter la mise en cache CDN mondiale Cloudflare devant le VPS, déléguez les serveurs DNS Namecheap vers Cloudflare en mode SSL <strong>Full (Strict)</strong>.
             </p>
           </div>
         </CardContent>

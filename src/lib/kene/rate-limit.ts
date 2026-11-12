@@ -105,10 +105,11 @@ export function rateLimit(key: string, opts?: RateLimitOpts): RateLimitResult {
  * sinon la DERNIÈRE IP de x-forwarded-for (ajoutée par le reverse-proxy de confiance,
  * insensible à l'injection d'en-tête client), sinon "local" (accès direct:3000). */
 export function rlKey(req: Request, scope: string): string {
+  const cfIp = req.headers.get("cf-connecting-ip")?.trim();
   const realIp = req.headers.get("x-real-ip")?.trim();
   const fwd = req.headers.get("x-forwarded-for");
   const lastFwd = fwd ? fwd.split(",").pop()?.trim() : undefined;
-  const ip = realIp || lastFwd || "local";
+  const ip = cfIp || realIp || lastFwd || "local";
   return `${scope}:${ip}`;
 }
 

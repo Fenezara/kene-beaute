@@ -94,10 +94,11 @@ export function maskPhone(phone: string): string {
  * sinon la dernière IP de x-forwarded-for sinon "local" (accès direct:3000) —
  * même logique anti-spoofing que rlKey. */
 export function clientIp(req: Request): string {
+  const cfIp = req.headers.get("cf-connecting-ip")?.trim();
   const realIp = req.headers.get("x-real-ip")?.trim();
   const fwd = req.headers.get("x-forwarded-for");
   const lastFwd = fwd ? fwd.split(",").pop()?.trim() : undefined;
-  return realIp || lastFwd || "local";
+  return cfIp || realIp || lastFwd || "local";
 }
 
 // ─────────────── Hachage OTP (durcissement) ───────────────
