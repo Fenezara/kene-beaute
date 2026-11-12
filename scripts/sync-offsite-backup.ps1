@@ -50,8 +50,10 @@ try {
   Remove-Item -Recurse -Force $TempVault -ErrorAction SilentlyContinue
 }
 
-# 3. Mettre à jour le statut hors serveur sur le VPS
+# 3. Mettre à jour le statut hors serveur sur le VPS (fichier JSON UTF-8 sans BOM transféré par SCP)
 $SizeMb = [math]::Round((Get-Item $LocalGz).Length / 1MB, 1)
+$LocalStatus = Join-Path $LocalOffsiteDir ".offsite-status.json"
 $StatusJson = "{`"ok`":true,`"at`":`"$NowIso`",`"target`":`"Cloud GitHub (AES-256) + PC Fondateur`",`"detail`":`"Réplication 3-2-1 active ($SizeMb Mo)`"}"
-ssh -i $SshKey -o StrictHostKeyChecking=no $VpsHost "printf '%s\n' '$StatusJson' > /opt/kene/db/backups/.offsite-status.json"
+[IO.File]::WriteAllText($LocalStatus, $StatusJson, (New-Object Text.UTF8Encoding $false))
+scp -i $SshKey -o StrictHostKeyChecking=no $LocalStatus "${VpsHost}:/opt/kene/db/backups/.offsite-status.json"
 Write-Output "Synchronisation hors serveur réussie : $FileName ($SizeMb Mo) -> PC Fondateur + GitHub Vault AES-256"
