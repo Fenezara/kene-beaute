@@ -40,6 +40,17 @@ export const ADMIN_STATS = { limit: 30, windowMs: 60_000 } as const;
 // derrière session admin restent sur ADMIN_STATS.
 export const PASSKEY_LOGIN = { limit: 12, windowMs: 15 * 60_000 } as const;
 
+export function getRateLimitStoreStats(): { activeKeys: number; totalHits: number } {
+  let totalHits = 0;
+  for (const bucket of store.buckets.values()) {
+    totalHits += bucket.hits.length;
+  }
+  return {
+    activeKeys: store.buckets.size,
+    totalHits,
+  };
+}
+
 export type RateLimitOpts = { limit?: number; windowMs?: number };
 export type RateLimitResult = { ok: boolean; remaining: number; retryAfterSec: number };
 

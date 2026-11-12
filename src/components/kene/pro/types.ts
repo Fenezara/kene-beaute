@@ -633,11 +633,29 @@ export interface AdminSecurityStats {
   failedLogins24h: number;
   locked24h: number;
   clientErrors24h?: number;
+  threats24h?: number;
+  pinLockedCount?: number;
+}
+
+export interface AdminSystemHealth {
+  status: "optimal" | "warning" | "critical";
+  score: number;
+  uptimeSec: number;
+  dbLatencyMs: number;
+  memoryUsageMb: number;
+  memoryRssMb: number;
+  nodeVersion: string;
+  osPlatform: string;
+  loadAvg: number[];
+  webhookEvents24h: number;
+  jailedIpsCount: number;
+  activeRateLimitKeys: number;
 }
 
 export interface AdminSecurity {
   events: AdminSecurityEvent[];
   stats: AdminSecurityStats;
+  health?: AdminSystemHealth;
 }
 
 // ─────────────── Admin — console de gestion () ───────────────

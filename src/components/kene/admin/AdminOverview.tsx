@@ -24,7 +24,8 @@ interface ConnectorsData {
   zavu: { status: "ready" | "needs_sender_number" | "unconfigured"; keyMasked: string; detail: string };
   termii?: { status: "ready" | "unconfigured"; senderId: string; keyMasked: string; detail: string };
   ai: { status: "live" | "fallback_expert"; model: string; detail: string };
-  database: { status: string; usersCount: number };
+  alerts?: { status: "ready" | "unconfigured"; detail: string };
+  database: { status: string; usersCount: number; latencyMs?: number };
 }
 
 export function AdminOverview({
@@ -379,16 +380,47 @@ export function AdminOverview({
                     Base de Données
                   </span>
                   <Badge variant="outline" className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                    Connectée
+                    Connectée {connectors.database.latencyMs ? `(${connectors.database.latencyMs} ms)` : ""}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-snug">
                   Prisma ORM opérationnel avec intégrité référentielle
                 </p>
-                <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
-                  Comptes enregistrés : <span className="font-semibold text-foreground">{connectors.database.usersCount}</span>
+                <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground flex items-center justify-between">
+                  <span>Comptes enregistrés : <strong className="text-foreground">{connectors.database.usersCount}</strong></span>
+                  {connectors.database.latencyMs && (
+                    <span className="text-emerald-600 font-mono font-bold text-[10px]">{connectors.database.latencyMs} ms</span>
+                  )}
                 </div>
               </div>
+
+              {/* Relais d'alertes instantanées */}
+              {connectors.alerts && (
+                <div className="rounded-xl border border-border bg-card/50 p-3 flex flex-col justify-between space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-xs flex items-center gap-1.5">
+                      <ShieldCheck className="size-3.5 text-primary" />
+                      Alertes Externes (Bot)
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-bold ${
+                        connectors.alerts.status === "ready"
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                          : "bg-muted text-muted-foreground border-border"
+                      }`}
+                    >
+                      {connectors.alerts.status === "ready" ? "Canal Actif" : "Non configuré"}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    {connectors.alerts.detail}
+                  </p>
+                  <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
+                    Notification automatique en cas d&apos;attaque ou d&apos;incident
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="py-4 text-center text-xs text-muted-foreground">

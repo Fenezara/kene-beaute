@@ -134,11 +134,24 @@ export async function GET(req: NextRequest) {
     ? `Moteur d'Analyse Clinique Kènè actif`
     : "Moteur Expert Dermo-Cosmétique Kènè actif (Palier 3 Haute Disponibilité)";
 
-  // 6. Base de données
+  // 6. Relais d'alertes externes (Discord / Telegram)
+  const webhookUrl = process.env.ALERT_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL;
+  const tgBotToken = process.env.TELEGRAM_BOT_TOKEN;
+  const tgChatId = process.env.TELEGRAM_CHAT_ID;
+  const alertsConfigured = Boolean(webhookUrl || (tgBotToken && tgChatId));
+  const alertsStatus: "ready" | "unconfigured" = alertsConfigured ? "ready" : "unconfigured";
+  const alertsDetail = alertsConfigured
+    ? `Canal d'alerte actif (${webhookUrl ? "Discord/Webhook" : ""}${webhookUrl && tgBotToken ? " + " : ""}${tgBotToken ? "Telegram" : ""})`
+    : "Aucun webhook externe configuré (ALERT_WEBHOOK_URL ou TELEGRAM_BOT_TOKEN)";
+
+  // 7. Base de données & Latence réelle
   let dbStatus = "ok";
   let dbCount = 0;
+  let dbLatencyMs = 0;
   try {
+    const t0 = performance.now();
     dbCount = await db.user.count();
+    dbLatencyMs = Math.round((performance.now() - t0) * 10) / 10;
   } catch {
     dbStatus = "error";
   }
@@ -171,9 +184,14 @@ export async function GET(req: NextRequest) {
       model: "Kènè Optical & Clinical Engine",
       detail: aiDetail,
     },
+    alerts: {
+      status: alertsStatus,
+      detail: alertsDetail,
+    },
     database: {
       status: dbStatus,
       usersCount: dbCount,
+      latencyMs: dbLatencyMs,
     },
   });
 }
