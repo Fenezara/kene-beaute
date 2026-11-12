@@ -50,10 +50,23 @@ try {
   Remove-Item -Recurse -Force $TempVault -ErrorAction SilentlyContinue
 }
 
-# 3. Mettre à jour le statut hors serveur sur le VPS (fichier JSON UTF-8 sans BOM transféré par SCP)
+# 3. Répliquer sur Google Drive (dossier Kènè Backups : 1-JUA23AEleNKLM8ZvO1E6b2Ea4QbEWMg)
+$GdriveCmd = "$env:USERPROFILE\.gemini\antigravity\bin\gdrive.cmd"
+$GdriveFolderId = "1-JUA23AEleNKLM8ZvO1E6b2Ea4QbEWMg"
+$GdriveEncFileId = "1W2jZhhPrDqjoHKKNm7rgXm4ZALlXw8lr"
+if (Test-Path $GdriveCmd) {
+  try {
+    & $GdriveCmd mutate upload $LocalGz --parent $GdriveFolderId | Out-Null
+    & $GdriveCmd mutate update $GdriveEncFileId $LocalEnc | Out-Null
+  } catch {
+    Write-Warning "Google Drive sync warning: $_"
+  }
+}
+
+# 4. Mettre à jour le statut hors serveur sur le VPS (fichier JSON UTF-8 sans BOM transféré par SCP)
 $SizeMb = [math]::Round((Get-Item $LocalGz).Length / 1MB, 1)
 $LocalStatus = Join-Path $LocalOffsiteDir ".offsite-status.json"
-$StatusJson = "{`"ok`":true,`"at`":`"$NowIso`",`"target`":`"Cloud GitHub (AES-256) + PC Fondateur`",`"detail`":`"Réplication 3-2-1 active ($SizeMb Mo)`"}"
+$StatusJson = "{`"ok`":true,`"at`":`"$NowIso`",`"target`":`"Google Drive + GitHub (AES-256) + PC Fondateur`",`"detail`":`"Réplication 3-2-1 active sur Google Drive ($SizeMb Mo)`"}"
 [IO.File]::WriteAllText($LocalStatus, $StatusJson, (New-Object Text.UTF8Encoding $false))
 scp -i $SshKey -o StrictHostKeyChecking=no $LocalStatus "${VpsHost}:/opt/kene/db/backups/.offsite-status.json"
-Write-Output "Synchronisation hors serveur réussie : $FileName ($SizeMb Mo) -> PC Fondateur + GitHub Vault AES-256"
+Write-Output "Synchronisation hors serveur réussie : $FileName ($SizeMb Mo) -> Google Drive + PC Fondateur + GitHub Vault AES-256"
