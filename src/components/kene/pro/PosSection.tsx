@@ -61,6 +61,7 @@ interface TicketLine {
   unitPrice: number;
   qty: number;
   isCustom?: boolean;
+  practitionerName?: string;
 }
 
 const PAY_METHODS: { code: PaymentMethod; label: string; cls: string }[] = [
@@ -152,6 +153,7 @@ export function PosSection({
 
   // Passerelle RDV ↔ Caisse & Attribution Praticienne (défaut sur session active)
   const [practitionerName, setPractitionerName] = useState<string>(resolvedSessionPractitioner);
+  const [activeHandoffId, setActiveHandoffId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!practitionerName && resolvedSessionPractitioner) {
@@ -303,6 +305,20 @@ export function PosSection({
     const to = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59).toISOString();
     return apiGet<{ appointments: any[] }>(`/api/pro/appointments?tenantId=${tenantId}&from=${from}&to=${to}`);
   }, [tenantId, refreshKey]);
+
+  const teamHub = useApi<{ handoffs: any[]; team: Array<{ id: string; name: string; role: string }> }>(() => {
+    if (!tenantId) return Promise.resolve({ handoffs: [], team: [] });
+    return apiGet<{ handoffs: any[]; team: Array<{ id: string; name: string; role: string }> }>(
+      `/api/pro/team-hub?tenantId=${encodeURIComponent(tenantId)}`
+    );
+  }, [tenantId, refreshKey]);
+
+  const pendingHandoffs = useMemo(() => teamHub.data?.handoffs ?? [], [teamHub.data?.handoffs]);
+  const activeTeamNames = useMemo(() => {
+    const fromEmployeeApi = (team.data?.employees ?? []).filter((e) => e.active !== false).map((e) => e.name);
+    const fromHub = (teamHub.data?.team ?? []).map((t) => t.name);
+    return Array.from(new Set([...fromEmployeeApi, ...fromHub, activeSessionPractitionerName].filter(Boolean)));
+  }, [team.data?.employees, teamHub.data?.team, activeSessionPractitionerName]);
 
   const discount = Math.max(0, Math.min(Number(discountInput) || 0, 1_000_000));
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines]);
@@ -495,12 +511,60 @@ export function PosSection({
     }
   }, [online, checkOfflineCount, handleSyncOffline]);
 
-  function addLine(kind: "service" | "product", id: string, label: string, unitPrice: number) {
+  function addLine(kind: "service" | "product", id: string, label: string, unitPrice: number, linePractitioner?: string) {
     setLines((ls) => {
       const ex = ls.find((l) => l.kind === kind && l.id === id);
       if (ex) return ls.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l));
-      return [...ls, { kind, id, label, unitPrice, qty: 1 }];
+      return [
+        ...ls,
+        {
+          kind,
+          id,
+          label,
+          unitPrice,
+          qty: 1,
+          practitionerName: linePractitioner || practitionerName || resolvedSessionPractitioner,
+        },
+      ];
     });
+  }
+
+  function handleLoadHandoff(h: any) {
+    const loadedLines: TicketLine[] = (h.items ?? []).map((it: any, idx: number) => ({
+      kind: it.kind === "product" ? "product" : "service",
+      id: it.id || `handoff_${h.id}_${idx}`,
+      label: it.label,
+      unitPrice: Number(it.unitPrice) || 0,
+      qty: Number(it.qty) || 1,
+      isCustom: !it.id,
+      practitionerName: it.practitionerName || h.practitionerName || resolvedSessionPractitioner,
+    }));
+    setLines(loadedLines);
+    if (h.clientId) {
+      setClientId(h.clientId);
+    }
+    if (h.practitionerName) {
+      setPractitionerName(h.practitionerName);
+    }
+    setActiveHandoffId(h.id);
+    toast.success(
+      `Sortie de cabine de ${h.clientName} chargée ! Commission attribuée à ${h.practitionerName}.`
+    );
+  }
+
+  async function handleDismissHandoff(handoffId: string) {
+    try {
+      await apiPost("/api/pro/team-hub", {
+        action: "dismiss_handoff",
+        tenantId,
+        handoffId,
+      });
+      if (activeHandoffId === handoffId) setActiveHandoffId(null);
+      void teamHub.refetch();
+      toast.info("Sortie de cabine retirée de la file d'attente.");
+    } catch {
+      toast.error("Action impossible");
+    }
   }
   function setQty(i: number, delta: number) {
     setLines((ls) =>
@@ -862,6 +926,7 @@ export function PosSection({
           unitPrice: l.unitPrice,
           qty: l.qty,
           isCustom: l.isCustom,
+          practitionerName: l.practitionerName || assignedPractitioner,
         })),
         paymentMethod: method,
         splitPayments: splits && splits.length > 0 ? splits : undefined,
@@ -870,8 +935,20 @@ export function PosSection({
         appointmentId: linkedAppointmentId || undefined,
         depositDeducted: depositDeducted > 0 ? depositDeducted : undefined,
         clientDepositId: selectedClientDepositId || undefined,
-        practitionerName: assignedPractitioner,
+        practitionerName:
+          assignedPractitioner && assignedPractitioner !== resolvedSessionPractitioner
+            ? `${assignedPractitioner} (Caisse: ${resolvedSessionPractitioner})`
+            : assignedPractitioner,
       });
+
+      if (activeHandoffId) {
+        void apiPost("/api/pro/team-hub", {
+          action: "consume_handoff",
+          tenantId,
+          handoffId: activeHandoffId,
+          saleId: res.sale.id,
+        }).then(() => teamHub.refetch()).catch(() => {});
+      }
       const sale: ProSale = {
         ...res.sale,
         items: res.sale.items ?? lines.map((l) => ({ label: l.label, qty: l.qty, unitPrice: l.unitPrice, total: l.unitPrice * l.qty, kind: l.kind })),
@@ -889,12 +966,14 @@ export function PosSection({
         setDiscountInput("");
         setClientId("");
         setLinkedAppointmentId(null);
+        setActiveHandoffId(null);
         setDepositDeducted(0);
         setSelectedClientDepositId(null);
         setPractitionerName(resolvedSessionPractitioner);
         resetSplitAmounts();
         void sales.refetch();
         void todayAppointments.refetch();
+        void teamHub.refetch();
       }, 1300);
     } catch (e) {
       // Résilience HORS-LIGNE : mise en file locale immédiate
@@ -1357,7 +1436,28 @@ export function PosSection({
                             </span>
                           )}
                         </div>
-                        <p className="font-mono text-[10px] text-muted-foreground">{xof(l.unitPrice)} × {l.qty}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="font-mono text-[10px] text-muted-foreground">{xof(l.unitPrice)} × {l.qty}</p>
+                          {activeTeamNames.length > 1 && (
+                            <select
+                              value={l.practitionerName || practitionerName || activeSessionPractitionerName}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setLines((prev) =>
+                                  prev.map((row, rIdx) => (rIdx === i ? { ...row, practitionerName: val } : row))
+                                );
+                              }}
+                              className="h-4.5 rounded bg-gold/15 text-gold-text border border-gold/30 px-1 text-[9.5px] font-bold cursor-pointer"
+                              title="Attribuer cette ligne à une praticienne spécifique (ex: soin par Edith, produit par Déborah)"
+                            >
+                              {activeTeamNames.map((n) => (
+                                <option key={n} value={n}>
+                                  ★ {n}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="size-10" onClick={() => setQty(i, -1)} aria-label={`Retirer un ${l.label}`}>
@@ -1376,6 +1476,54 @@ export function PosSection({
                   ))}
                 </AnimatePresence>
               </ul>
+            )}
+
+            {/* Passerelle Sorties de Cabine (Panier pré-rempli depuis les cabines : Edith, Déborah, Delphine...) */}
+            {pendingHandoffs.length > 0 && (
+              <div className="rounded-xl border border-gold/50 bg-gradient-to-r from-gold/15 via-amber-500/10 to-card p-2.5 space-y-1.5 shadow-xs">
+                <div className="flex items-center justify-between text-[11px] font-bold text-gold-text">
+                  <span className="flex items-center gap-1.5">
+                    <span>🛋️</span> Sorties de Cabine à encaisser ({pendingHandoffs.length})
+                  </span>
+                </div>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 pretty-scroll">
+                  {pendingHandoffs.map((h: any) => (
+                    <div
+                      key={h.id}
+                      className={cn(
+                        "flex items-center justify-between gap-2 text-[11px] bg-card rounded-lg p-2 border shadow-2xs",
+                        activeHandoffId === h.id ? "border-gold ring-1 ring-gold" : "border-border"
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold truncate text-foreground">
+                          {h.clientName} · <span className="text-gold-text">{xof(h.totalAmount)}</span>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          Cabine : <strong>{h.practitionerName}</strong> · {(h.items ?? []).length} ligne(s)
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          onClick={() => handleLoadHandoff(h)}
+                          className="h-6 text-[10px] px-2.5 font-bold k-btn-gold text-black"
+                        >
+                          Charger
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => handleDismissHandoff(h.id)}
+                          className="p-1 text-muted-foreground hover:text-destructive rounded"
+                          title="Ignorer ce panier"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Passerelle RDV du jour */}
@@ -1522,17 +1670,39 @@ export function PosSection({
               </div>
             </div>
 
-            {/* Praticienne : strictement la session de l'employée connectée */}
-            <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold">
-                <CauriIcon className="size-3 text-gold-text" aria-hidden="true" /> Praticienne (Session active)
-              </Label>
-              <div className="h-8 px-2.5 rounded-lg border border-gold/40 bg-gold/5 text-foreground text-xs font-bold flex items-center justify-between shadow-2xs">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="truncate text-foreground font-black">{activeSessionPractitionerName}</span>
-                </div>
-                <span className="text-[10px] text-gold-text font-semibold shrink-0">Session connectée</span>
+            {/* Praticienne créditée pour les commissions (1 clic : Edith, Déborah, Delphine...) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold">
+                  <CauriIcon className="size-3 text-gold-text" aria-hidden="true" /> Praticienne créditée (Commission)
+                </Label>
+                <span className="text-[10px] text-muted-foreground">
+                  Caisse : <strong>{activeSessionPractitionerName}</strong>
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                {activeTeamNames.map((name) => {
+                  const isSelected = (practitionerName || activeSessionPractitionerName) === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        setPractitionerName(name);
+                        setLines((prev) => prev.map((l) => ({ ...l, practitionerName: name })));
+                      }}
+                      className={cn(
+                        "shrink-0 h-7 px-2.5 rounded-full text-[11px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer",
+                        isSelected
+                          ? "k-btn-gold text-black border-transparent shadow-xs"
+                          : "bg-card text-muted-foreground border-border hover:text-foreground"
+                      )}
+                    >
+                      {isSelected && <span className="size-1.5 rounded-full bg-black" />}
+                      <span>{name}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

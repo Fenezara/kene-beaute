@@ -105,44 +105,56 @@ export async function GET(req: NextRequest) {
     let unassignedProductsRevenue = 0;
     let unassignedSalesCount = 0;
 
-    for (const sale of sales) {
-      const cashierKey = (sale.cashierName ?? "").toLowerCase().trim();
-      let matchedCommission = employeeMap.get(cashierKey);
+    const findEmployeeByName = (rawName: string | null | undefined): PractitionerCommission | undefined => {
+      const cleaned = (rawName ?? "")
+        .replace(/\(caisse\s*:.*?\)/i, "")
+        .toLowerCase()
+        .trim();
+      if (!cleaned) return undefined;
+      const direct = employeeMap.get(cleaned);
+      if (direct) return direct;
+      for (const [key, val] of employeeMap.entries()) {
+        if (key.includes(cleaned) || cleaned.includes(key)) {
+          return val;
+        }
+      }
+      return undefined;
+    };
 
-      if (!matchedCommission && cashierKey) {
-        for (const [key, val] of employeeMap.entries()) {
-          if (key.includes(cashierKey) || cashierKey.includes(key)) {
-            matchedCommission = val;
-            break;
+    for (const sale of sales) {
+      const defaultMatched = findEmployeeByName(sale.cashierName);
+      const creditedOnThisSale = new Set<string>();
+      let hasUnassignedItem = false;
+
+      for (const item of sale.items) {
+        const pratMatch = item.customPriceReason?.match(/\[PRAT:([^\]]+)\]/i);
+        const linePractitioner = pratMatch ? findEmployeeByName(pratMatch[1]) : defaultMatched;
+
+        if (linePractitioner) {
+          creditedOnThisSale.add(linePractitioner.employeeId);
+          if (item.kind === "service") {
+            linePractitioner.servicesRevenue += item.total;
+            linePractitioner.servicesCount += item.qty;
+          } else {
+            linePractitioner.productsRevenue += item.total;
+            linePractitioner.productsCount += item.qty;
+          }
+        } else {
+          hasUnassignedItem = true;
+          if (item.kind === "service") {
+            unassignedServicesRevenue += item.total;
+          } else {
+            unassignedProductsRevenue += item.total;
           }
         }
       }
 
-      let saleServicesRevenue = 0;
-      let saleServicesCount = 0;
-      let saleProductsRevenue = 0;
-      let saleProductsCount = 0;
-
-      for (const item of sale.items) {
-        if (item.kind === "service") {
-          saleServicesRevenue += item.total;
-          saleServicesCount += item.qty;
-        } else {
-          saleProductsRevenue += item.total;
-          saleProductsCount += item.qty;
-        }
+      for (const empId of creditedOnThisSale) {
+        const emp = Array.from(employeeMap.values()).find((e) => e.employeeId === empId);
+        if (emp) emp.salesCount += 1;
       }
-
-      if (matchedCommission) {
-        matchedCommission.salesCount += 1;
-        matchedCommission.servicesRevenue += saleServicesRevenue;
-        matchedCommission.servicesCount += saleServicesCount;
-        matchedCommission.productsRevenue += saleProductsRevenue;
-        matchedCommission.productsCount += saleProductsCount;
-      } else {
+      if (hasUnassignedItem && creditedOnThisSale.size === 0) {
         unassignedSalesCount += 1;
-        unassignedServicesRevenue += saleServicesRevenue;
-        unassignedProductsRevenue += saleProductsRevenue;
       }
     }
 

@@ -52,6 +52,7 @@ const SaleItemInput = z.object({
   qty: z.number().int().min(1).max(50),
   isCustom: z.boolean().optional(),
   customPriceReason: z.string().optional(),
+  practitionerName: z.string().optional(),
 });
 
 const SplitPaymentInput = z.object({
@@ -155,6 +156,8 @@ export async function POST(req: NextRequest) {
     }[] = [];
 
     for (const item of items) {
+      const pratTag = item.practitionerName?.trim() ? `[PRAT:${item.practitionerName.trim()}]` : "";
+      const withPrat = (reason?: string) => [reason?.trim(), pratTag].filter(Boolean).join(" ") || undefined;
       const isCustomItem = item.isCustom || !item.id || item.id.startsWith("custom") || item.id === "__custom__";
       if (isCustomItem) {
         const rawPrice = item.price ?? item.unitPrice ?? 0;
@@ -165,7 +168,7 @@ export async function POST(req: NextRequest) {
           qty: item.qty,
           unitPrice: rawPrice,
           total: rawPrice * item.qty,
-          customPriceReason: item.customPriceReason || "Saisie libre express",
+          customPriceReason: withPrat(item.customPriceReason || "Saisie libre express"),
         });
       } else if (item.kind === "service") {
         const service = await db.service.findFirst({ where: { id: item.id, tenantId, active: true } });
@@ -178,7 +181,7 @@ export async function POST(req: NextRequest) {
           qty: item.qty,
           unitPrice,
           total: unitPrice * item.qty,
-          customPriceReason: item.customPriceReason,
+          customPriceReason: withPrat(item.customPriceReason),
         });
       } else {
         const product = await db.product.findFirst({ where: { id: item.id } });
@@ -192,7 +195,7 @@ export async function POST(req: NextRequest) {
           qty: item.qty,
           unitPrice,
           total: unitPrice * item.qty,
-          customPriceReason: item.customPriceReason,
+          customPriceReason: withPrat(item.customPriceReason),
         });
       }
     }

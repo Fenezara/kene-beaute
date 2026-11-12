@@ -6,6 +6,65 @@ import { jsonError, serverError, resolveTenant, dayStart, dayEnd, genRef } from 
 import { guardProRole } from "@/lib/kene/session";
 import { hashPin, isValidPin } from "@/lib/kene/pin";
 
+const PRACTITIONER_ROLES = new Set([
+  "estheticienne",
+  "dermo_conseillere",
+  "praticienne",
+  "masseuse",
+  "coiffeuse",
+  "prothesiste_ongulaire",
+]);
+
+const RESOURCE_PALETTE = ["#C8951E", "#3F7D3F", "#9E2045", "#2B6CB0", "#805AD5", "#DD6B20"];
+
+/** Synchronise automatiquement la fiche employée avec le calendrier Cabine / Praticiennes (Resource) */
+async function syncEmployeeResource(opts: {
+  tenantId: string;
+  oldName?: string;
+  newName: string;
+  role: string;
+  active: boolean;
+}) {
+  try {
+    const cleanNew = opts.newName.trim();
+    const cleanOld = (opts.oldName || opts.newName).trim();
+    const isPractitioner = PRACTITIONER_ROLES.has((opts.role || "").toLowerCase().trim());
+
+    const existingList = await db.resource.findMany({
+      where: { tenantId: opts.tenantId },
+    });
+
+    const match = existingList.find(
+      (r) =>
+        r.name.trim().toLowerCase() === cleanOld.toLowerCase() ||
+        r.name.trim().toLowerCase() === cleanNew.toLowerCase()
+    );
+
+    if (match) {
+      await db.resource.update({
+        where: { id: match.id },
+        data: {
+          name: cleanNew,
+          role: opts.role,
+          active: opts.active && isPractitioner,
+        },
+      });
+    } else if (isPractitioner && opts.active) {
+      await db.resource.create({
+        data: {
+          tenantId: opts.tenantId,
+          name: cleanNew,
+          role: opts.role,
+          color: RESOURCE_PALETTE[existingList.length % RESOURCE_PALETTE.length],
+          active: true,
+        },
+      });
+    }
+  } catch {
+    // Non-bloquant si la synchro Resource échoue
+  }
+}
+
 function parseEmployeePermissions(raw: string | null | undefined): string[] | null {
   if (!raw) return null;
   try {
@@ -188,6 +247,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await syncEmployeeResource({
+      tenantId,
+      newName: employee.name,
+      role: employee.role,
+      active: employee.active,
+    });
+
     return NextResponse.json(
       {
         employee: {
@@ -313,6 +379,14 @@ export async function PATCH(req: NextRequest) {
           ? { active, endDate: active ? null : endDate ? new Date(endDate) : new Date() }
           : {}),
       },
+    });
+
+    await syncEmployeeResource({
+      tenantId: tenant.id,
+      oldName: employee.name,
+      newName: updated.name,
+      role: updated.role,
+      active: updated.active,
     });
 
     const account = accountUserId

@@ -2072,6 +2072,104 @@ export function ResultView({
   const rec = localReco;
   const zoneLabel = (meta?.zone ?? result.zone).replace("_", " ");
 
+  const sessionUser = useKene((s) => s.user);
+  const proTenantId = useKene((s) => s.proTenantId);
+  const [sendingHandoff, setSendingHandoff] = useState(false);
+
+  const handleSendToPosHandoff = async () => {
+    const tid = proTenantId || sessionUser?.tenantId;
+    if (!tid) {
+      toast.error("Institut actif non identifié");
+      return;
+    }
+    const prac =
+      meta?.practitioner?.trim() ||
+      sessionUser?.employeeName?.trim() ||
+      sessionUser?.name?.trim() ||
+      "Praticienne";
+
+    const items: Array<{
+      kind: "service" | "product";
+      label: string;
+      unitPrice: number;
+      qty: number;
+      practitionerName: string;
+    }> = [];
+
+    for (const srv of prescription.cabineServices || []) {
+      items.push({
+        kind: "service",
+        label: srv.name,
+        unitPrice: 25000,
+        qty: 1,
+        practitionerName: prac,
+      });
+    }
+    for (const prod of prescription.products || []) {
+      items.push({
+        kind: "product",
+        label: prod.name,
+        unitPrice: prod.price && prod.price > 0 ? prod.price : 15000,
+        qty: 1,
+        practitionerName: prac,
+      });
+    }
+    if (items.length === 0) {
+      for (const s of (rec.soins_conseilles || []).slice(0, 2)) {
+        if (s.trim()) {
+          items.push({
+            kind: "service",
+            label: s.trim(),
+            unitPrice: 25000,
+            qty: 1,
+            practitionerName: prac,
+          });
+        }
+      }
+      for (const p of (rec.produits || []).slice(0, 2)) {
+        const prodLabel = typeof p === "string" ? p.trim() : (p as any)?.nom || "";
+        const prodPrice = typeof p === "object" && p && typeof (p as any).prix_fcfa === "number" ? (p as any).prix_fcfa : 15000;
+        if (prodLabel) {
+          items.push({
+            kind: "product",
+            label: prodLabel,
+            unitPrice: prodPrice,
+            qty: 1,
+            practitionerName: prac,
+          });
+        }
+      }
+    }
+    if (items.length === 0) {
+      items.push({
+        kind: "service",
+        label: `Diagnostic & Protocole Cabine (${zoneLabel})`,
+        unitPrice: 15000,
+        qty: 1,
+        practitionerName: prac,
+      });
+    }
+
+    setSendingHandoff(true);
+    try {
+      await apiPost("/api/pro/team-hub", {
+        action: "create_handoff",
+        tenantId: tid,
+        practitionerName: prac,
+        practitionerRole: sessionUser?.employeeRole || "estheticienne",
+        clientName: clientName || "Cliente Cabine",
+        clientPhone: clientPhone || undefined,
+        notes: `Diagnostic cabine (${result.score_global}/100) · Commission attribuée à ${prac}`,
+        items,
+      });
+      toast.success(`Panier Sortie de Cabine envoyé à la Caisse (Irène) — Commission attribuée à ${prac} !`);
+    } catch (e: any) {
+      toast.error(e?.message || "Impossible de transmettre à la caisse");
+    } finally {
+      setSendingHandoff(false);
+    }
+  };
+
   const waUrl = clientPhone ? buildWhatsAppDiagUrl(clientName || "Cliente", clientPhone, result, tenantName) : null;
 
   return (
@@ -2161,6 +2259,18 @@ export function ResultView({
                   <span>3D Cutané</span>
                 </Button>
               )}
+
+              <Button
+                size="sm"
+                variant="default"
+                disabled={sendingHandoff}
+                onClick={handleSendToPosHandoff}
+                className="h-8 text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                title="Transmettre les soins & produits de ce diagnostic directement à la Caisse (Irène) avec ta commission verrouillée"
+              >
+                {sendingHandoff ? <Loader2 className="size-3.5 animate-spin" /> : <ShoppingBag className="size-3.5" />}
+                <span>Envoyer Sortie → Caisse</span>
+              </Button>
 
               {onNavigate && (
                 <Button

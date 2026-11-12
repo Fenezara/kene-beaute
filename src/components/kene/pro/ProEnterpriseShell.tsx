@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   ArrowLeft,
   FolderHeart,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKene, type SessionUser } from "@/store/kene";
@@ -81,6 +82,7 @@ import { MamanAssistantModal } from "./MamanAssistantModal";
 import { ProductInciScannerModal } from "./ProductInciScannerModal";
 import { KeneMirrorKioskModal } from "./KeneMirrorKioskModal";
 import { AssistantSection } from "./AssistantSection";
+import { TeamCommsDrawer } from "./TeamCommsDrawer";
 import { formatRole } from "@/lib/kene/hr-constants";
 
 export type ProSectionId =
@@ -357,11 +359,19 @@ export function ProEnterpriseShell() {
   const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
   const [inciScannerOpen, setInciScannerOpen] = useState(false);
   const [mirrorKioskOpen, setMirrorKioskOpen] = useState(false);
+  const [teamHubOpen, setTeamHubOpen] = useState(false);
+  const [teamHubInitialHandoff, setTeamHubInitialHandoff] = useState(false);
+  const [teamUnreadCount, setTeamUnreadCount] = useState(0);
+  const [teamPendingHandoffs, setTeamPendingHandoffs] = useState(0);
   const [assistantNonce, setAssistantNonce] = useState(0);
 
   // Interception du bouton Retour physique / barre Android pour naviguer dans l'historique de l'application
   useHardwareBack(() => {
     // 1. Fermer les modales ouvertes en priorité
+    if (teamHubOpen) {
+      setTeamHubOpen(false);
+      return true;
+    }
     if (mamanAssistantOpen) {
       setMamanAssistantOpen(false);
       return true;
@@ -1083,6 +1093,34 @@ export function ProEnterpriseShell() {
             <SpaceSwitcher variant="compact" />
             <ThemeToggle />
 
+            {/* Bouton Kènè Team Live (Remplace WhatsApp en salon) */}
+            {tid && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  setTeamHubInitialHandoff(false);
+                  setTeamHubOpen(true);
+                }}
+                aria-label="Ouvrir Kènè Team Live (Messagerie & Bips Cabine)"
+                title="Kènè Team Live — Messagerie d'équipe, Bips Cabine & Sorties de Caisse"
+                className={cn(
+                  "relative inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full text-[11px] sm:text-xs font-bold transition-all active:scale-95 shrink-0 border cursor-pointer shadow-xs",
+                  teamUnreadCount > 0 || teamPendingHandoffs > 0
+                    ? "k-btn-gold text-[#18120C] border-transparent animate-pulse"
+                    : "bg-gold/15 border-gold/40 text-gold-text hover:bg-gold/25"
+                )}
+              >
+                <MessageSquare className="size-3.5 sm:size-4 shrink-0" />
+                <span className="hidden lg:inline">Kènè Team</span>
+                {(teamUnreadCount > 0 || teamPendingHandoffs > 0) && (
+                  <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9.5px] font-black text-white">
+                    {teamUnreadCount + teamPendingHandoffs}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Centre de Notifications Établissement (Synchronisation Salon & Clientes) */}
             {tid && (
               <ProNotificationCenter
@@ -1428,6 +1466,26 @@ export function ProEnterpriseShell() {
                 <span className="xl:hidden">POS</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setTeamHubInitialHandoff(false);
+                setTeamHubOpen(true);
+              }}
+              className="h-8 px-2.5 lg:px-3 rounded-xl border border-[#E5A93C]/50 bg-[#D49A24]/25 hover:bg-[#D49A24]/35 text-[#FFF9EC] text-[11px] font-bold flex items-center gap-1 sm:gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              title="Ouvrir Kènè Team Live (Messagerie & Sorties de Cabine)"
+            >
+              <MessageSquare size={13} className="text-[#E5A93C] shrink-0" />
+              <span className="hidden xl:inline">Équipe Live</span>
+              <span className="xl:hidden">Team</span>
+              {(teamUnreadCount > 0 || teamPendingHandoffs > 0) && (
+                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9.5px] font-bold text-white">
+                  {teamUnreadCount + teamPendingHandoffs}
+                </span>
+              )}
+            </button>
 
             <button
               type="button"
@@ -1858,6 +1916,11 @@ export function ProEnterpriseShell() {
                   onNavigate={openSection}
                   onOpenInciScanner={() => setInciScannerOpen(true)}
                   onOpenMirrorKiosk={() => setMirrorKioskOpen(true)}
+                  onOpenTeamHub={(openHandoff) => {
+                    setTeamHubInitialHandoff(Boolean(openHandoff));
+                    setTeamHubOpen(true);
+                  }}
+                  unreadTeamCount={teamUnreadCount}
                 />
               )
             )}
@@ -2101,6 +2164,25 @@ export function ProEnterpriseShell() {
           }
         }}
       />
+
+      {tid && (
+        <TeamCommsDrawer
+          open={teamHubOpen}
+          onOpenChange={setTeamHubOpen}
+          tenantId={tid}
+          tenantName={tenant?.name ?? "Institut"}
+          currentUserName={chipName}
+          currentUserRole={employeeRole || (isOwner ? "gerante" : "estheticienne")}
+          isOwner={isOwner}
+          refreshKey={refreshKey}
+          onNavigate={openSection}
+          onUnreadChange={(u, h) => {
+            setTeamUnreadCount(u);
+            setTeamPendingHandoffs(h);
+          }}
+          initialHandoffComposerOpen={teamHubInitialHandoff}
+        />
+      )}
     </div>
   );
 }

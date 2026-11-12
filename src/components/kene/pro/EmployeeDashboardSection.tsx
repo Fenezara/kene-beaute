@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Sparkles,
   Calendar,
@@ -17,6 +17,10 @@ import {
   LogOut,
   LogIn,
   MessageCircle,
+  MessageSquare,
+  Pin,
+  Trophy,
+  CreditCard,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,6 +55,8 @@ interface EmployeeDashboardProps {
   onNavigate: (section: ProSectionId) => void;
   onOpenInciScanner?: () => void;
   onOpenMirrorKiosk?: () => void;
+  onOpenTeamHub?: (openHandoff?: boolean) => void;
+  unreadTeamCount?: number;
 }
 
 export function EmployeeDashboardSection({
@@ -66,7 +72,10 @@ export function EmployeeDashboardSection({
   onNavigate,
   onOpenInciScanner,
   onOpenMirrorKiosk,
+  onOpenTeamHub,
+  unreadTeamCount = 0,
 }: EmployeeDashboardProps) {
+  const [apptFilter, setApptFilter] = useState<"mine" | "all">("all");
   const now = new Date();
   const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -109,8 +118,39 @@ export function EmployeeDashboardSection({
 
   // RDV du jour
   const todayAppts: TodayAppointment[] = overview?.todayAppointments ?? [];
+  const myTodayAppts = useMemo(() => {
+    const cleanMe = (employeeName || "").trim().toLowerCase();
+    if (!cleanMe) return todayAppts;
+    return todayAppts.filter((a) => {
+      const res = (a.resourceName || "").trim().toLowerCase();
+      return res.includes(cleanMe) || cleanMe.includes(res);
+    });
+  }, [todayAppts, employeeName]);
+
+  const displayedAppts = apptFilter === "mine" && myTodayAppts.length > 0 ? myTodayAppts : todayAppts;
   const completedApptsCount = todayAppts.filter((a) => a.status === "completed").length;
   const pendingApptsCount = todayAppts.filter((a) => a.status === "pending" || a.status === "confirmed").length;
+
+  // Récupération de la Consigne du Jour & Cagnotte Collective d'Équipe
+  const teamHubApi = useApi<{
+    directive: {
+      text: string;
+      focusProduct?: string | null;
+      updatedBy: string;
+      monthlyGoalFcfa: number;
+      teamBonusFcfa: number;
+    } | null;
+    teamPot: {
+      monthRevenueFcfa: number;
+      monthlyGoalFcfa: number;
+      teamBonusFcfa: number;
+      progressPct: number;
+      unlocked: boolean;
+    };
+  }>(
+    () => (tenantId ? apiGet<any>(`/api/pro/team-hub?tenantId=${encodeURIComponent(tenantId)}&viewerName=${encodeURIComponent(employeeName)}`) : Promise.resolve(null)),
+    [tenantId, employeeName]
+  );
 
   // Raccourcis autorisés pour la collaboratrice
   const canDiag = !allowedSections || allowedSections.includes("diagnostic");
@@ -197,6 +237,91 @@ export function EmployeeDashboardSection({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── 1B. CONSIGNE DU JOUR DE LA GÉRANTE & CAGNOTTE D'ÉQUIPE (ZÉRO WHATSAPP) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <Card className="lg:col-span-2 rounded-2xl border-gold/40 bg-gradient-to-r from-[#1A130D] via-[#231911] to-[#1A130D] text-[#FFF9EC] shadow-md">
+          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/20 text-[#E5A93C] border border-gold/30">
+                  <Pin className="size-3" /> Consigne du Jour ({teamHubApi.data?.directive?.updatedBy || "Direction"})
+                </span>
+                {teamHubApi.data?.directive?.focusProduct && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    🎯 Focus : {teamHubApi.data.directive.focusProduct}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm font-medium text-[#FFF9EC]/95 leading-relaxed">
+                {teamHubApi.data?.directive?.text ||
+                  "Excellence accueil & diagnostic systématique avant chaque soin. Utilise « Sortie Cabine → Caisse » pour que ta commission te soit créditée automatiquement par Irène."}
+              </p>
+            </div>
+            <div className="flex flex-wrap sm:flex-col gap-2 shrink-0">
+              {onOpenTeamHub && (
+                <Button
+                  size="sm"
+                  onClick={() => onOpenTeamHub(false)}
+                  className="k-btn-gold text-black font-bold text-xs h-9 rounded-xl gap-1.5 shadow-sm"
+                >
+                  <MessageSquare className="size-3.5" />
+                  <span>Kènè Team Live</span>
+                  {unreadTeamCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-bissap text-white text-[10px]">
+                      {unreadTeamCount}
+                    </span>
+                  )}
+                </Button>
+              )}
+              {onOpenTeamHub && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onOpenTeamHub(true)}
+                  className="h-9 rounded-xl text-xs font-bold border-emerald-500/50 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 gap-1.5"
+                >
+                  <CreditCard className="size-3.5" />
+                  <span>Sortie Cabine → Caisse</span>
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cagnotte Collective d'Équipe */}
+        <Card className="rounded-2xl border-gold/40 bg-gradient-to-br from-gold/10 via-card to-card shadow-sm">
+          <CardContent className="p-4 sm:p-5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-gold-text flex items-center gap-1.5">
+                <Trophy className="size-4 text-gold-text" />
+                Cagnotte Collective Salon
+              </span>
+              <Badge variant="outline" className="text-[10px] font-bold bg-gold/15 text-gold-text border-gold/30">
+                +{ (teamHubApi.data?.teamPot?.teamBonusFcfa ?? 10000).toLocaleString("fr-FR") } F / pers.
+              </Badge>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-baseline justify-between text-xs">
+                <span className="text-muted-foreground">Progression équipe :</span>
+                <span className="font-mono font-bold text-foreground">
+                  {teamHubApi.data?.teamPot?.progressPct ?? 0}%
+                </span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-gold to-emerald-500 transition-all duration-500"
+                  style={{ width: `${Math.max(6, teamHubApi.data?.teamPot?.progressPct ?? 0)}%` }}
+                />
+              </div>
+              <p className="text-[10.5px] text-muted-foreground">
+                CA Salon : <strong>{(teamHubApi.data?.teamPot?.monthRevenueFcfa ?? 0).toLocaleString("fr-FR")} F</strong> / Objectif{" "}
+                {(teamHubApi.data?.teamPot?.monthlyGoalFcfa ?? 2000000).toLocaleString("fr-FR")} F
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* ── 2. KPIS PERSONNELS & OBJECTIFS DU MOIS ── */}
@@ -379,27 +504,53 @@ export function EmployeeDashboardSection({
       {/* ── 4. TIMELINE DES SOINS DE LA JOURNÉE ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="md:col-span-1 lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <CalendarCheck className="size-4 text-gold-text" />
-              <span>Planning &amp; Soins de la Journée ({todayAppts.length})</span>
+              <span>Planning &amp; Soins de la Journée ({displayedAppts.length})</span>
             </h2>
-            {canAgenda && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onNavigate("agenda")}
-                className="text-xs font-bold text-gold-text hover:text-gold-text/80 h-8 gap-1"
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setApptFilter("mine")}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all cursor-pointer",
+                  apptFilter === "mine"
+                    ? "k-btn-gold text-black border-transparent"
+                    : "bg-card text-muted-foreground border-border"
+                )}
               >
-                <span>Ouvrir l&apos;agenda complet</span>
-                <ChevronRight className="size-3.5" />
-              </Button>
-            )}
+                Mes clientes ({myTodayAppts.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setApptFilter("all")}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all cursor-pointer",
+                  apptFilter === "all"
+                    ? "k-btn-gold text-black border-transparent"
+                    : "bg-card text-muted-foreground border-border"
+                )}
+              >
+                Tout le salon ({todayAppts.length})
+              </button>
+              {canAgenda && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onNavigate("agenda")}
+                  className="text-xs font-bold text-gold-text hover:text-gold-text/80 h-8 gap-1"
+                >
+                  <span>Agenda</span>
+                  <ChevronRight className="size-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <Card className="rounded-2xl border-border/70 overflow-hidden shadow-sm">
             <CardContent className="p-0">
-              {todayAppts.length === 0 ? (
+              {displayedAppts.length === 0 ? (
                 <div className="p-8 text-center space-y-2">
                   <div className="mx-auto size-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground">
                     <CalendarCheck className="size-6 text-gold-text/60" />
@@ -411,7 +562,7 @@ export function EmployeeDashboardSection({
                 </div>
               ) : (
                 <div className="divide-y divide-border/60">
-                  {todayAppts.map((appt) => {
+                  {displayedAppts.map((appt) => {
                     const isDone = appt.status === "completed";
                     return (
                       <div
