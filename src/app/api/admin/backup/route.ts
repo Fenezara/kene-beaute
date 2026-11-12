@@ -98,6 +98,20 @@ export async function GET(req: NextRequest) {
       ip: clientIp(req),
       detail: `backup_download:${format}`,
     });
+    try {
+      const statusFile = path.join(resolveBackupDir(), ".offsite-status.json");
+      fs.writeFileSync(
+        /*turbopackIgnore: true*/ statusFile,
+        JSON.stringify({
+          ok: true,
+          at: new Date().toISOString(),
+          target: `Téléchargement Console Admin (${format.toUpperCase()})`,
+          detail: "Copie hors serveur téléchargée sur l'appareil administrateur",
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
 
     if (format === "json") {
       const [users, tenants, products, services, orders, appointments, sales, diagnoses] = await Promise.all([
