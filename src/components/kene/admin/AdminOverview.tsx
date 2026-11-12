@@ -16,7 +16,19 @@ import { useApi } from "@/components/kene/pro/useApi";
 import { useKene } from "@/store/kene";
 import { EmptyState, KpiCard, Money, dayLabel } from "@/components/kene/pro/ui-bits";
 import { AdminMaintenanceControl } from "./AdminMaintenanceControl";
-import type { AdminStats } from "@/components/kene/pro/types";
+import type { AdminSecurity, AdminStats } from "@/components/kene/pro/types";
+
+function formatUptime(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  if (hours < 24) return `${hours}h ${remMinutes}m`;
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return `${days}j ${remHours}h`;
+}
 
 interface ConnectorsData {
   winipayer: { status: "live" | "sandbox" | "unconfigured"; merchantUuidMasked: string; preferredEnv: string; detail: string };
@@ -30,12 +42,16 @@ interface ConnectorsData {
 
 export function AdminOverview({
   stats,
+  sec,
   scope = "real",
   onScopeChange,
+  onNavigateTab,
 }: {
   stats: ReturnType<typeof useApi<AdminStats>>;
+  sec?: ReturnType<typeof useApi<AdminSecurity>>;
   scope?: "real" | "all";
   onScopeChange?: (s: "real" | "all") => void;
+  onNavigateTab?: (tab: "overview" | "orders" | "appointments" | "tenants" | "users" | "subs" | "referrals" | "security") => void;
 }) {
   const data = stats.data;
   const [connectors, setConnectors] = useState<ConnectorsData | null>(null);
@@ -186,6 +202,141 @@ export function AdminOverview({
         <KpiCard icon={<ReceiptText className="size-4" />} label="Volume Réseau (GMV)" value={xof(data.networkGmv ?? 0, { compact: true })} hint={`Acomptes RDV : ${xof(data.appointmentsDeposit ?? 0, { compact: true })}`} />
         <KpiCard icon={<Crown className="size-4" />} label="Revenus abonnements" value={xof(data.subsMrrFcfa ?? 0, { compact: true })} hint={`${data.activeSubs ?? 0} abonnée${(data.activeSubs ?? 0) > 1 ? "s" : ""}`} />
       </div>
+
+      {/* 🛡️ Cockpit Santé Serveur & Radar de Sécurité Direct (Visible dès la 1ère page) */}
+      <Card className="overflow-hidden border-border/80 bg-gradient-to-br from-card via-card to-primary/5 shadow-xs">
+        <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="font-heading text-base flex flex-wrap items-center gap-2">
+              <Activity className="size-4 text-primary animate-pulse" aria-hidden="true" />
+              <span>Santé Serveur &amp; Radar Anti-Attaques (Temps Réel)</span>
+              {sec?.data?.health && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "font-bold text-xs px-2 py-0.5",
+                    sec.data.health.status === "optimal"
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                      : sec.data.health.status === "warning"
+                      ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                      : "bg-rose-500/10 text-rose-600 border-rose-500/30"
+                  )}
+                >
+                  {sec.data.health.status === "optimal" ? "🟢 Système Optimal (100%)" : sec.data.health.status === "warning" ? "🟠 Sous Tension" : "🔴 Attention Requise"}
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Supervision directe de l&apos;infrastructure Kènè : base SQLite, mémoire vive, cyber-menaces et intégrité des flux.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void sec?.refetch();
+                fetchConnectors();
+              }}
+              disabled={sec?.loading || loadingConnectors}
+              className="h-8 gap-1.5 text-xs"
+            >
+              <RefreshCw className={cn("size-3.5", (sec?.loading || loadingConnectors) && "animate-spin")} />
+              <span>Tester maintenant</span>
+            </Button>
+            {onNavigateTab && (
+              <Button
+                size="sm"
+                onClick={() => onNavigateTab("security")}
+                className="h-8 gap-1.5 text-xs bg-primary text-primary-foreground font-bold"
+              >
+                <ShieldCheck className="size-3.5" />
+                <span>Voir le Journal complet →</span>
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+            {/* 1. Base de données */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[11px] font-semibold flex items-center gap-1.5">
+                  <Database className="size-3.5 text-emerald-500" /> Latence SQLite
+                </span>
+                <span className="text-[10px] font-mono text-emerald-600 font-bold">Prisma</span>
+              </div>
+              <p className="font-heading text-lg font-black text-foreground">
+                {sec?.data?.health ? `${sec.data.health.dbLatencyMs} ms` : "…"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {sec?.data?.health?.dbLatencyMs && sec.data.health.dbLatencyMs < 10 ? "Ultra-rapide" : "Temps de réponse"}
+              </p>
+            </div>
+
+            {/* 2. Uptime 24/7 */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[11px] font-semibold flex items-center gap-1.5">
+                  <Server className="size-3.5 text-primary" /> Disponibilité
+                </span>
+                <span className="text-[10px] font-mono text-emerald-600 font-bold">En ligne</span>
+              </div>
+              <p className="font-heading text-lg font-black text-foreground">
+                {sec?.data?.health ? formatUptime(sec.data.health.uptimeSec) : "…"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Sans aucune coupure</p>
+            </div>
+
+            {/* 3. Mémoire Vive */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[11px] font-semibold flex items-center gap-1.5">
+                  <Cpu className="size-3.5 text-purple-500" /> Mémoire RAM
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">Node.js</span>
+              </div>
+              <p className="font-heading text-lg font-black text-foreground">
+                {sec?.data?.health ? `${sec.data.health.memoryUsageMb} Mo` : "…"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Allocation serveur active</p>
+            </div>
+
+            {/* 4. Menaces Bloquées 24h */}
+            <div className={cn(
+              "rounded-xl border p-3 space-y-1 transition-all",
+              (sec?.data?.stats.threats24h ?? 0) > 0
+                ? "border-rose-500/40 bg-rose-500/10"
+                : "border-border/70 bg-card/60"
+            )}>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[11px] font-semibold flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                  <ShieldCheck className="size-3.5" /> Menaces 24h
+                </span>
+                <span className="text-[10px] font-bold text-rose-600">Bouclier</span>
+              </div>
+              <p className={cn("font-heading text-lg font-black", (sec?.data?.stats.threats24h ?? 0) > 0 ? "text-rose-600" : "text-foreground")}>
+                {sec?.data ? `${sec.data.stats.threats24h ?? 0} bloquée${(sec.data.stats.threats24h ?? 0) > 1 ? "s" : ""}` : "…"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Honeypot, robots, force-brute</p>
+            </div>
+
+            {/* 5. Incidents applicatifs */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1 col-span-2 sm:col-span-4 lg:col-span-1">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[11px] font-semibold flex items-center gap-1.5">
+                  <Activity className="size-3.5 text-amber-500" /> Bugs / Erreurs 24h
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">Télémétrie</span>
+              </div>
+              <p className="font-heading text-lg font-black text-foreground">
+                {sec?.data?.stats ? sec.data.stats.clientErrors24h ?? 0 : "…"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Remontées client &amp; cabine</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Connecteurs & Passerelles Réelles */}
       <Card className="border-border/80">

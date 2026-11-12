@@ -169,7 +169,13 @@ export function AdminApp() {
                 <div className="h-72 animate-pulse rounded-xl bg-muted" />
               </div>
             ) : (
-              <AdminOverview stats={stats} scope={scope} onScopeChange={setScope} />
+              <AdminOverview
+                stats={stats}
+                sec={sec}
+                scope={scope}
+                onScopeChange={setScope}
+                onNavigateTab={handleTabChange}
+              />
             )
           )}
           {tab === "orders" && <AdminOrders scope={scope} />}
