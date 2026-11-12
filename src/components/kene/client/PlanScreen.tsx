@@ -735,7 +735,7 @@ export function PlanScreen() {
                 <p className="rounded-xl bg-gold/10 border border-gold/30 px-3 py-2.5 text-[11px] font-semibold text-gold-text leading-snug">
                   {sheetMode === "renew"
                     ? "Tes 30 jours supplémentaires se raccordent directement à ton échéance (aucun jour perdu)."
-                    : "Paiement sécurisé par Mobile Money (Wave, Orange, MTN, Moov) & Carte bancaire via WiniPayer."}
+                    : "Paiement sécurisé par Mobile Money (Wave, Orange, MTN, Moov) & Carte bancaire."}
                 </p>
                 <div>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Opérateur</p>

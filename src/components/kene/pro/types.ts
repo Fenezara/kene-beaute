@@ -607,6 +607,8 @@ export interface AdminStats {
   // Monétisation
   activeSubs: number;
   subsMrrFcfa: number;
+  paidSubs?: number;
+  giftSubs?: number;
   // Transactions réelles du réseau (Ventes caisse salon + Acomptes RDV)
   salesCount?: number;
   salesVolume?: number;
@@ -650,12 +652,18 @@ export interface AdminSystemHealth {
   webhookEvents24h: number;
   jailedIpsCount: number;
   activeRateLimitKeys: number;
+  startedAt?: string;
+  lastWebhookAt?: string | null;
+  alertChannels?: { telegram: boolean; whatsapp: boolean; sms: boolean; webhook: boolean };
+  offsiteBackup?: { ok: boolean; at: string | null; target: string | null; detail?: string | null };
 }
 
 export interface AdminSecurity {
   events: AdminSecurityEvent[];
   stats: AdminSecurityStats;
   health?: AdminSystemHealth;
+  ipGeo?: Record<string, { label: string; countryCode: string } | null>;
+  adminIps?: string[];
 }
 
 // ─────────────── Admin — console de gestion () ───────────────

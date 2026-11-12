@@ -27,6 +27,8 @@ type StatsPayload = {
   topTenants: { name: string; city: string; ca30: number }[];
   activeSubs: number;
   subsMrrFcfa: number;
+  paidSubs?: number;
+  giftSubs?: number;
   salesCount: number;
   salesVolume: number;
   appointmentsCount: number;
@@ -124,7 +126,7 @@ export async function GET(req: NextRequest) {
       }),
       db.subscription.findMany({
         where: { status: "active", expiresAt: { gt: now } },
-        select: { priceFcfa: true },
+        select: { priceFcfa: true, source: true },
       }),
       db.sale.count({
         where: {
@@ -206,7 +208,9 @@ export async function GET(req: NextRequest) {
       chart,
       topTenants,
       activeSubs: activeSubsRaw.length,
-      subsMrrFcfa: activeSubsRaw.reduce((s, x) => s + x.priceFcfa, 0),
+      subsMrrFcfa: activeSubsRaw.filter((x) => isPaidSub(x)).reduce((s, x) => s + x.priceFcfa, 0),
+      paidSubs: activeSubsRaw.filter((x) => isPaidSub(x)).length,
+      giftSubs: activeSubsRaw.filter((x) => !isPaidSub(x)).length,
       salesCount,
       salesVolume,
       appointmentsCount,
@@ -219,4 +223,9 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     return serverError("admin/stats", err);
   }
+}
+
+/** Abonnement réellement payé (hors cadeaux console / parrainage et gratuits). */
+function isPaidSub(x: { priceFcfa: number; source: string }): boolean {
+  return x.priceFcfa > 0 && x.source !== "console_gift" && x.source !== "referral_gift";
 }

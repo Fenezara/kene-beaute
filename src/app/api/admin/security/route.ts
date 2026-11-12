@@ -8,6 +8,10 @@
 // public possible. Sans session admin valide → 403 franc.
 import { NextRequest, NextResponse } from "next/server";
 import os from "node:os";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { alertChannelsStatus } from "@/lib/kene/admin-alerts";
+import { lookupIpGeoBatch } from "@/lib/kene/ip-geo";
 import { db } from "@/lib/db";
 import { serverError } from "@/lib/kene/server";
 import { sessionFromRequest } from "@/lib/kene/session";
@@ -43,6 +47,8 @@ export async function GET(req: NextRequest) {
       threats24h,
       pinLockedUsers,
       webhookEvents24h,
+      lastWebhook,
+      adminIpRows,
     ] = await Promise.all([
       db.securityEvent.findMany({ orderBy: { ts: "desc" }, take: 100 }),
       db.securityEvent.count(),
@@ -74,7 +80,41 @@ export async function GET(req: NextRequest) {
         },
       }),
       db.webhookEvent.count({ where: { processedAt: { gte: since24h } } }),
+      db.webhookEvent.findFirst({ orderBy: { processedAt: "desc" }, select: { processedAt: true } }),
+      db.securityEvent.findMany({
+        where: { kind: "admin_access", ts: { gte: new Date(Date.now() - 30 * 24 * 3_600_000) } },
+        select: { ip: true },
+        distinct: ["ip"],
+        take: 20,
+      }),
     ]);
+
+    // Statut de la copie hors serveur (écrit par le script de sauvegarde nocturne).
+    let offsiteBackup: AdminSystemHealth["offsiteBackup"] = {
+      ok: false,
+      at: null,
+      target: null,
+      detail: "Aucune copie externe enregistrée",
+    };
+    try {
+      const candidates = [path.join(process.cwd(), "db", "backups"), "/app/db/backups"];
+      for (const dir of candidates) {
+        const raw = await fs.readFile(path.join(dir, ".offsite-status.json"), "utf8").catch(() => null);
+        if (!raw) continue;
+        const j = JSON.parse(raw) as { ok?: boolean; at?: string; target?: string; detail?: string };
+        const fresh = j.at ? Date.now() - new Date(j.at).getTime() < 36 * 3_600_000 : false;
+        offsiteBackup = { ok: Boolean(j.ok) && fresh, at: j.at ?? null, target: j.target ?? null, detail: j.detail ?? null };
+        break;
+      }
+    } catch {
+      /* pas encore de copie externe */
+    }
+
+    const adminIps = adminIpRows.map((r) => r.ip).filter((x): x is string => Boolean(x));
+    const eventIps = events.map((e) => e.ip).filter((x): x is string => Boolean(x));
+    const geoFull = await lookupIpGeoBatch([...adminIps, ...eventIps]);
+    const ipGeo: Record<string, { label: string; countryCode: string } | null> = {};
+    for (const [ip, gg] of Object.entries(geoFull)) ipGeo[ip] = gg ? { label: gg.label, countryCode: gg.countryCode } : null;
 
     const mem = process.memoryUsage();
     const memUsageMb = Math.round(mem.heapUsed / 1024 / 1024);
@@ -107,6 +147,10 @@ export async function GET(req: NextRequest) {
       webhookEvents24h,
       jailedIpsCount: 0,
       activeRateLimitKeys: rlStats.activeKeys,
+      startedAt: new Date(Date.now() - uptime * 1000).toISOString(),
+      lastWebhookAt: lastWebhook?.processedAt ? lastWebhook.processedAt.toISOString() : null,
+      alertChannels: alertChannelsStatus(),
+      offsiteBackup,
     };
 
     const payload: AdminSecurity = {
@@ -128,6 +172,8 @@ export async function GET(req: NextRequest) {
         pinLockedCount: pinLockedUsers,
       },
       health,
+      ipGeo,
+      adminIps,
     };
 
     return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });

@@ -200,7 +200,7 @@ export function AdminOverview({
         <KpiCard icon={<ShoppingBag className="size-4" />} label="Ventes Caisse" value={String(data.salesCount ?? 0)} monetary={false} hint={`CA : ${xof(data.salesVolume ?? 0, { compact: true })}`} />
         <KpiCard icon={<CreditCard className="size-4" />} label="Commandes Web" value={String(data.orders ?? 0)} monetary={false} hint={`CA : ${xof(data.gmvBoutique ?? 0, { compact: true })}`} />
         <KpiCard icon={<ReceiptText className="size-4" />} label="Volume Réseau (GMV)" value={xof(data.networkGmv ?? 0, { compact: true })} hint={`Acomptes RDV : ${xof(data.appointmentsDeposit ?? 0, { compact: true })}`} />
-        <KpiCard icon={<Crown className="size-4" />} label="Revenus abonnements" value={xof(data.subsMrrFcfa ?? 0, { compact: true })} hint={`${data.activeSubs ?? 0} abonnée${(data.activeSubs ?? 0) > 1 ? "s" : ""}`} />
+        <KpiCard icon={<Crown className="size-4" />} label="MRR abonnements payés" value={xof(data.subsMrrFcfa ?? 0, { compact: true })} hint={`${data.paidSubs ?? 0} payante${(data.paidSubs ?? 0) > 1 ? "s" : ""} · ${data.giftSubs ?? 0} offerte${(data.giftSubs ?? 0) > 1 ? "s" : ""}/essai`} />
       </div>
 
       {/* 🛡️ Cockpit Santé Serveur & Radar de Sécurité Direct (Visible dès la 1ère page) */}
@@ -274,18 +274,18 @@ export function AdminOverview({
               </p>
             </div>
 
-            {/* 2. Uptime 24/7 */}
+            {/* 2. Dernier redémarrage */}
             <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="text-[11px] font-semibold flex items-center gap-1.5">
-                  <Server className="size-3.5 text-primary" /> Disponibilité
+                  <Server className="size-3.5 text-primary" /> Dernier redémarrage
                 </span>
                 <span className="text-[10px] font-mono text-emerald-600 font-bold">En ligne</span>
               </div>
               <p className="font-heading text-lg font-black text-foreground">
-                {sec?.data?.health ? formatUptime(sec.data.health.uptimeSec) : "…"}
+                {sec?.data?.health ? `il y a ${formatUptime(sec.data.health.uptimeSec)}` : "…"}
               </p>
-              <p className="text-[10px] text-muted-foreground">Sans aucune coupure</p>
+              <p className="text-[10px] text-muted-foreground">Déploiement / relance</p>
             </div>
 
             {/* 3. Mémoire Vive */}
@@ -376,10 +376,10 @@ export function AdminOverview({
                     className={`text-[10px] font-bold ${
                       connectors.winipayer.status === "live"
                         ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                        : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                        : "bg-muted text-muted-foreground border-border"
                     }`}
                   >
-                    {connectors.winipayer.status === "live" ? "Mode Réel (Live)" : "Mode Test (Sandbox)"}
+                    {connectors.winipayer.status === "live" ? "Mode Réel (Live)" : "Secondaire (SasPay actif)"}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-snug">
@@ -439,10 +439,10 @@ export function AdminOverview({
                     className={`text-[10px] font-bold ${
                       connectors.zavu.status === "ready"
                         ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                        : "bg-blue-500/10 text-blue-600 border-blue-500/30"
+                        : "bg-muted text-muted-foreground border-border"
                     }`}
                   >
-                    {connectors.zavu.status === "ready" ? "Opérationnel" : "Numéro Requis"}
+                    {connectors.zavu.status === "ready" ? "Opérationnel" : "Secondaire (Termii actif)"}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-snug">

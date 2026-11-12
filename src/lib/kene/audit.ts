@@ -13,6 +13,8 @@
 // globalThis (pattern du rate-limit: survit au HMR, zéro timer).
 import { createHash, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
+import { alertForAuditEvent, sendAdminAlert } from "@/lib/kene/admin-alerts";
+import { lookupIpGeo } from "@/lib/kene/ip-geo";
 
 // ─────────────── Événement ───────────────
 
@@ -36,17 +38,49 @@ const g = globalThis as typeof globalThis & { __keneAuditLastPrune?: number };
 export async function audit(evt: AuditEvent): Promise<void> {
   try {
     maybePrune();
+    const maskedPhone = evt.phone ? maskPhone(evt.phone) : null;
+    // Nouvelle IP sur la console admin → alerte (avant écriture pour comparer à l'historique).
+    if (evt.kind === "admin_access" && evt.ip && evt.ip !== "local") {
+      await checkNewAdminIp(evt.ip, maskedPhone);
+    }
     await db.securityEvent.create({
       data: {
         kind: (evt.kind || "unknown").slice(0, KIND_MAX),
-        phone: evt.phone ? maskPhone(evt.phone) : null,
+        phone: maskedPhone,
         userId: evt.userId ? evt.userId.slice(0, KIND_MAX) : null,
         ip: evt.ip ? evt.ip.slice(0, KIND_MAX) : null,
         detail: evt.detail ? evt.detail.slice(0, DETAIL_MAX) : null,
       },
     });
+    alertForAuditEvent({ kind: evt.kind, ip: evt.ip, phone: maskedPhone, detail: evt.detail });
   } catch (err) {
     console.warn("[kene:audit] écriture impossible :", err instanceof Error ? err.message : err);
+  }
+}
+
+/** Alerte si une IP jamais vue sur la console admin (60 j) s'y connecte. */
+async function checkNewAdminIp(ip: string, phone: string | null): Promise<void> {
+  try {
+    const known = await db.securityEvent.findFirst({
+      where: { kind: "admin_access", ip, ts: { gte: new Date(Date.now() - 60 * 24 * 3_600_000) } },
+      select: { id: true },
+    });
+    if (known) return;
+    const hasHistory = await db.securityEvent.count({ where: { kind: "admin_access" } });
+    if (hasHistory === 0) return; // premier accès historique : pas d'alerte
+    void lookupIpGeo(ip).then((geo) => sendAdminAlert({
+      key: `new_admin_ip:${ip}`,
+      title: "Nouvelle IP sur la console ADMIN",
+      severity: "critical",
+      lines: [
+        `IP : ${ip}`,
+        geo ? `Localisation : ${geo.label}` : "",
+        phone ? `Compte : ${phone}` : "",
+        "Si ce n'est pas vous : Sécurité & Santé → supprimer les passkeys inconnues.",
+      ].filter(Boolean),
+    }));
+  } catch {
+    /* jamais bloquant */
   }
 }
 

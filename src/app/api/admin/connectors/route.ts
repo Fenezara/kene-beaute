@@ -5,6 +5,7 @@
 // 3. Gemini / IA (Dr Kènè et moteur d'analyse dermatologique)
 // 4. Base de données & Notify Service
 
+import { alertChannelsStatus } from "@/lib/kene/admin-alerts";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "../tenants/route";
@@ -135,14 +136,13 @@ export async function GET(req: NextRequest) {
     : "Moteur Expert Dermo-Cosmétique Kènè actif (Palier 3 Haute Disponibilité)";
 
   // 6. Relais d'alertes externes (Discord / Telegram)
-  const webhookUrl = process.env.ALERT_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL;
-  const tgBotToken = process.env.TELEGRAM_BOT_TOKEN;
-  const tgChatId = process.env.TELEGRAM_CHAT_ID;
-  const alertsConfigured = Boolean(webhookUrl || (tgBotToken && tgChatId));
+  const ch = alertChannelsStatus();
+  const activeChannels = [ch.telegram && "Telegram", ch.whatsapp && "WhatsApp", ch.sms && "SMS critique", ch.webhook && "Webhook"].filter(Boolean) as string[];
+  const alertsConfigured = activeChannels.length > 0;
   const alertsStatus: "ready" | "unconfigured" = alertsConfigured ? "ready" : "unconfigured";
   const alertsDetail = alertsConfigured
-    ? `Canal d'alerte actif (${webhookUrl ? "Discord/Webhook" : ""}${webhookUrl && tgBotToken ? " + " : ""}${tgBotToken ? "Telegram" : ""})`
-    : "Aucun webhook externe configuré (ALERT_WEBHOOK_URL ou TELEGRAM_BOT_TOKEN)";
+    ? `Alertes actives : ${activeChannels.join(" + ")}`
+    : "Aucun canal configuré (ADMIN_ALERT_PHONE, TELEGRAM_BOT_TOKEN ou CALLMEBOT_WHATSAPP_APIKEY)";
 
   // 7. Base de données & Latence réelle
   let dbStatus = "ok";

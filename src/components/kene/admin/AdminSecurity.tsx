@@ -9,6 +9,9 @@ import {
   AlertOctagon,
   AlertTriangle,
   Bot,
+  Bell,
+  CloudUpload,
+  Send,
   CheckCircle2,
   Cpu,
   Database,
@@ -34,7 +37,70 @@ import { formatDate } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import type { UseApiResult } from "@/components/kene/pro/useApi";
 import { KenteTop } from "@/components/kene/pro/ui-bits";
-import type { AdminSecurity } from "@/components/kene/pro/types";
+import type { AdminSecurity, AdminSystemHealth } from "@/components/kene/pro/types";
+import { apiPost } from "@/lib/kene/api";
+import { toast } from "sonner";
+
+/** Canaux d'alerte (Telegram/WhatsApp/SMS) + copie des sauvegardes hors serveur. */
+function AlertsAndOffsitePanel({ health }: { health?: AdminSystemHealth }) {
+  const [testing, setTesting] = useState(false);
+  const ch = health?.alertChannels;
+  const off = health?.offsiteBackup;
+  const channels: { label: string; on: boolean; hint: string }[] = [
+    { label: "SMS critique", on: Boolean(ch?.sms), hint: "Attaques graves, nouvelle IP admin" },
+    { label: "Telegram", on: Boolean(ch?.telegram), hint: "Toutes les alertes + copie des sauvegardes" },
+    { label: "WhatsApp", on: Boolean(ch?.whatsapp), hint: "Toutes les alertes" },
+  ];
+  async function test() {
+    setTesting(true);
+    try {
+      const r = await apiPost<{ ok: boolean; sent: string[] }>("/api/admin/alerts/test", {});
+      if (r.ok) toast.success(`Alerte de test envoyée : ${r.sent.join(", ")}`);
+      else toast.error("Aucun canal n'a pu envoyer l'alerte — vérifiez la configuration.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec du test");
+    } finally {
+      setTesting(false);
+    }
+  }
+  return (
+    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="rounded-2xl border border-border/70 bg-card/60 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold flex items-center gap-1.5 text-muted-foreground">
+            <Bell className="size-3.5 text-primary" /> Alertes temps réel
+          </p>
+          <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => void test()} disabled={testing}>
+            <Send className={cn("size-3", testing && "animate-pulse")} /> Tester
+          </Button>
+        </div>
+        <ul className="space-y-1">
+          {channels.map((c) => (
+            <li key={c.label} className="flex items-center gap-2 text-xs">
+              <span className={cn("size-2 rounded-full", c.on ? "bg-emerald-500" : "bg-muted-foreground/30")} />
+              <span className="font-semibold text-foreground">{c.label}</span>
+              <span className="text-[10px] text-muted-foreground truncate">{c.on ? c.hint : "à activer"}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-2xl border border-border/70 bg-card/60 p-3 space-y-1.5">
+        <p className="text-[11px] font-semibold flex items-center gap-1.5 text-muted-foreground">
+          <CloudUpload className="size-3.5 text-gold-text" /> Copie des sauvegardes hors serveur
+        </p>
+        <p className={cn("font-heading text-base font-black", off?.ok ? "text-emerald-600" : "text-amber-600")}>
+          {off?.ok ? "✅ À jour" : "⚠️ Non active"}
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          {off?.at
+            ? `Dernière copie : ${formatDate(off.at)}${off.target ? ` → ${off.target}` : ""}`
+            : "Les sauvegardes restent sur le VPS. Activez Telegram pour recevoir la copie chaque nuit."}
+          {off?.detail && !off.ok ? ` · ${off.detail}` : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const SEC_KINDS: Record<string, { label: string; cls: string; isThreat?: boolean }> = {
   login_success: { label: "Connexion réussie", cls: "bg-success/15 text-success" },
@@ -103,8 +169,12 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
   const threats = d?.stats.threats24h ?? 0;
   const pinLocked = d?.stats.pinLockedCount ?? 0;
 
-  // Filtrage du journal en 1 clic
+  // Filtrage du journal en 1 clic — les accès console admin sont regroupés (bruit).
+  const [showAdminAccess, setShowAdminAccess] = useState(false);
+  const adminAccessCount = (d?.events ?? []).filter((e) => e.kind === "admin_access").length;
+  const ipGeo = d?.ipGeo ?? {};
   const filteredEvents = (d?.events ?? []).filter((e) => {
+    if (!showAdminAccess && filter === "all" && e.kind === "admin_access") return false;
     if (filter === "threats") {
       const k = SEC_KINDS[e.kind];
       return k?.isThreat || e.kind.includes("threat") || e.kind.includes("probe") || e.kind.includes("attack");
@@ -197,14 +267,16 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
             <div className="rounded-2xl border border-border/70 bg-card/60 p-3 space-y-1">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="text-[11px] font-semibold flex items-center gap-1.5">
-                  <Radio className="size-3.5 text-emerald-500" /> Uptime Serveur
+                  <Radio className="size-3.5 text-emerald-500" /> Dernier redémarrage
                 </span>
-                <span className="text-[10px] font-mono text-emerald-600 font-bold">24/7</span>
+                <span className="text-[10px] font-mono text-emerald-600 font-bold">En ligne</span>
               </div>
               <p className="font-heading text-lg font-black text-foreground">
-                {health ? formatUptime(health.uptimeSec) : "…"}
+                {health ? `il y a ${formatUptime(health.uptimeSec)}` : "…"}
               </p>
-              <p className="text-[10px] text-muted-foreground">Sans aucune coupure</p>
+              <p className="text-[10px] text-muted-foreground">
+                {health?.startedAt ? `Déploiement / relance : ${secTime(health.startedAt)}` : "Process Node.js"}
+              </p>
             </div>
 
             {/* Webhooks Fintech 24h */}
@@ -218,9 +290,13 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
               <p className="font-heading text-lg font-black text-foreground">
                 {health ? health.webhookEvents24h : "…"}
               </p>
-              <p className="text-[10px] text-muted-foreground">Paiements Wave &amp; Orange</p>
+              <p className="text-[10px] text-muted-foreground">
+                {health?.lastWebhookAt ? `Dernier reçu : ${secTime(health.lastWebhookAt)}` : "Aucun webhook reçu à ce jour"}
+              </p>
             </div>
           </div>
+
+          <AlertsAndOffsitePanel health={health} />
         </CardContent>
       </Card>
 
@@ -323,9 +399,38 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
                 filter === "auth" ? "bg-gold text-[#18120C] shadow-2xs" : "bg-gold/10 text-gold-text hover:bg-gold/20"
               )}
             >
-              <Lock className="size-3" /> Connexions &amp; PIN
+              <Lock className="size-3.5" /> Connexions &amp; PIN
             </button>
+            {adminAccessCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAdminAccess((v) => !v)}
+                className={cn(
+                  "h-7 px-2.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap",
+                  showAdminAccess ? "bg-foreground text-background" : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {showAdminAccess ? "Masquer" : "Afficher"} mes accès console ({adminAccessCount})
+              </button>
+            )}
           </div>
+
+          {(d?.adminIps?.length ?? 0) > 0 && (
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5 text-xs space-y-1.5">
+              <p className="font-semibold text-foreground">IP ayant accédé à la console admin (30 j)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {d!.adminIps!.map((ip) => (
+                  <span key={ip} className="font-mono text-[11px] bg-background px-2 py-0.5 rounded-full border border-border/60">
+                    {ip}
+                    {ipGeo[ip] ? <span className="text-muted-foreground"> · {ipGeo[ip]!.label}</span> : null}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Une IP inconnue déclenche automatiquement une alerte. Si l&apos;une d&apos;elles n&apos;est pas à vous, supprimez les passkeys inconnues.
+              </p>
+            </div>
+          )}
 
           {/* Journal des événements avec détails complets au clic */}
           {sec.error ? (
@@ -380,6 +485,7 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
                       {e.ip && (
                         <span className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
                           IP: {e.ip}
+                          {ipGeo[e.ip] ? ` · ${ipGeo[e.ip]!.label}` : ""}
                         </span>
                       )}
 
