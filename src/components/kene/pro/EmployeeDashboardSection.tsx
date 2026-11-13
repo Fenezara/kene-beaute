@@ -21,6 +21,7 @@ import {
   Pin,
   Trophy,
   CreditCard,
+  Compass,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -260,6 +261,18 @@ export function EmployeeDashboardSection({
               </p>
             </div>
             <div className="flex flex-wrap sm:flex-col gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  window.dispatchEvent(new CustomEvent("kene:open-pro-walkthrough"));
+                }}
+                className="h-9 rounded-xl text-xs font-bold border-gold/40 bg-white/5 hover:bg-white/15 text-[#FFF9EC] gap-1.5"
+              >
+                <Compass className="size-3.5 text-[#E5A93C]" />
+                <span>Guide Pas-à-Pas</span>
+              </Button>
               {onOpenTeamHub && (
                 <Button
                   size="sm"

@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   SunMedium,
   Wind,
+  Compass,
 } from "lucide-react";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
@@ -302,9 +303,20 @@ export function HomeScreen({
                 Que souhaites-tu pour ta peau aujourd&apos;hui ?
               </h3>
             </div>
-            <span className="text-[10px] uppercase tracking-wider font-extrabold text-muted-foreground/75 px-2 py-0.5 rounded-full bg-muted">
-              Intention directe
-            </span>
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("kene:open-walkthrough"));
+                }
+              }}
+              className="inline-flex items-center gap-1 text-[10.5px] font-extrabold text-gold-text hover:opacity-85 px-2.5 py-1 rounded-full bg-gold/15 border border-gold/30 cursor-pointer transition-all"
+              title="Ouvrir le guide pas-à-pas pour utiliser Kènè"
+            >
+              <Compass size={12} className="text-gold-text" />
+              <span>Guide pas-à-pas</span>
+            </button>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">

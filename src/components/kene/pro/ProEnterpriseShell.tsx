@@ -30,6 +30,7 @@ import {
   ArrowLeft,
   FolderHeart,
   MessageSquare,
+  Compass,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKene, type SessionUser } from "@/store/kene";
@@ -84,6 +85,7 @@ import { ProductInciScannerModal } from "./ProductInciScannerModal";
 import { KeneMirrorKioskModal } from "./KeneMirrorKioskModal";
 import { AssistantSection } from "./AssistantSection";
 import { TeamCommsDrawer } from "./TeamCommsDrawer";
+import { ProWalkthroughTour, PRO_TOUR_STORAGE_KEY_PREFIX } from "./ProWalkthroughTour";
 import { formatRole } from "@/lib/kene/hr-constants";
 
 export type ProSectionId =
@@ -362,6 +364,7 @@ export function ProEnterpriseShell() {
   const [mirrorKioskOpen, setMirrorKioskOpen] = useState(false);
   const [teamHubOpen, setTeamHubOpen] = useState(false);
   const [teamHubInitialHandoff, setTeamHubInitialHandoff] = useState(false);
+  const [proTourOpen, setProTourOpen] = useState(false);
   const [teamUnreadCount, setTeamUnreadCount] = useState(0);
   const [teamPendingHandoffs, setTeamPendingHandoffs] = useState(0);
   const [assistantNonce, setAssistantNonce] = useState(0);
@@ -369,6 +372,10 @@ export function ProEnterpriseShell() {
   // Interception du bouton Retour physique / barre Android pour naviguer dans l'historique de l'application
   useHardwareBack(() => {
     // 1. Fermer les modales ouvertes en priorité
+    if (proTourOpen) {
+      setProTourOpen(false);
+      return true;
+    }
     if (teamHubOpen) {
       setTeamHubOpen(false);
       return true;
@@ -1096,6 +1103,28 @@ export function ProEnterpriseShell() {
     return () => window.clearInterval(timer);
   }, [checkTeamHubLive, refreshKey]);
 
+  // ── Visite Guidée Interactive Kènè Pro (ouverture auto à la 1ère connexion + événement global) ──
+  const tourKey = `${PRO_TOUR_STORAGE_KEY_PREFIX}${sessionUser?.id || chipName || "default"}`;
+  useEffect(() => {
+    const handleOpenProTour = () => setProTourOpen(true);
+    window.addEventListener("kene:open-pro-walkthrough", handleOpenProTour);
+    try {
+      const done = localStorage.getItem(tourKey);
+      if (!done) {
+        const t = window.setTimeout(() => {
+          setProTourOpen(true);
+        }, 1200);
+        return () => {
+          window.clearTimeout(t);
+          window.removeEventListener("kene:open-pro-walkthrough", handleOpenProTour);
+        };
+      }
+    } catch {}
+    return () => {
+      window.removeEventListener("kene:open-pro-walkthrough", handleOpenProTour);
+    };
+  }, [tourKey]);
+
   return (
     <div className="h-dvh w-full flex flex-col overflow-hidden overscroll-none select-none">
       <AuroraBackdrop />
@@ -1233,6 +1262,21 @@ export function ProEnterpriseShell() {
 
             <SpaceSwitcher variant="compact" />
             <ThemeToggle />
+
+            {/* Bouton Guide Pas-à-Pas (Formation interactive nouvel utilisateur / collaboratrice) */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setProTourOpen(true);
+              }}
+              aria-label="Ouvrir le guide d'utilisation étape par étape"
+              title="Guide interactif étape par étape — Comment utiliser Kènè"
+              className="inline-flex items-center gap-1 h-8 sm:h-9 px-2 sm:px-2.5 rounded-full text-[11px] sm:text-xs font-bold bg-muted/50 hover:bg-gold/15 text-foreground hover:text-gold-text border border-border/70 hover:border-gold/40 transition-all active:scale-95 shrink-0 cursor-pointer"
+            >
+              <Compass className="size-3.5 sm:size-4 text-gold-text shrink-0" />
+              <span className="hidden xl:inline">Guide</span>
+            </button>
 
             {/* Bouton Kènè Team Live (Remplace WhatsApp en salon) */}
             {tid && (
@@ -2324,6 +2368,27 @@ export function ProEnterpriseShell() {
           initialHandoffComposerOpen={teamHubInitialHandoff}
         />
       )}
+
+      <ProWalkthroughTour
+        open={proTourOpen}
+        onOpenChange={(v) => {
+          setProTourOpen(v);
+          if (!v) {
+            try {
+              localStorage.setItem(tourKey, "1");
+            } catch {}
+          }
+        }}
+        userName={chipName}
+        userRole={employeeRole || (isOwner ? "gerante" : "estheticienne")}
+        isOwner={isOwner}
+        tenantName={tenant?.name ?? "Cabinet LA DERMO"}
+        onNavigate={openSection}
+        onOpenTeamHub={(openHandoff) => {
+          setTeamHubInitialHandoff(Boolean(openHandoff));
+          setTeamHubOpen(true);
+        }}
+      />
     </div>
   );
 }
