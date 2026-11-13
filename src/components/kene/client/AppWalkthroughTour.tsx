@@ -133,6 +133,9 @@ export function AppWalkthroughTour({
     haptic(HAPTIC.tap);
     try {
       localStorage.setItem(TOUR_STORAGE_KEY, "1");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("kene:walkthrough-completed"));
+      }
     } catch {}
     setIsOpen(false);
     onClose?.();
@@ -158,6 +161,9 @@ export function AppWalkthroughTour({
     haptic(HAPTIC.success);
     try {
       localStorage.setItem(TOUR_STORAGE_KEY, "1");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("kene:walkthrough-completed"));
+      }
     } catch {}
     setIsOpen(false);
     onClose?.();

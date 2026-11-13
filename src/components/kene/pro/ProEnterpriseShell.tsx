@@ -1103,11 +1103,22 @@ export function ProEnterpriseShell() {
     return () => window.clearInterval(timer);
   }, [checkTeamHubLive, refreshKey]);
 
-  // ── Visite Guidée Interactive Kènè Pro (ouverture auto à la 1ère connexion + événement global) ──
+  // ── Visite Guidée Interactive Kènè Pro (ouverture auto temporaire à la 1ère connexion) ──
   const tourKey = `${PRO_TOUR_STORAGE_KEY_PREFIX}${sessionUser?.id || chipName || "default"}`;
+  const [proTourDone, setProTourDone] = useState(false);
+
   useEffect(() => {
+    try {
+      if (localStorage.getItem(tourKey)) {
+        setProTourDone(true);
+      }
+    } catch {}
+
     const handleOpenProTour = () => setProTourOpen(true);
+    const handleTourCompleted = () => setProTourDone(true);
     window.addEventListener("kene:open-pro-walkthrough", handleOpenProTour);
+    window.addEventListener("kene:pro-walkthrough-completed", handleTourCompleted);
+
     try {
       const done = localStorage.getItem(tourKey);
       if (!done) {
@@ -1117,11 +1128,13 @@ export function ProEnterpriseShell() {
         return () => {
           window.clearTimeout(t);
           window.removeEventListener("kene:open-pro-walkthrough", handleOpenProTour);
+          window.removeEventListener("kene:pro-walkthrough-completed", handleTourCompleted);
         };
       }
     } catch {}
     return () => {
       window.removeEventListener("kene:open-pro-walkthrough", handleOpenProTour);
+      window.removeEventListener("kene:pro-walkthrough-completed", handleTourCompleted);
     };
   }, [tourKey]);
 
@@ -1263,20 +1276,22 @@ export function ProEnterpriseShell() {
             <SpaceSwitcher variant="compact" />
             <ThemeToggle />
 
-            {/* Bouton Guide Pas-à-Pas (Formation interactive nouvel utilisateur / collaboratrice) */}
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                setProTourOpen(true);
-              }}
-              aria-label="Ouvrir le guide d'utilisation étape par étape"
-              title="Guide interactif étape par étape — Comment utiliser Kènè"
-              className="inline-flex items-center gap-1 h-8 sm:h-9 px-2 sm:px-2.5 rounded-full text-[11px] sm:text-xs font-bold bg-muted/50 hover:bg-gold/15 text-foreground hover:text-gold-text border border-border/70 hover:border-gold/40 transition-all active:scale-95 shrink-0 cursor-pointer"
-            >
-              <Compass className="size-3.5 sm:size-4 text-gold-text shrink-0" />
-              <span className="hidden xl:inline">Guide</span>
-            </button>
+            {/* Guide Interactif temporaire : disparaît et ne s'affiche plus dans l'interface après avoir donné les directives */}
+            {!proTourDone && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  setProTourOpen(true);
+                }}
+                aria-label="Ouvrir le guide d'utilisation étape par étape"
+                title="Guide interactif étape par étape — Comment utiliser Kènè"
+                className="inline-flex items-center gap-1 h-8 sm:h-9 px-2 sm:px-2.5 rounded-full text-[11px] sm:text-xs font-bold bg-muted/50 hover:bg-gold/15 text-foreground hover:text-gold-text border border-border/70 hover:border-gold/40 transition-all active:scale-95 shrink-0 cursor-pointer animate-in fade-in"
+              >
+                <Compass className="size-3.5 sm:size-4 text-gold-text shrink-0" />
+                <span className="hidden xl:inline">Guide</span>
+              </button>
+            )}
 
             {/* Bouton Kènè Team Live (Remplace WhatsApp en salon) */}
             {tid && (
@@ -2371,11 +2386,14 @@ export function ProEnterpriseShell() {
 
       <ProWalkthroughTour
         open={proTourOpen}
+        storageKey={tourKey}
+        onCompleted={() => setProTourDone(true)}
         onOpenChange={(v) => {
           setProTourOpen(v);
           if (!v) {
             try {
               localStorage.setItem(tourKey, "1");
+              setProTourDone(true);
             } catch {}
           }
         }}

@@ -72,6 +72,26 @@ export function LiveCameraModal({
   const [lightScore, setLightScore] = useState<number>(88);
   const [flashing, setFlashing] = useState(false);
 
+  // Guide Interactif temporaire : donne les directives 4s puis disparaît de l'interface
+  const [guideVisible, setGuideVisible] = useState(true);
+  const guideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function triggerGuideTemporarily(durationMs = 3500) {
+    setGuideVisible(true);
+    if (guideTimerRef.current) clearTimeout(guideTimerRef.current);
+    guideTimerRef.current = setTimeout(() => {
+      setGuideVisible(false);
+    }, durationMs);
+  }
+
+  useEffect(() => {
+    if (!ready) return;
+    triggerGuideTemporarily(4000);
+    return () => {
+      if (guideTimerRef.current) clearTimeout(guideTimerRef.current);
+    };
+  }, [ready, currentSlotId, mode]);
+
   function stopCameraHardware() {
     if (recTimerRef.current) {
       clearInterval(recTimerRef.current);
@@ -659,7 +679,8 @@ export function LiveCameraModal({
               playsInline
               muted
               autoPlay
-              className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+              onClick={() => triggerGuideTemporarily(3500)}
+              className={`w-full h-full object-cover cursor-pointer ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
             />
 
             {!ready && (
@@ -671,9 +692,16 @@ export function LiveCameraModal({
               </div>
             )}
 
-            {/* Guide facial ovale réactif */}
+            {/* Guide facial interactif réactif — Temporaire : disparaît quand les indications sont finies */}
             {ready && (
-              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+              <div
+                className={cn(
+                  "absolute inset-0 pointer-events-none flex flex-col items-center justify-center transition-all duration-700 ease-out",
+                  recording || guideVisible
+                    ? "opacity-100 scale-100"
+                    : "opacity-0 scale-95 pointer-events-none",
+                )}
+              >
                 <div
                   className={cn(
                     "relative w-[75vw] max-w-[290px] aspect-[3/4] rounded-[50%] border-2 transition-all duration-300 shadow-[0_0_0_9999px_rgba(18,14,12,0.68)] flex items-center justify-center",
@@ -778,7 +806,12 @@ export function LiveCameraModal({
           </div>
         )}
 
-        <p className="text-xs text-white/80 text-center font-medium">
+        <p
+          className={cn(
+            "text-xs text-white/80 text-center font-medium transition-all duration-500",
+            recording || guideVisible ? "opacity-100 max-h-10" : "opacity-0 pointer-events-none max-h-0 my-0 overflow-hidden",
+          )}
+        >
           {recording
             ? "Garde le visage dans l'ovale et suis le mouvement indiqué…"
             : mode === "video"

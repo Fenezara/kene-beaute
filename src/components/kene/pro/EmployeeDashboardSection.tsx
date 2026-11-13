@@ -33,6 +33,8 @@ import { formatTime, formatDate } from "@/lib/kene/format";
 import { waLink } from "@/lib/kene/followups";
 import { useApi } from "./useApi";
 import { apiGet } from "@/lib/kene/api";
+import { PRO_TOUR_STORAGE_KEY_PREFIX } from "./ProWalkthroughTour";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { ProSectionId } from "./ProApp";
 import type { ProOverview, TodayAppointment } from "./types";
@@ -77,6 +79,20 @@ export function EmployeeDashboardSection({
   unreadTeamCount = 0,
 }: EmployeeDashboardProps) {
   const [apptFilter, setApptFilter] = useState<"mine" | "all">("all");
+  const [tourDone, setTourDone] = useState(false);
+
+  useEffect(() => {
+    try {
+      const key = `${PRO_TOUR_STORAGE_KEY_PREFIX}${employeeName || "default"}`;
+      if (localStorage.getItem(key)) {
+        setTourDone(true);
+      }
+    } catch {}
+    const handleCompleted = () => setTourDone(true);
+    window.addEventListener("kene:pro-walkthrough-completed", handleCompleted);
+    return () => window.removeEventListener("kene:pro-walkthrough-completed", handleCompleted);
+  }, [employeeName]);
+
   const now = new Date();
   const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -261,18 +277,20 @@ export function EmployeeDashboardSection({
               </p>
             </div>
             <div className="flex flex-wrap sm:flex-col gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  window.dispatchEvent(new CustomEvent("kene:open-pro-walkthrough"));
-                }}
-                className="h-9 rounded-xl text-xs font-bold border-gold/40 bg-white/5 hover:bg-white/15 text-[#FFF9EC] gap-1.5"
-              >
-                <Compass className="size-3.5 text-[#E5A93C]" />
-                <span>Guide Pas-à-Pas</span>
-              </Button>
+              {!tourDone && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    window.dispatchEvent(new CustomEvent("kene:open-pro-walkthrough"));
+                  }}
+                  className="h-9 rounded-xl text-xs font-bold border-gold/40 bg-white/5 hover:bg-white/15 text-[#FFF9EC] gap-1.5 animate-in fade-in"
+                >
+                  <Compass className="size-3.5 text-[#E5A93C]" />
+                  <span>Guide Pas-à-Pas</span>
+                </Button>
+              )}
               {onOpenTeamHub && (
                 <Button
                   size="sm"

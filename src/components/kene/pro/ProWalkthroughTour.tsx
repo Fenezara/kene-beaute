@@ -45,6 +45,8 @@ export interface ProWalkthroughTourProps {
   tenantName: string;
   onNavigate: (section: ProSectionId) => void;
   onOpenTeamHub: (openHandoff?: boolean) => void;
+  storageKey?: string;
+  onCompleted?: () => void;
 }
 
 interface ProTourStep {
@@ -70,6 +72,8 @@ export function ProWalkthroughTour({
   tenantName,
   onNavigate,
   onOpenTeamHub,
+  storageKey,
+  onCompleted,
 }: ProWalkthroughTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const roleLower = (userRole || "").toLowerCase();
@@ -418,8 +422,20 @@ export function ProWalkthroughTour({
 
   const step = steps[currentStep] || steps[0];
 
+  const markTourDone = () => {
+    try {
+      const key = storageKey || `${PRO_TOUR_STORAGE_KEY_PREFIX}${userName || "default"}`;
+      localStorage.setItem(key, "completed");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("kene:pro-walkthrough-completed"));
+      }
+    } catch {}
+    onCompleted?.();
+  };
+
   const handleClose = () => {
     haptic(HAPTIC.tap);
+    markTourDone();
     onOpenChange(false);
   };
 
@@ -429,6 +445,7 @@ export function ProWalkthroughTour({
       setCurrentStep((prev) => prev + 1);
     } else {
       haptic(HAPTIC.success);
+      markTourDone();
       onOpenChange(false);
     }
   };
