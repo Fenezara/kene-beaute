@@ -1581,9 +1581,9 @@ export function ProEnterpriseShell() {
           </div>
         </div>
 
-        {/* Barre Principale d'Organisation par 5 Pôles Métiers intégrée au Header (PC & Tablette md+) */}
-        <div className="hidden md:flex items-center justify-between gap-2 border-t border-[#D49A24]/25 bg-gradient-to-r from-[#1A130D] via-[#221810] to-[#1A130D] text-[#FFF9EC] px-3 sm:px-5 py-2 shadow-md">
-          <nav aria-label="Pôles Métiers Entreprise" className="flex items-center gap-1 lg:gap-1.5 overflow-x-auto no-scrollbar min-w-0">
+        {/* Barre Principale d'Organisation par 5 Pôles Métiers intégrée au Header (Tablette md uniquement — sur écran large lg+, le menu latéral gauche suffit) */}
+        <div className="hidden md:flex lg:hidden items-center justify-between gap-2 border-t border-[#D49A24]/25 bg-gradient-to-r from-[#1A130D] via-[#221810] to-[#1A130D] text-[#FFF9EC] px-3 sm:px-5 py-2 shadow-md">
+          <nav aria-label="Pôles Métiers Entreprise" className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
             {availableCategories.map((cat) => {
               const isCatActive = activeCategory === cat.id;
               const catItems = nav.filter((i) => i.category === cat.id);
