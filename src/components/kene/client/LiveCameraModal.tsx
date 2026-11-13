@@ -25,6 +25,7 @@ interface LiveCameraModalProps {
   activeSlotId?: string;
   onSlotChange?: (slotId: string) => void;
   initialMode?: "photo" | "video";
+  initialFacingMode?: "user" | "environment";
 }
 
 const VIDEO_SWEEP_DURATION_MS = 5000;
@@ -38,6 +39,7 @@ export function LiveCameraModal({
   activeSlotId,
   onSlotChange,
   initialMode = "photo",
+  initialFacingMode = "user",
 }: LiveCameraModalProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -62,7 +64,8 @@ export function LiveCameraModal({
   const currentSlotIndex = slots && currentSlot ? slots.findIndex((s) => s.id === currentSlot.id) : 0;
 
   const [capturedCount, setCapturedCount] = useState<number>(0);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [facingMode, setFacingMode] = useState<"user" | "environment">(initialFacingMode);
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lighting, setLighting] = useState<"optimal" | "faible" | "forte" | "contre_jour">("optimal");
@@ -135,7 +138,7 @@ export function LiveCameraModal({
       active = false;
       stopCameraHardware();
     };
-  }, [facingMode]);
+  }, []);
 
   async function handleNativeCapture(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -240,10 +243,71 @@ export function LiveCameraModal({
     return () => clearInterval(interval);
   }, [ready]);
 
-  function flipCamera() {
-    if (recording) return;
+  async function flipCamera(e?: React.MouseEvent) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (recording || isSwitchingCamera) return;
+
     haptic(HAPTIC.light);
-    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+    const nextFacing = facingMode === "user" ? "environment" : "user";
+    setIsSwitchingCamera(true);
+
+    try {
+      // 1. Déconnecter l'ancien flux de l'élément vidéo
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      if (streamRef.current) {
+        try {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+        } catch {}
+        streamRef.current = null;
+      }
+      stopPersistentCameraStream();
+
+      // 2. Temporisation minimale (80ms) pour libérer le capteur physique sur mobile
+      await new Promise((r) => setTimeout(r, 80));
+
+      // 3. Acquérir le nouveau flux
+      const newStream = await getPersistentCameraStream(nextFacing);
+      streamRef.current = newStream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = newStream;
+        await videoRef.current.play().catch(() => {});
+      }
+
+      setFacingMode(nextFacing);
+      setError(null);
+      setReady(true);
+      toast.success(
+        nextFacing === "user" ? "Caméra avant (Selfie) activée" : "Caméra arrière activée",
+        { duration: 1500 }
+      );
+    } catch (err) {
+      console.warn("Basculement caméra impossible, maintien du flux existant :", err);
+      // Repli doux : si la caméra cible n'est pas supportée, rétablir la précédente sans quitter le diagnostic
+      try {
+        const fallbackStream = await getPersistentCameraStream(facingMode);
+        streamRef.current = fallbackStream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = fallbackStream;
+          await videoRef.current.play().catch(() => {});
+        }
+        setReady(true);
+        toast.info(
+          nextFacing === "environment"
+            ? "Caméra arrière indisponible sur cet appareil (maintien selfie)"
+            : "Caméra avant indisponible (maintien caméra arrière)"
+        );
+      } catch {
+        setError("Impossible d'accéder à la caméra demandée.");
+      }
+    } finally {
+      setIsSwitchingCamera(false);
+    }
   }
 
   /** Capture instantanée d'une frame carrée 820px depuis le flux vidéo actif */
@@ -419,7 +483,10 @@ export function LiveCameraModal({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#120E0C] text-[#F8F1E4] select-none animate-in fade-in duration-200">
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-[9999] flex flex-col bg-[#120E0C] text-[#F8F1E4] select-none animate-in fade-in duration-200"
+    >
       {/* Hidden canvas pour analyse de luminosité */}
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
@@ -465,12 +532,21 @@ export function LiveCameraModal({
 
         <button
           type="button"
-          onClick={flipCamera}
-          disabled={recording}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void flipCamera(e);
+          }}
+          disabled={recording || isSwitchingCamera}
           className="h-11 w-11 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 active:scale-95 transition-all text-white"
-          aria-label="Retourner la caméra"
+          aria-label={facingMode === "user" ? "Basculer vers la caméra arrière" : "Basculer vers la caméra avant (selfie)"}
+          title={facingMode === "user" ? "Passer à la caméra arrière" : "Passer à la caméra selfie"}
         >
-          <SwitchCamera size={20} />
+          {isSwitchingCamera ? (
+            <Loader2 size={18} className="animate-spin text-[#F5D37E]" />
+          ) : (
+            <SwitchCamera size={20} />
+          )}
         </button>
       </header>
 

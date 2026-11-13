@@ -1896,6 +1896,7 @@ function PhotoStep({
           slots={slots}
           activeSlotId={activeSlotId}
           initialMode={liveCamMode}
+          initialFacingMode="environment"
           onSlotChange={(id) => setActiveSlotId(id)}
           onCapture={(dataUrl, slotId) => {
             const targetId = slotId || activeSlotId;

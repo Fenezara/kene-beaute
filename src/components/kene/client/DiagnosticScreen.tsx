@@ -1553,6 +1553,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             slots={slots}
             activeSlotId={activeSlotId}
             initialMode={liveCamInitialMode}
+            initialFacingMode="user"
             onSlotChange={(id) => setActiveSlotId(id)}
             onCapture={(dataUrl, slotId) => {
               const targetId = slotId || activeSlotId;

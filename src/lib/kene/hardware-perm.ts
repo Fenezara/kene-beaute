@@ -229,7 +229,13 @@ export async function getPersistentCameraStream(
 
   // Toujours libérer les anciennes pistes physiques avant d'en ouvrir une nouvelle
   // (Évite les conflits matériels sur Android lors du changement de caméra avant/arrière)
+  const hadPreviousStream = Boolean(cachedCameraStream);
   stopPersistentCameraStream();
+
+  // Petite temporisation de grâce pour permettre au pilote matériel de se libérer
+  if (hadPreviousStream) {
+    await new Promise((r) => setTimeout(r, 80));
+  }
 
   const stream = await acquireCameraWithFallback(facingMode);
 

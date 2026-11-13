@@ -2047,7 +2047,7 @@ export function ChatScreen() {
         ref={nativeCameraInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        capture="user"
         className="sr-only"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -2060,6 +2060,7 @@ export function ChatScreen() {
       {liveCamOpen && (
         <LiveCameraModal
           zoneLabel="Visage / Peau"
+          initialFacingMode="user"
           onCapture={(dataUrl) => {
             setLiveCamOpen(false);
             void processPhotoDataUrl(dataUrl);
