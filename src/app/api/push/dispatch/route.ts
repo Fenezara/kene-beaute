@@ -54,7 +54,9 @@ export async function POST(req: NextRequest) {
       return jsonError("Interdit", 403);
     }
 
-    const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
+    const publicKey =
+      process.env.VAPID_PUBLIC_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
     const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
     const subject = process.env.VAPID_SUBJECT?.trim() || "mailto:contact@kene-beaute.com";
     if (!publicKey || !privateKey) {
@@ -69,7 +71,7 @@ export async function POST(req: NextRequest) {
       db.notification.findFirst({
         where: { userId, status: "sent", readAt: null },
         orderBy: { createdAt: "desc" },
-        select: { message: true },
+        select: { message: true, metaJson: true },
       }),
       db.pushSubscription.findMany({ where: { userId } }),
     ]);
@@ -78,11 +80,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ sent: 0, failed: 0 });
     }
 
+    let isProTeam = false;
+    try {
+      if (notification.metaJson) {
+        const meta = JSON.parse(notification.metaJson) as { type?: string };
+        if (meta.type === "team_message" || meta.type === "pos_handoff" || meta.type === "stock_alert") {
+          isProTeam = true;
+        }
+      }
+    } catch {}
+
     const body =
       notification.message.length > BODY_MAX
         ? `${notification.message.slice(0, BODY_MAX - 1).trimEnd()}…`
         : notification.message;
-    const payload = JSON.stringify({ title: "Kènè", body, url: "/" });
+    const payload = JSON.stringify({
+      title: isProTeam ? "🔔 Kènè Team Live" : "Kènè",
+      body,
+      url: isProTeam ? "/?space=pro" : "/",
+    });
 
     let sent = 0;
     let failed = 0;
