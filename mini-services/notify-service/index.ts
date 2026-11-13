@@ -27,7 +27,7 @@ const httpServer = createServer();
 
 // DO NOT change the path, it is used by Caddy to forward the request to the correct port
 const io = new Server(httpServer, {
-  path: "/",
+  path: "/socket.io",
   cors: { origin: "*", methods: ["GET", "POST"] },
   pingTimeout: 60_000,
   pingInterval: 25_000,

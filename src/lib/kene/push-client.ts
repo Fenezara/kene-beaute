@@ -73,3 +73,46 @@ export function pushKeyToBase64(buf: ArrayBuffer | null): string {
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return window.btoa(binary);
 }
+
+/**
+ * Inscrit automatiquement (ou à la demande) un appareil de l'équipe Pro au Web Push VAPID
+ * pour que le téléphone sonne et vibre même écran verrouillé ou application en arrière-plan.
+ */
+export async function ensureUserPushSubscribed(
+  userId: string,
+  requestIfPrompt = false
+): Promise<boolean> {
+  if (!userId || !isPushSupported() || typeof Notification === "undefined") return false;
+  try {
+    let perm = Notification.permission;
+    if (perm === "default" && requestIfPrompt) {
+      perm = await Notification.requestPermission();
+    }
+    if (perm !== "granted") return false;
+
+    const pkRes = await fetch("/api/push/public-key", { credentials: "include" });
+    if (!pkRes.ok) return false;
+    const { publicKey } = (await pkRes.json()) as { publicKey?: string | null };
+    if (!publicKey) return false;
+
+    const sub = await subscribeToPush(publicKey);
+    const subRes = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        userId,
+        subscription: {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: pushKeyToBase64(sub.getKey("p256dh")),
+            auth: pushKeyToBase64(sub.getKey("auth")),
+          },
+        },
+      }),
+    });
+    return subRes.ok;
+  } catch {
+    return false;
+  }
+}

@@ -40,7 +40,9 @@ import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, formatTime, formatDate } from "@/lib/kene/format";
 import { formatRole } from "@/lib/kene/hr-constants";
 import { cn } from "@/lib/utils";
-import { haptic, HAPTIC } from "@/lib/kene/ux";
+import { haptic, HAPTIC, playTeamAlertSound, unlockTeamAudio, triggerNativeTeamNotification } from "@/lib/kene/ux";
+import { ensureUserPushSubscribed } from "@/lib/kene/push-client";
+import { useKene } from "@/store/kene";
 import type { ProSectionId } from "./ProApp";
 
 export interface TeamMessageItem {
@@ -219,6 +221,15 @@ export function TeamCommsDrawer({
     void fetchHub();
   }, [fetchHub, refreshKey, open]);
 
+  // Rafraîchissement continu toutes les 4 secondes tant que le tiroir est ouvert
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setInterval(() => {
+      void fetchHub();
+    }, 4000);
+    return () => window.clearInterval(t);
+  }, [open, fetchHub]);
+
   // Charger catalogue & clientes quand on ouvre le créateur de Sortie de Cabine
   useEffect(() => {
     if (beepModal === "handoff_pos" && tenantId && !catalogData) {
@@ -291,7 +302,7 @@ export function TeamCommsDrawer({
     if (!msgText && !opts?.audioDataUrl) return;
     setSending(true);
     try {
-      haptic(HAPTIC.tap);
+      playTeamAlertSound(opts?.beepType || "message");
       await apiPost("/api/pro/team-hub", {
         action: "send_message",
         tenantId,
@@ -437,6 +448,7 @@ export function TeamCommsDrawer({
     }
     setSending(true);
     try {
+      playTeamAlertSound("handoff_pos");
       const selectedClient = clientsData.find((c) => c.id === handoffClientId);
       await apiPost("/api/pro/team-hub", {
         action: "create_handoff",
@@ -515,6 +527,30 @@ export function TeamCommsDrawer({
                 </SheetDescription>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={async () => {
+                unlockTeamAudio();
+                playTeamAlertSound("client_arrived");
+                const uid = useKene.getState().user?.id;
+                if (uid) {
+                  await ensureUserPushSubscribed(uid, true);
+                }
+                await triggerNativeTeamNotification(
+                  "🔔 Kènè Team Live — Alerte active",
+                  `Sonnerie & vibreur vérifiés pour ${currentUserName} (${tenantName})`,
+                  true
+                );
+                toast.success("Sonnerie & Vibreur activés sur cet appareil !", {
+                  description: "Vous entendrez le carillon et sentirez le vibreur à chaque message ou bip cabine.",
+                });
+              }}
+              className="shrink-0 inline-flex items-center gap-1 rounded-xl border border-[#E5A93C]/50 bg-[#D49A24]/20 hover:bg-[#D49A24]/35 px-2.5 py-1.5 text-[10.5px] font-bold text-[#FFF9EC] transition-all active:scale-95 cursor-pointer"
+              title="Tester la sonnerie, le vibreur et activer les alertes téléphone"
+            >
+              <Volume2 className="size-3.5 text-[#E5A93C]" />
+              <span>Sonnerie &amp; Vibreur</span>
+            </button>
           </div>
 
           {/* ── CONSIGNE DU JOUR & CAGNOTTE D'ÉQUIPE ── */}

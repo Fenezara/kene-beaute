@@ -116,19 +116,25 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const messages: TeamHubMessage[] = chatLogs
+    const viewerName = (req.nextUrl.searchParams.get("viewerName") || "").trim().toLowerCase();
+
+    const messages = chatLogs
       .map((row) => {
-        const d = parseJson<Partial<TeamHubMessage>>(row.detailsJson, {});
+        const d = parseJson<Record<string, any>>(row.detailsJson, {});
+        const beep = d.beepType || (d.beepKind && d.beepKind !== "none" ? d.beepKind : null);
+        const recipient = d.recipientName || d.toEmployeeName || null;
         return {
           id: row.id,
           channel: (d.channel as TeamChannel) || "general",
           senderName: d.senderName || "Équipe",
           senderRole: d.senderRole || "pro",
           toEmployeeId: d.toEmployeeId ?? null,
-          toEmployeeName: d.toEmployeeName ?? null,
+          toEmployeeName: recipient,
+          recipientName: recipient,
           text: d.text || "",
           audioDataUrl: d.audioDataUrl ?? null,
-          beepKind: (d.beepKind as TeamBeepKind) || "none",
+          beepKind: (beep as TeamBeepKind) || "none",
+          beepType: beep,
           pinned: Boolean(d.pinned),
           readBy: Array.isArray(d.readBy) ? d.readBy : [],
           createdAt: row.createdAt.toISOString(),
@@ -136,43 +142,71 @@ export async function GET(req: NextRequest) {
       })
       .reverse();
 
-    const handoffs: PosHandoffTicket[] = handoffLogs.map((row) => {
-      const d = parseJson<Partial<PosHandoffTicket>>(row.detailsJson, {});
+    const unreadCount = viewerName
+      ? messages.filter(
+          (m) =>
+            m.senderName.trim().toLowerCase() !== viewerName &&
+            !m.readBy.some((r: string) => r.trim().toLowerCase() === viewerName)
+        ).length
+      : 0;
+
+    const handoffs = handoffLogs.map((row) => {
+      const d = parseJson<Record<string, any>>(row.detailsJson, {});
       const items = Array.isArray(d.items) ? d.items : [];
-      const totalFcfa = items.reduce((s, it) => s + (Number(it.unitPrice) || 0) * (Number(it.qty) || 1), 0);
+      const totalFcfa = items.reduce((s: number, it: any) => s + (Number(it.unitPrice) || 0) * (Number(it.qty) || 1), 0);
       return {
         id: row.id,
         practitionerId: d.practitionerId ?? null,
         practitionerName: d.practitionerName || "Praticienne",
-        clientProfileId: d.clientProfileId ?? null,
+        practitionerRole: d.practitionerRole || "estheticienne",
+        clientProfileId: d.clientProfileId ?? d.clientId ?? null,
+        clientId: d.clientId ?? d.clientProfileId ?? null,
         clientName: d.clientName || "Cliente Cabine",
         clientPhone: d.clientPhone ?? null,
         appointmentId: d.appointmentId ?? null,
         items,
-        note: d.note ?? null,
+        note: d.note ?? d.notes ?? null,
+        notes: d.notes ?? d.note ?? null,
         totalFcfa,
+        totalAmount: totalFcfa,
         status: (row.action as PosHandoffTicket["status"]) || "pending",
         createdAt: row.createdAt.toISOString(),
       };
     });
 
-    const rawDir = directiveLog ? parseJson<Partial<TeamDirective>>(directiveLog.detailsJson, {}) : {};
-    const directive: TeamDirective = {
+    const rawDir = directiveLog ? parseJson<Record<string, any>>(directiveLog.detailsJson, {}) : {};
+    const monthlyGoalFcfa = Number(rawDir.monthlyGoalFcfa) > 0 ? Number(rawDir.monthlyGoalFcfa) : 2_000_000;
+    const teamBonusFcfa = Number(rawDir.teamBonusFcfa) > 0 ? Number(rawDir.teamBonusFcfa) : 10_000;
+    const monthRevenueFcfa = monthSalesAgg._sum.total ?? 0;
+    const progressPct = Math.min(100, Math.round((monthRevenueFcfa / monthlyGoalFcfa) * 100));
+
+    const directive = {
       text:
         rawDir.text ??
         "Bienvenue à toute l'équipe ! Pensez à envoyer vos paniers de sortie de cabine directement vers la caisse pour créditer automatiquement vos commissions.",
-      author: rawDir.author ?? "Direction",
+      author: rawDir.author ?? rawDir.updatedBy ?? "Direction",
+      updatedBy: rawDir.updatedBy ?? rawDir.author ?? "Direction",
+      focusProduct: rawDir.focusProduct ?? null,
       updatedAt: directiveLog ? directiveLog.createdAt.toISOString() : now.toISOString(),
-      monthlyGoalFcfa: Number(rawDir.monthlyGoalFcfa) > 0 ? Number(rawDir.monthlyGoalFcfa) : 1_500_000,
-      teamBonusFcfa: Number(rawDir.teamBonusFcfa) > 0 ? Number(rawDir.teamBonusFcfa) : 10_000,
+      monthlyGoalFcfa,
+      teamBonusFcfa,
     };
 
     return NextResponse.json({
+      team: employees,
+      employees,
       messages,
+      unreadCount,
       handoffs,
       directive,
-      monthRevenueFcfa: monthSalesAgg._sum.total ?? 0,
-      employees,
+      monthRevenueFcfa,
+      teamPot: {
+        monthRevenueFcfa,
+        monthlyGoalFcfa,
+        teamBonusFcfa,
+        progressPct,
+        unlocked: monthRevenueFcfa >= monthlyGoalFcfa,
+      },
     });
   } catch (err) {
     return serverError("pro/team-hub:get", err);
@@ -187,9 +221,11 @@ const SendMessageSchema = z.object({
   senderRole: z.string().trim().max(60).default("pro"),
   toEmployeeId: z.string().nullable().optional(),
   toEmployeeName: z.string().nullable().optional(),
+  recipientName: z.string().nullable().optional(),
   text: z.string().trim().min(1).max(1200),
   audioDataUrl: z.string().max(450_000).nullable().optional(),
   beepKind: z.enum(["none", "client_arrived", "need_product", "handoff_pos", "stock_alert"]).default("none"),
+  beepType: z.enum(["none", "client_arrived", "need_product", "handoff_pos", "stock_alert"]).nullable().optional(),
   pinned: z.boolean().optional(),
 });
 
@@ -197,14 +233,17 @@ const MarkReadSchema = z.object({
   action: z.literal("mark_read"),
   tenantId: z.string().min(1),
   readerName: z.string().trim().min(1).max(80),
+  messageIds: z.array(z.string()).optional(),
 });
 
 const SetDirectiveSchema = z.object({
   action: z.literal("set_directive"),
   tenantId: z.string().min(1),
   text: z.string().trim().min(1).max(600),
-  author: z.string().trim().max(80).default("Direction"),
-  monthlyGoalFcfa: z.number().int().min(50_000).max(500_000_000).default(1_500_000),
+  author: z.string().trim().max(80).optional(),
+  updatedBy: z.string().trim().max(80).optional(),
+  focusProduct: z.string().trim().max(120).nullable().optional(),
+  monthlyGoalFcfa: z.number().int().min(50_000).max(500_000_000).default(2_000_000),
   teamBonusFcfa: z.number().int().min(0).max(5_000_000).default(10_000),
 });
 
@@ -213,16 +252,19 @@ const CreateHandoffSchema = z.object({
   tenantId: z.string().min(1),
   practitionerId: z.string().nullable().optional(),
   practitionerName: z.string().trim().min(1).max(80),
+  practitionerRole: z.string().trim().max(60).optional(),
   clientProfileId: z.string().nullable().optional(),
+  clientId: z.string().nullable().optional(),
   clientName: z.string().trim().min(1).max(120),
   clientPhone: z.string().nullable().optional(),
   appointmentId: z.string().nullable().optional(),
   note: z.string().max(400).nullable().optional(),
+  notes: z.string().max(400).nullable().optional(),
   items: z
     .array(
       z.object({
         kind: z.enum(["service", "product"]),
-        id: z.string().min(1),
+        id: z.string().optional(),
         label: z.string().min(1).max(160),
         unitPrice: z.number().int().min(0),
         qty: z.number().int().min(1).max(99).default(1),
@@ -262,15 +304,19 @@ export async function POST(req: NextRequest) {
 
     // 1. Envoi d'un message ou Bip Métier
     if (data.action === "send_message") {
+      const resolvedRecipientName = data.recipientName ?? data.toEmployeeName ?? null;
+      const resolvedBeep = (data.beepType && data.beepType !== "none" ? data.beepType : data.beepKind) || "none";
       const payload = {
         channel: data.channel,
         senderName: data.senderName,
         senderRole: data.senderRole,
         toEmployeeId: data.toEmployeeId ?? null,
-        toEmployeeName: data.toEmployeeName ?? null,
+        toEmployeeName: resolvedRecipientName,
+        recipientName: resolvedRecipientName,
         text: data.text,
         audioDataUrl: data.audioDataUrl ?? null,
-        beepKind: data.beepKind,
+        beepKind: resolvedBeep,
+        beepType: resolvedBeep !== "none" ? resolvedBeep : null,
         pinned: Boolean(data.pinned),
         readBy: [data.senderName],
       };
@@ -280,14 +326,14 @@ export async function POST(req: NextRequest) {
           tenantId: tenant.id,
           userId: sess?.userId ?? null,
           entity: "team_chat",
-          action: data.beepKind !== "none" ? `beep:${data.beepKind}` : "message",
+          action: resolvedBeep !== "none" ? `beep:${resolvedBeep}` : "message",
           entityId: data.toEmployeeId ?? data.channel,
           detailsJson: JSON.stringify(payload),
         },
       });
 
-      // Notification temps réel Salon + Web Push vers les téléphones des employées ciblées
-      const shortNotif = `💬 [${data.senderName}${data.toEmployeeName ? ` → ${data.toEmployeeName}` : ""}] ${data.text.slice(0, 110)}`;
+      // Notification temps réel Salon + Web Push vers les téléphones des employées ET de la gérante
+      const shortNotif = `💬 [${data.senderName}${resolvedRecipientName ? ` → ${resolvedRecipientName}` : ""}] ${data.text.slice(0, 110)}`;
       await db.notification
         .create({
           data: {
@@ -300,36 +346,46 @@ export async function POST(req: NextRequest) {
         })
         .catch(() => null);
 
-      if (data.toEmployeeId) {
-        const targetEmp = await db.employee.findUnique({
-          where: { id: data.toEmployeeId },
-          select: { userId: true },
-        });
-        if (targetEmp?.userId) {
-          await db.notification
-            .create({
-              data: {
-                userId: targetEmp.userId,
-                tenantId: tenant.id,
-                channel: "whatsapp",
-                toPhone: tenant.phone,
-                message: shortNotif,
-                status: "sent",
-              },
-            })
-            .catch(() => null);
-          pushFeed(targetEmp.userId);
+      // Notifier individuellement chaque membre de l'équipe + la gérante (pour déclencher Web Push VAPID)
+      const emps = await db.employee.findMany({
+        where: { tenantId: tenant.id, active: true, userId: { not: null } },
+        select: { id: true, userId: true, name: true },
+      });
+      const ownerUser = tenant.ownerPhone
+        ? await db.user.findUnique({ where: { phone: tenant.ownerPhone }, select: { id: true, name: true } })
+        : null;
+
+      const targetUserIds = new Set<string>();
+      for (const e of emps) {
+        if (!e.userId) continue;
+        if (e.name.trim().toLowerCase() === data.senderName.trim().toLowerCase()) continue;
+        if (
+          resolvedRecipientName &&
+          !e.name.trim().toLowerCase().includes(resolvedRecipientName.trim().toLowerCase()) &&
+          data.channel === "direct"
+        ) {
+          continue;
         }
-      } else {
-        // Bip général / canal : notifier les employées actives ayant un compte lié
-        const emps = await db.employee.findMany({
-          where: { tenantId: tenant.id, active: true, userId: { not: null } },
-          select: { userId: true, name: true },
-        });
-        for (const e of emps) {
-          if (!e.userId || e.name.toLowerCase() === data.senderName.toLowerCase()) continue;
-          pushFeed(e.userId);
-        }
+        targetUserIds.add(e.userId);
+      }
+      if (ownerUser?.id && ownerUser.id !== sess?.userId) {
+        targetUserIds.add(ownerUser.id);
+      }
+
+      for (const uid of targetUserIds) {
+        await db.notification
+          .create({
+            data: {
+              userId: uid,
+              tenantId: tenant.id,
+              channel: "whatsapp",
+              toPhone: tenant.phone,
+              message: shortNotif,
+              status: "sent",
+            },
+          })
+          .catch(() => null);
+        pushFeed(uid);
       }
 
       pushTenantFeed(tenant.id);
@@ -360,9 +416,12 @@ export async function POST(req: NextRequest) {
 
     // 3. Consigne du Jour de la Gérante & Objectif Collectif
     if (data.action === "set_directive") {
+      const resolvedAuthor = data.updatedBy || data.author || "Direction";
       const details = {
         text: data.text,
-        author: data.author,
+        author: resolvedAuthor,
+        updatedBy: resolvedAuthor,
+        focusProduct: data.focusProduct ?? null,
         monthlyGoalFcfa: data.monthlyGoalFcfa,
         teamBonusFcfa: data.teamBonusFcfa,
       };
@@ -385,16 +444,21 @@ export async function POST(req: NextRequest) {
       const handoffPayload = {
         practitionerId: data.practitionerId ?? null,
         practitionerName: data.practitionerName,
-        clientProfileId: data.clientProfileId ?? null,
+        practitionerRole: data.practitionerRole ?? "estheticienne",
+        clientProfileId: data.clientProfileId ?? data.clientId ?? null,
+        clientId: data.clientId ?? data.clientProfileId ?? null,
         clientName: data.clientName,
         clientPhone: data.clientPhone ?? null,
         appointmentId: data.appointmentId ?? null,
-        items: data.items.map((it) => ({
+        items: data.items.map((it, idx) => ({
           ...it,
+          id: it.id || `handoff_item_${idx}`,
           practitionerName: it.practitionerName || data.practitionerName,
         })),
-        note: data.note ?? null,
+        note: data.note ?? data.notes ?? null,
+        notes: data.notes ?? data.note ?? null,
         totalFcfa,
+        totalAmount: totalFcfa,
       };
 
       const created = await db.auditLog.create({

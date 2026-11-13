@@ -34,7 +34,8 @@ import {
 import { toast } from "sonner";
 import { useKene, type SessionUser } from "@/store/kene";
 import { apiGet, apiPost } from "@/lib/kene/api";
-import { useNetworkOnline, HAPTIC, haptic } from "@/lib/kene/ux";
+import { useNetworkOnline, HAPTIC, haptic, playTeamAlertSound, unlockTeamAudio, triggerNativeTeamNotification } from "@/lib/kene/ux";
+import { ensureUserPushSubscribed } from "@/lib/kene/push-client";
 import {
   CauriIcon,
   KeneEmblemLockup,
@@ -712,10 +713,13 @@ export function ProEnterpriseShell() {
         lastEventIdRef.current = f.last.id;
         if (prevId !== null && f.last.id !== prevId) {
           if (f.last.type === "appointment" && f.last.status === "pending") {
+            playTeamAlertSound("client_arrived");
             toast.success("Nouvelle demande de RDV", { description: f.last.label, duration: 6_000 });
           } else if (f.last.type === "order") {
+            playTeamAlertSound("handoff_pos");
             toast.success("Commande boutique reçue", { description: f.last.label, duration: 6_000 });
           } else if (f.last.type === "review") {
+            playTeamAlertSound("message");
             toast.success("Nouvel avis cliente", { description: f.last.label, duration: 6_000 });
           } else if (f.last.type === "notification") {
             toast.info("Alerte synchronisée", { description: f.last.label, duration: 6_000 });
@@ -954,6 +958,143 @@ export function ProEnterpriseShell() {
       .slice(0, 2)
       .map((w) => (w[0] ? w[0].toUpperCase() : ""))
       .join("") || (isOwner ? "GP" : "CO");
+
+  // ── Déverrouillage Audio & Abonnement Web Push automatique au premier toucher ──
+  const audioUnlockedRef = useRef(false);
+  useEffect(() => {
+    const uid = sessionUser?.id;
+    if (uid) {
+      void ensureUserPushSubscribed(uid, false);
+    }
+    const handleFirstGesture = () => {
+      if (audioUnlockedRef.current) return;
+      audioUnlockedRef.current = true;
+      unlockTeamAudio();
+      try {
+        unlockAudioContext();
+      } catch {}
+      if (uid) {
+        void ensureUserPushSubscribed(uid, true);
+      }
+    };
+    window.addEventListener("pointerdown", handleFirstGesture, { passive: true });
+    window.addEventListener("keydown", handleFirstGesture, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", handleFirstGesture);
+      window.removeEventListener("keydown", handleFirstGesture);
+    };
+  }, [sessionUser?.id]);
+
+  // ── Surveillance Temps Réel Kènè Team Live (Sonnerie + Vibreur + Notification OS) ──
+  const lastSeenTeamMsgIdRef = useRef<string | null>(null);
+  const lastSeenHandoffIdRef = useRef<string | null>(null);
+  const teamPollInitializedRef = useRef(false);
+
+  const checkTeamHubLive = useCallback(async () => {
+    if (!tid || !chipName) return;
+    try {
+      const res = await apiGet<{
+        unreadCount?: number;
+        messages?: Array<{
+          id: string;
+          senderName: string;
+          recipientName?: string | null;
+          channel: string;
+          text: string;
+          beepType?: "client_arrived" | "need_product" | "handoff_pos" | "stock_alert" | null;
+        }>;
+        handoffs?: Array<{
+          id: string;
+          practitionerName: string;
+          clientName: string;
+          totalAmount: number;
+        }>;
+      }>(`/api/pro/team-hub?tenantId=${encodeURIComponent(tid)}&viewerName=${encodeURIComponent(chipName)}`);
+
+      setTeamUnreadCount(res.unreadCount ?? 0);
+      setTeamPendingHandoffs((res.handoffs ?? []).length);
+
+      const msgs = res.messages ?? [];
+      const latestMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+      const handoffs = res.handoffs ?? [];
+      const latestHandoff = handoffs.length > 0 ? handoffs[0] : null;
+
+      if (!teamPollInitializedRef.current) {
+        teamPollInitializedRef.current = true;
+        lastSeenTeamMsgIdRef.current = latestMsg?.id ?? null;
+        lastSeenHandoffIdRef.current = latestHandoff?.id ?? null;
+        return;
+      }
+
+      // 1. Nouveau message ou Bip Cabine reçu d'une collègue
+      if (latestMsg && latestMsg.id !== lastSeenTeamMsgIdRef.current) {
+        lastSeenTeamMsgIdRef.current = latestMsg.id;
+        const isFromMe =
+          latestMsg.senderName.trim().toLowerCase() === chipName.trim().toLowerCase();
+
+        // Vérifier si message direct destiné à quelqu'un d'autre
+        const isForOtherDirect =
+          latestMsg.channel === "direct" &&
+          latestMsg.recipientName &&
+          latestMsg.recipientName.trim().toLowerCase() !== chipName.trim().toLowerCase() &&
+          !isOwner;
+
+        if (!isFromMe && !isForOtherDirect) {
+          const soundKind = latestMsg.beepType || "message";
+          playTeamAlertSound(soundKind);
+
+          const title = latestMsg.beepType
+            ? `🔔 Bip Salon — ${latestMsg.senderName}`
+            : `💬 Message Équipe — ${latestMsg.senderName}`;
+
+          void triggerNativeTeamNotification(title, latestMsg.text, Boolean(latestMsg.beepType));
+
+          toast(title, {
+            description: latestMsg.text,
+            duration: 9000,
+            action: {
+              label: "Ouvrir & Répondre",
+              onClick: () => {
+                setTeamHubInitialHandoff(false);
+                setTeamHubOpen(true);
+              },
+            },
+          });
+        }
+      }
+
+      // 2. Nouvelle Sortie de Cabine → Caisse prête à encaisser
+      if (latestHandoff && latestHandoff.id !== lastSeenHandoffIdRef.current) {
+        lastSeenHandoffIdRef.current = latestHandoff.id;
+        const isFromMe =
+          latestHandoff.practitionerName.trim().toLowerCase() === chipName.trim().toLowerCase();
+        if (!isFromMe) {
+          playTeamAlertSound("handoff_pos");
+          const hTitle = `💳 Sortie de Cabine → Caisse (${latestHandoff.practitionerName})`;
+          const hBody = `Cliente ${latestHandoff.clientName} prête à encaisser (${latestHandoff.totalAmount.toLocaleString("fr-FR")} FCFA)`;
+          void triggerNativeTeamNotification(hTitle, hBody, true);
+          toast.success(hTitle, {
+            description: hBody,
+            duration: 10000,
+            action: {
+              label: "Ouvrir Caisse",
+              onClick: () => openSection("caisse"),
+            },
+          });
+        }
+      }
+    } catch {
+      // silencieux hors-ligne
+    }
+  }, [tid, chipName, isOwner]);
+
+  useEffect(() => {
+    void checkTeamHubLive();
+    const timer = window.setInterval(() => {
+      void checkTeamHubLive();
+    }, 5500);
+    return () => window.clearInterval(timer);
+  }, [checkTeamHubLive, refreshKey]);
 
   return (
     <div className="h-dvh w-full flex flex-col overflow-hidden overscroll-none select-none">

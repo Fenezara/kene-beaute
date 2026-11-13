@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v98";
-const PRECACHE = "kene-precache-v73";
-const DATA_CACHE = "kene-data-v73";
-const IMG_CACHE = "kene-img-v73";
-const STATIC_CACHE = "kene-static-v73";
+const VERSION = "kene-sw-v99";
+const PRECACHE = "kene-precache-v74";
+const DATA_CACHE = "kene-data-v74";
+const IMG_CACHE = "kene-img-v74";
+const STATIC_CACHE = "kene-static-v74";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -432,7 +432,10 @@ self.addEventListener("push", (event) => {
           body,
           icon: "/icons/icon-192.png",
           badge: "/icons/icon-192.png",
-          tag: "kene-push",
+          tag: "kene-push-" + Date.now(),
+          renotify: true,
+          vibrate: [250, 100, 250, 100, 400],
+          requireInteraction: true,
           data: { url },
         });
       } catch {}
