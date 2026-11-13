@@ -62,20 +62,6 @@ export function HomeScreen({
   const [data, setData] = useState<HomeData | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [contactKeneOpen, setContactKeneOpen] = useState(false);
-  const [walkthroughDone, setWalkthroughDone] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return localStorage.getItem("kene_walkthrough_completed") === "1";
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    const onDone = () => setWalkthroughDone(true);
-    window.addEventListener("kene:walkthrough-completed", onDone);
-    return () => window.removeEventListener("kene:walkthrough-completed", onDone);
-  }, []);
   const routineSectionRef = useRef<HTMLDivElement>(null);
   const careSectionRef = useRef<HTMLDivElement>(null);
 
@@ -317,22 +303,6 @@ export function HomeScreen({
                 Que souhaites-tu pour ta peau aujourd&apos;hui ?
               </h3>
             </div>
-            {!walkthroughDone && (
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  if (typeof window !== "undefined") {
-                    window.dispatchEvent(new CustomEvent("kene:open-walkthrough"));
-                  }
-                }}
-                className="inline-flex items-center gap-1 text-[10.5px] font-extrabold text-gold-text hover:opacity-85 px-2.5 py-1 rounded-full bg-gold/15 border border-gold/30 cursor-pointer transition-all"
-                title="Ouvrir le guide pas-à-pas pour utiliser Kènè"
-              >
-                <Compass size={12} className="text-gold-text" />
-                <span>Guide pas-à-pas</span>
-              </button>
-            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">

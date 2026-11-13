@@ -21,7 +21,6 @@ import {
   Pin,
   Trophy,
   CreditCard,
-  Compass,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,6 @@ import { formatTime, formatDate } from "@/lib/kene/format";
 import { waLink } from "@/lib/kene/followups";
 import { useApi } from "./useApi";
 import { apiGet } from "@/lib/kene/api";
-import { PRO_TOUR_STORAGE_KEY_PREFIX } from "./ProWalkthroughTour";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { ProSectionId } from "./ProApp";
@@ -79,19 +77,6 @@ export function EmployeeDashboardSection({
   unreadTeamCount = 0,
 }: EmployeeDashboardProps) {
   const [apptFilter, setApptFilter] = useState<"mine" | "all">("all");
-  const [tourDone, setTourDone] = useState(false);
-
-  useEffect(() => {
-    try {
-      const key = `${PRO_TOUR_STORAGE_KEY_PREFIX}${employeeName || "default"}`;
-      if (localStorage.getItem(key)) {
-        setTourDone(true);
-      }
-    } catch {}
-    const handleCompleted = () => setTourDone(true);
-    window.addEventListener("kene:pro-walkthrough-completed", handleCompleted);
-    return () => window.removeEventListener("kene:pro-walkthrough-completed", handleCompleted);
-  }, [employeeName]);
 
   const now = new Date();
   const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -258,68 +243,52 @@ export function EmployeeDashboardSection({
 
       {/* ── 1B. CONSIGNE DU JOUR DE LA GÉRANTE & CAGNOTTE D'ÉQUIPE (ZÉRO WHATSAPP) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-        <Card className="lg:col-span-2 rounded-2xl border-gold/40 bg-gradient-to-r from-[#1A130D] via-[#231911] to-[#1A130D] text-[#FFF9EC] shadow-md">
-          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1.5 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/20 text-[#E5A93C] border border-gold/30">
-                  <Pin className="size-3" /> Consigne du Jour ({teamHubApi.data?.directive?.updatedBy || "Direction"})
+        <div className="lg:col-span-2 rounded-2xl border border-gold/40 !bg-[#16100B] bg-gradient-to-r from-[#1A130D] via-[#231911] to-[#1A130D] text-[#FFF9EC] shadow-md p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/20 text-[#E5A93C] border border-gold/30">
+                <Pin className="size-3" /> Consigne du Jour ({teamHubApi.data?.directive?.updatedBy || "Direction"})
+              </span>
+              {teamHubApi.data?.directive?.focusProduct && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  🎯 Focus : {teamHubApi.data.directive.focusProduct}
                 </span>
-                {teamHubApi.data?.directive?.focusProduct && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    🎯 Focus : {teamHubApi.data.directive.focusProduct}
+              )}
+            </div>
+            <p className="text-xs sm:text-sm font-medium text-[#FFF9EC] leading-relaxed">
+              {teamHubApi.data?.directive?.text ||
+                "Excellence accueil & diagnostic systématique avant chaque soin. Utilise « Sortie Cabine → Caisse » pour que ta commission te soit créditée automatiquement par Irène."}
+            </p>
+          </div>
+          <div className="flex flex-wrap sm:flex-col gap-2 shrink-0">
+            {onOpenTeamHub && (
+              <Button
+                size="sm"
+                onClick={() => onOpenTeamHub(false)}
+                className="k-btn-gold text-black font-bold text-xs h-9 rounded-xl gap-1.5 shadow-sm"
+              >
+                <MessageSquare className="size-3.5" />
+                <span>Kènè Team Live</span>
+                {unreadTeamCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-bissap text-white text-[10px]">
+                    {unreadTeamCount}
                   </span>
                 )}
-              </div>
-              <p className="text-xs sm:text-sm font-medium text-[#FFF9EC]/95 leading-relaxed">
-                {teamHubApi.data?.directive?.text ||
-                  "Excellence accueil & diagnostic systématique avant chaque soin. Utilise « Sortie Cabine → Caisse » pour que ta commission te soit créditée automatiquement par Irène."}
-              </p>
-            </div>
-            <div className="flex flex-wrap sm:flex-col gap-2 shrink-0">
-              {!tourDone && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    window.dispatchEvent(new CustomEvent("kene:open-pro-walkthrough"));
-                  }}
-                  className="h-9 rounded-xl text-xs font-bold border-gold/40 bg-white/5 hover:bg-white/15 text-[#FFF9EC] gap-1.5 animate-in fade-in"
-                >
-                  <Compass className="size-3.5 text-[#E5A93C]" />
-                  <span>Guide Pas-à-Pas</span>
-                </Button>
-              )}
-              {onOpenTeamHub && (
-                <Button
-                  size="sm"
-                  onClick={() => onOpenTeamHub(false)}
-                  className="k-btn-gold text-black font-bold text-xs h-9 rounded-xl gap-1.5 shadow-sm"
-                >
-                  <MessageSquare className="size-3.5" />
-                  <span>Kènè Team Live</span>
-                  {unreadTeamCount > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full bg-bissap text-white text-[10px]">
-                      {unreadTeamCount}
-                    </span>
-                  )}
-                </Button>
-              )}
-              {onOpenTeamHub && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onOpenTeamHub(true)}
-                  className="h-9 rounded-xl text-xs font-bold border-emerald-500/50 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 gap-1.5"
-                >
-                  <CreditCard className="size-3.5" />
-                  <span>Sortie Cabine → Caisse</span>
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </Button>
+            )}
+            {onOpenTeamHub && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onOpenTeamHub(true)}
+                className="h-9 rounded-xl text-xs font-bold border-emerald-500/50 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 gap-1.5"
+              >
+                <CreditCard className="size-3.5" />
+                <span>Sortie Cabine → Caisse</span>
+              </Button>
+            )}
+          </div>
+        </div>
 
         {/* Cagnotte Collective d'Équipe */}
         <Card className="rounded-2xl border-gold/40 bg-gradient-to-br from-gold/10 via-card to-card shadow-sm">
