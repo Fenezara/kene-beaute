@@ -10,7 +10,16 @@ import { db } from "@/lib/db";
 import { runDiagnosis } from "@/lib/ai/vlm";
 import { BODY_ZONES } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
-import { scoreQuestionnaire, mergeResults, missingRequired, getQuestionsForZone, QUESTIONS } from "@/lib/kene/questionnaire";
+import {
+  scoreQuestionnaire,
+  mergeResults,
+  missingRequired,
+  missingRequiredForZones,
+  getQuestionsForZone,
+  getQuestionsForZones,
+  buildMultiZoneSynthesis,
+  QUESTIONS,
+} from "@/lib/kene/questionnaire";
 import type { QAnswers } from "@/lib/kene/questionnaire";
 import { recommend4SpectralSlots } from "@/lib/kene/types";
 import { jsonError, serverError, notify, resolveTenant } from "@/lib/kene/server";
@@ -31,23 +40,27 @@ const answerValue = z.union([z.string().max(400), z.array(z.string().max(80)).ma
 
 const Body = z.object({
   tenantId: z.string().min(1),
-  zone: z.enum(zoneIds),
+  zone: z.enum(zoneIds).optional(), // Zone principale ou première zone
+  zones: z.array(z.enum(zoneIds)).min(1).max(6).optional(), // Liste Multi-Zones de la séance
   answers: z.record(z.string(), answerValue),
   clientProfileId: z.string().optional(),
   client: z.object({ name: z.string().min(2).max(80), phone: z.string().min(8).max(20) }).optional(),
   photo: z.string().startsWith("data:image/").optional(),
   photos: z.array(z.string().startsWith("data:image/")).max(5).optional(),
+  // Photos mappées par zone en mode Multi-Zones
+  photosByZone: z.record(z.string(), z.array(z.string().startsWith("data:image/"))).optional(),
   practitioner: z.string().max(80).optional(),
+  sessionId: z.string().optional(), // Identifiant unifié de séance cabine
   // Consentements recueillis en cabine — obligatoires avant tout
   // diagnostic: photos ET données de peau. La fiche papier porte la
   // signature; ici la trace numérique horodatée.
   consent: z.object({ photo: z.boolean(), data: z.boolean() }),
 });
 
-/** Réponses admissibles uniquement pour les questions déclarées de la zone (anti-spam). */
-function sanitizeAnswers(answers: QAnswers, zone: BodyZone = "visage"): QAnswers {
+/** Réponses admissibles uniquement pour les questions déclarées de la zone ou des zones (anti-spam). */
+function sanitizeAnswers(answers: QAnswers, zones: BodyZone[] = ["visage"]): QAnswers {
   const out: QAnswers = {};
-  const ids = new Set(getQuestionsForZone(zone).map((q) => q.id));
+  const ids = new Set(getQuestionsForZones(zones).map((q) => q.id));
   for (const [k, v] of Object.entries(answers)) {
     if (!ids.has(k)) continue;
     if (typeof v === "string") out[k] = v.slice(0, 400);
@@ -80,19 +93,35 @@ export async function POST(req: NextRequest) {
         400
       );
     }
-    const { zone, photo, photos, practitioner } = parsed.data;
+    const requestedZones: BodyZone[] =
+      parsed.data.zones && parsed.data.zones.length > 0
+        ? (parsed.data.zones as BodyZone[])
+        : parsed.data.zone
+        ? [parsed.data.zone as BodyZone]
+        : ["visage"];
+    const primaryZone = requestedZones[0] || "visage";
+    const sessionId = parsed.data.sessionId || `session_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const isMultiZone = requestedZones.length > 1;
+
+    const { photo, photos, photosByZone, practitioner } = parsed.data;
     if (!parsed.data.consent?.photo || !parsed.data.consent?.data) {
       return jsonError("Les consentements de la cliente (photos + données de peau) doivent être recueillis avant le diagnostic — cochez les deux cases à l'étape cliente", 400);
     }
 
-    const rawPhotos: string[] = photos && photos.length > 0 ? photos : photo ? [photo] : [];
-    for (let i = 0; i < rawPhotos.length; i++) {
-      const upload = checkImageDataUrl(rawPhotos[i]);
-      if (!upload.ok) {
-        return jsonError(`Photo ${i + 1} de cabine refusée — ${upload.reason}`, 415);
+    // Validation des photos (globales ou par zone)
+    const rawPhotosMap: Record<BodyZone, string[]> = {} as any;
+    for (const z of requestedZones) {
+      const zPhotos = photosByZone?.[z] || (z === primaryZone ? (photos && photos.length > 0 ? photos : photo ? [photo] : []) : []);
+      for (let i = 0; i < zPhotos.length; i++) {
+        const upload = checkImageDataUrl(zPhotos[i]);
+        if (!upload.ok) {
+          return jsonError(`Photo ${i + 1} de la zone ${z} refusée — ${upload.reason}`, 415);
+        }
       }
+      rawPhotosMap[z] = zPhotos;
     }
-    const answers = sanitizeAnswers(parsed.data.answers as QAnswers, zone as BodyZone);
+
+    const answers = sanitizeAnswers(parsed.data.answers as QAnswers, requestedZones);
 
     const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
@@ -183,52 +212,101 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Questionnaire complet?
-    const missing = missingRequired(answers, zone as BodyZone);
+    const missing = isMultiZone
+      ? missingRequiredForZones(answers, requestedZones)
+      : missingRequired(answers, primaryZone);
     if (missing.length > 0) {
       return jsonError(`Questionnaire incomplet — ${missing.length} réponse(s) manquante(s)`, 400);
     }
 
-    // 3. Scoring déclaratif + analyse VLM de la photo (optionnelle)
-    const qr = scoreQuestionnaire(answers, zone as BodyZone);
+    // 3. Scoring et analyses VLM pour chaque zone en parallèle
     const allergies = typeof answers.allergies === "string" && answers.allergies.trim() ? answers.allergies.trim() : undefined;
-    let vlm = null as Awaited<ReturnType<typeof runDiagnosis>> | null;
-    if (rawPhotos.length > 0) {
-      vlm = await runDiagnosis({
-        images: rawPhotos,
-        zone: zone as BodyZone,
-        fitzpatrick: typeof answers.fitz === "string" ? answers.fitz : undefined,
-        allergies,
-      });
-    }
-    const result = mergeResults(qr, vlm, zone as BodyZone, rawPhotos.length > 0);
-    const photoDataToStore = rawPhotos.length === 0 ? null : rawPhotos.length === 1 ? rawPhotos[0] : JSON.stringify(rawPhotos);
+    const fitzVal = typeof answers.fitz === "string" ? answers.fitz : undefined;
 
-    // Initialiser les 4 slots multi-spectre distribués sur les photos/angles
-    const initialReportSlots = recommend4SpectralSlots(result.indicateurs, rawPhotos.length);
-    (result as any).reportSlots = initialReportSlots;
-
-    // 4. Persistance + mise à jour de la fiche CRM (le diagnostic EST une visite)
-    const diagnosis = await db.proDiagnosis.create({
-      data: {
-        tenantId: tenant.id,
-        clientProfileId: client.id,
-        userId: matchedUserId || client.userId,
-        zone,
-        practitioner: practitioner?.trim() || null,
-        questionnaireJson: JSON.stringify(answers),
-        photoData: photoDataToStore,
-        resultJson: JSON.stringify(result),
-        scoreGlobal: result.score_global,
-        vlmUsed: Boolean(vlm && result.source === "vlm+questionnaire"),
-        photoUsed: rawPhotos.length > 0,
-        consentPhoto: parsed.data.consent.photo,
-        consentData: parsed.data.consent.data,
-        consentTs: new Date(),
-      },
+    const zoneDiagnosisPromises = requestedZones.map(async (currZone) => {
+      const qr = scoreQuestionnaire(answers, currZone);
+      const currPhotos = rawPhotosMap[currZone] || [];
+      let vlm = null as Awaited<ReturnType<typeof runDiagnosis>> | null;
+      if (currPhotos.length > 0) {
+        vlm = await runDiagnosis({
+          images: currPhotos,
+          zone: currZone,
+          fitzpatrick: fitzVal,
+          allergies,
+        }).catch((err) => {
+          console.warn(`[pro/diagnoses] VLM warning for zone ${currZone}:`, err);
+          return null;
+        });
+      }
+      const res = mergeResults(qr, vlm, currZone, currPhotos.length > 0);
+      const initialReportSlots = recommend4SpectralSlots(res.indicateurs, currPhotos.length);
+      (res as any).reportSlots = initialReportSlots;
+      (res as any).sessionId = sessionId;
+      return {
+        zone: currZone,
+        result: res,
+        rawPhotos: currPhotos,
+        vlmUsed: Boolean(vlm && res.source === "vlm+questionnaire"),
+        photoUsed: currPhotos.length > 0,
+      };
     });
 
-    // Trace du consentement institut sur le registre Consent de la cliente
-    // (si elle est sur l'app) — même vocabulaire que l'onboarding.
+    const evaluatedZones = await Promise.all(zoneDiagnosisPromises);
+
+    // Synthèse clinique multi-zones (corrélations, alternance soir & mutualisation)
+    const synthesis = isMultiZone
+      ? buildMultiZoneSynthesis(sessionId, evaluatedZones, answers)
+      : null;
+
+    // 4. Persistance des enregistrements ProDiagnosis
+    const createdDiagnoses: Array<any> = [];
+
+    for (let i = 0; i < evaluatedZones.length; i++) {
+      const ez = evaluatedZones[i];
+      const currResult = { ...ez.result };
+      if (synthesis) {
+        currResult.multiZoneSession = synthesis;
+      }
+      const photoDataToStore = ez.rawPhotos.length === 0 ? null : ez.rawPhotos.length === 1 ? ez.rawPhotos[0] : JSON.stringify(ez.rawPhotos);
+
+      const created = await db.proDiagnosis.create({
+        data: {
+          tenantId: tenant.id,
+          clientProfileId: client.id,
+          userId: matchedUserId || client.userId,
+          zone: ez.zone,
+          practitioner: practitioner?.trim() || null,
+          questionnaireJson: JSON.stringify(answers),
+          photoData: photoDataToStore,
+          resultJson: JSON.stringify(currResult),
+          scoreGlobal: currResult.score_global,
+          vlmUsed: ez.vlmUsed,
+          photoUsed: ez.photoUsed,
+          consentPhoto: parsed.data.consent.photo,
+          consentData: parsed.data.consent.data,
+          consentTs: new Date(),
+        },
+      });
+
+      createdDiagnoses.push({
+        ...created,
+        result: currResult,
+      });
+    }
+
+    // Mettre à jour les ids de diagnostic dans la synthèse si multi-zone
+    if (synthesis) {
+      synthesis.zoneSummaries.forEach((zs) => {
+        const matching = createdDiagnoses.find((cd) => cd.zone === zs.zone);
+        if (matching) zs.diagnosisId = matching.id;
+      });
+    }
+
+    // Le premier ou diagnostic principal
+    const primaryDiagnosis = createdDiagnoses[0];
+    const primaryResult = primaryDiagnosis.result;
+
+    // Trace du consentement institut sur le registre Consent de la cliente (1 seule fois)
     const effectiveUserId = matchedUserId || client.userId;
     if (effectiveUserId) {
       await db.consent.createMany({
@@ -239,6 +317,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Mise à jour de la fiche CRM (1 SEULE VISITE COMPTABILISÉE pour toute la séance)
+    const zonesSummaryTag = requestedZones.join(", ");
     await db.clientProfile.update({
       where: { id: client.id },
       data: {
@@ -248,25 +328,38 @@ export async function POST(req: NextRequest) {
         fitzpatrick: typeof answers.fitz === "string" ? answers.fitz : client.fitzpatrick,
         notes:
           typeof answers.notes === "string" && answers.notes.trim()
-            ? `${client.notes ? `${client.notes} · ` : ""}[${zone}] ${answers.notes.trim().slice(0, 160)}`
+            ? `${client.notes ? `${client.notes} · ` : ""}[${zonesSummaryTag}] ${answers.notes.trim().slice(0, 160)}`
             : client.notes,
       },
     });
 
-    // 5. La cliente est sur l'app Kènè → elle est informée tout de suite
+    // 5. La cliente est sur l'app Kènè → 1 SEULE NOTIFICATION WhatsApp consolidée
     if (client.userId) {
       const prenom = (client.name.split(/\s+/)[0] ?? client.name).trim();
+      const scoreToShow = synthesis ? synthesis.weightedScoreGlobal : primaryResult.score_global;
+      const zoneLabelText = isMultiZone
+        ? `${requestedZones.length} zones (${requestedZones.join(", ")})`
+        : primaryZone;
+
       await notify({
         userId: client.userId,
         tenantId: tenant.id,
         channel: "whatsapp",
         toPhone: client.phone,
-        message: `Kènè 🌿 ${prenom}, ton diagnostic à l'institut ${tenant.name} est enregistré : score ${result.score_global}/100. ${
-          result.questionnaire.flags.some((f) => f.level === "danger" || f.level === "warn")
+        message: `Kènè 🌿 ${prenom}, ton diagnostic cabine (${zoneLabelText}) à l'institut ${tenant.name} est enregistré : score global ${scoreToShow}/100. ${
+          synthesis && synthesis.correlations.length > 0
+            ? "Un protocole d'alternance et de soin coordonné a été établi par ta praticienne."
+            : primaryResult.questionnaire.flags.some((f: any) => f.level === "danger" || f.level === "warn")
             ? "Des points de vigilance ont été notés — ta praticienne te les expliquera."
             : "Ta praticienne a la routine détaillée pour toi."
         }`,
-        metaJson: JSON.stringify({ proDiagId: diagnosis.id, type: "pro_diagnosis" }),
+        metaJson: JSON.stringify({
+          proDiagId: primaryDiagnosis.id,
+          sessionId,
+          type: "pro_diagnosis",
+          multiZone: isMultiZone,
+          zones: requestedZones,
+        }),
       });
       pushFeed(client.userId);
     }
@@ -274,7 +367,18 @@ export async function POST(req: NextRequest) {
     pushTenantFeed(tenant.id);
 
     return NextResponse.json(
-      { diagnosis: { ...diagnosis, clientName: client.name, reusedClient }, result },
+      {
+        diagnosis: { ...primaryDiagnosis, clientName: client.name, reusedClient },
+        result: primaryResult,
+        session: synthesis || undefined,
+        diagnoses: createdDiagnoses.map((cd) => ({
+          id: cd.id,
+          zone: cd.zone,
+          scoreGlobal: cd.scoreGlobal,
+          vlmUsed: cd.vlmUsed,
+          result: cd.result,
+        })),
+      },
       { status: 201 }
     );
   } catch (err) {

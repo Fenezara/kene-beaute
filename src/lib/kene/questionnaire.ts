@@ -8,7 +8,7 @@
 
 import { severityFromPercent } from "@/lib/kene/format";
 import type { BodyZone, DiagnosisResult, Indicator, RecommendationSet } from "@/lib/kene/types";
-import { ZONE_INDICATORS } from "@/lib/kene/types";
+import { BODY_ZONES, ZONE_INDICATORS } from "@/lib/kene/types";
 
 // ─────────────────────────── Types ───────────────────────────
 
@@ -18,6 +18,40 @@ export interface QFlag {
   level: QFlagLevel;
   label: string;
   detail?: string;
+}
+
+export interface CrossZoneCorrelation {
+  id: string;
+  level: QFlagLevel;
+  title: string;
+  detail: string;
+  zonesInvolved: BodyZone[];
+  clinicalRule: string;
+}
+
+export interface MultiZoneSynthesis {
+  sessionId: string;
+  zones: BodyZone[];
+  weightedScoreGlobal: number;
+  verdict: string;
+  correlations: CrossZoneCorrelation[];
+  consolidatedRoutine: {
+    matin: string[];
+    soir: string[];
+    alternanceSoir: string[];
+    botaniques: string[];
+    produitsDedupliques: string[];
+    soinsCabinePrioritaires: string[];
+    hygieneVie: string[];
+  };
+  zoneSummaries: Array<{
+    zone: BodyZone;
+    zoneLabel: string;
+    weight: number;
+    scoreGlobal: number;
+    diagnosisId?: string;
+    topConcern?: string;
+  }>;
 }
 
 /** Effets d'une option: clé mot-clé d'indicateur → delta de score santé. */
@@ -65,6 +99,7 @@ export type ProDiagSource = "questionnaire" | "vlm+questionnaire" | "vlm" | "fal
 export interface ProDiagnosisResult extends Omit<DiagnosisResult, "source"> {
   source: ProDiagSource;
   reportSlots?: Array<{ viewId: string; photoIdx: number }>;
+  multiZoneSession?: MultiZoneSynthesis;
   questionnaire: {
     score: number; // score du questionnaire seul
     flags: QFlag[];
@@ -788,6 +823,101 @@ export function getQuestionsForZone(zone: BodyZone = "visage"): Question[] {
   return [...specific, ...COMMON_LIFESTYLE_QUESTIONS, ...COMMON_HEALTH_QUESTIONS];
 }
 
+/** Questions systémiques de phototype, âge et cosmétovigilance (posées 1 seule fois en séance multi-zones). */
+const SYSTEMIC_PROFILE_QUESTIONS: Question[] = FACE_QUESTIONS.filter((q) =>
+  ["fitz", "age", "lightening"].includes(q.id)
+).map((q) => ({
+  ...q,
+  section: "profil_systemique",
+}));
+
+/** Sections dédupliquées pour une séance Multi-Zones (Tronc Commun + Modules Ciblés par zone). */
+export function getSectionsForZones(zones: BodyZone[]): QSection[] {
+  const uniqueZones = Array.from(new Set(zones.length > 0 ? zones : ["visage" as BodyZone]));
+  if (uniqueZones.length === 1) {
+    return getSectionsForZone(uniqueZones[0]);
+  }
+
+  const out: QSection[] = [];
+  const hasVisage = uniqueZones.includes("visage");
+
+  if (!hasVisage) {
+    out.push({
+      id: "profil_systemique",
+      label: "Profil Mélanique & Antécédents (Tronc Commun)",
+      description: "Phototype, tranche d'âge & antécédents d'éclaircissants (posé 1 seule fois)",
+    });
+  }
+
+  for (const z of uniqueZones) {
+    const zSecs = getSectionsForZone(z).filter((s) => s.id !== "vie" && s.id !== "sante");
+    for (const s of zSecs) {
+      if (!out.some((existing) => existing.id === s.id)) {
+        out.push(s);
+      }
+    }
+  }
+
+  out.push(
+    { id: "vie", label: "Mode de vie (Tronc Commun)", description: "Eau, sommeil, stress & tabac — mutualisé pour toutes les zones" },
+    { id: "sante", label: "Santé & Cosmétovigilance (Tronc Commun)", description: "Réactions, grossesse, traitements & allergies — mutualisé" }
+  );
+
+  return out;
+}
+
+/** Questions dédupliquées pour une séance Multi-Zones (zéro répétition de l'eau, du sommeil, de la grossesse ou du phototype). */
+export function getQuestionsForZones(zones: BodyZone[]): Question[] {
+  const uniqueZones = Array.from(new Set(zones.length > 0 ? zones : ["visage" as BodyZone]));
+  if (uniqueZones.length === 1) {
+    return getQuestionsForZone(uniqueZones[0]);
+  }
+
+  const out: Question[] = [];
+  const seenIds = new Set<string>();
+  const addQ = (q: Question) => {
+    if (!seenIds.has(q.id)) {
+      seenIds.add(q.id);
+      out.push(q);
+    }
+  };
+
+  if (!uniqueZones.includes("visage")) {
+    for (const q of SYSTEMIC_PROFILE_QUESTIONS) addQ(q);
+  }
+
+  for (const z of uniqueZones) {
+    let specific: Question[] = [];
+    switch (z) {
+      case "cuir_chevelu":
+        specific = SCALP_QUESTIONS;
+        break;
+      case "dos":
+        specific = BACK_QUESTIONS;
+        break;
+      case "barbe":
+        specific = BEARD_QUESTIONS;
+        break;
+      case "mains":
+        specific = HANDS_QUESTIONS;
+        break;
+      case "naevi":
+        specific = NAEVI_QUESTIONS;
+        break;
+      case "visage":
+      default:
+        specific = FACE_QUESTIONS;
+        break;
+    }
+    for (const q of specific) addQ(q);
+  }
+
+  for (const q of COMMON_LIFESTYLE_QUESTIONS) addQ(q);
+  for (const q of COMMON_HEALTH_QUESTIONS) addQ(q);
+
+  return out;
+}
+
 /** Tableau global par défaut pour la compatibilité historique (visage). */
 export const QUESTIONS: Question[] = getQuestionsForZone("visage");
 
@@ -813,9 +943,22 @@ export function questionnaireProgress(answers: QAnswers, zone: BodyZone = "visag
   return reqs.length === 0 ? 1 : done / reqs.length;
 }
 
+/** Progression 0-1 sur les questions requises d'un ensemble de zones (Séance Multi-Zones). */
+export function questionnaireProgressForZones(answers: QAnswers, zones: BodyZone[]): number {
+  const reqs = getQuestionsForZones(zones).filter((q) => q.required);
+  const done = reqs.filter((q) => isAnswered(q, answers)).length;
+  return reqs.length === 0 ? 1 : done / reqs.length;
+}
+
 /** Validation serveur: ids des questions requises manquantes pour une zone. */
 export function missingRequired(answers: QAnswers, zone: BodyZone = "visage"): string[] {
   const reqs = getQuestionsForZone(zone).filter((q) => q.required);
+  return reqs.filter((q) => !isAnswered(q, answers)).map((q) => q.id);
+}
+
+/** Validation serveur: ids des questions requises manquantes pour une séance Multi-Zones. */
+export function missingRequiredForZones(answers: QAnswers, zones: BodyZone[]): string[] {
+  const reqs = getQuestionsForZones(zones).filter((q) => q.required);
   return reqs.filter((q) => !isAnswered(q, answers)).map((q) => q.id);
 }
 
@@ -1212,6 +1355,22 @@ export function scoreQuestionnaire(answers: QAnswers, zone: BodyZone): Questionn
       }
     }
   }
+
+  // En séance Multi-Zones (ou diagnostic hors visage), injecter le phototype (fitz), l'âge (age) et l'éclaircissant (lightening)
+  if (zone !== "visage") {
+    for (const sysQ of SYSTEMIC_PROFILE_QUESTIONS) {
+      const v = answers[sysQ.id];
+      if (typeof v === "string" && v.length > 0) {
+        const opt = sysQ.options.find((o) => o.value === v);
+        if (opt) {
+          applyEffects(scores, opt.effects, zoneIndicators);
+          if (opt.flag && !flags.some((f) => f.label === opt.flag!.label)) {
+            flags.push({ level: opt.flag.level ?? "warn", label: opt.flag.label, detail: opt.flag.detail });
+          }
+        }
+      }
+    }
+  }
   const total = reqList.length;
 
   // Allergies déclarées → drapeau info
@@ -1326,4 +1485,164 @@ export function parseProDiagnosis(json: string): ProDiagnosisResult | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Moteur de Corrélation Inter-Zones Clinique (Spécifique Phototypes IV à VI & Climat Abidjan).
+ * Analyse les disparités et synergies entre les bilans des zones d'une même séance.
+ */
+export function buildMultiZoneSynthesis(
+  sessionId: string,
+  zoneResults: Array<{
+    zone: BodyZone;
+    result: ProDiagnosisResult;
+    diagnosisId?: string;
+  }>,
+  answers: QAnswers = {}
+): MultiZoneSynthesis {
+  const zones = zoneResults.map((zr) => zr.zone);
+  const correlations: CrossZoneCorrelation[] = [];
+
+  // Poids officiel par zone selon types.ts
+  const weightsMap: Record<BodyZone, number> = {
+    visage: 0.40,
+    naevi: 0.20,
+    dos: 0.15,
+    cuir_chevelu: 0.10,
+    mains: 0.10,
+    barbe: 0.05,
+  };
+
+  let totalWeight = 0;
+  let weightedScoreSum = 0;
+
+  for (const zr of zoneResults) {
+    const w = weightsMap[zr.zone] ?? 0.15;
+    totalWeight += w;
+    weightedScoreSum += zr.result.score_global * w;
+  }
+
+  const weightedScoreGlobal = totalWeight > 0 ? Math.round(weightedScoreSum / totalWeight) : 75;
+
+  const resByZone = new Map<BodyZone, ProDiagnosisResult>();
+  for (const zr of zoneResults) {
+    resByZone.set(zr.zone, zr.result);
+  }
+
+  const visageRes = resByZone.get("visage");
+  const dosRes = resByZone.get("dos");
+  const mainsRes = resByZone.get("mains");
+  const barbeRes = resByZone.get("barbe");
+  const scalpRes = resByZone.get("cuir_chevelu");
+
+  // 1. Corrélation : Discordance Pigmentaire & Fragilisation Cutanée (Visage vs Mains/Corps)
+  const lighteningActive = answers.lightening === "cours" || answers.lightening === "passe";
+  if (visageRes && mainsRes) {
+    const visageInds = visageRes.indicateurs || [];
+    const mainsInds = mainsRes.indicateurs || [];
+    const visageBarriere = visageInds.find((i) => i.nom.toLowerCase().includes("barri"))?.pourcentage ?? 80;
+    const mainsPigment = mainsInds.find((i) => i.nom.toLowerCase().includes("pigment") || i.nom.toLowerCase().includes("tache"))?.pourcentage ?? 80;
+
+    if (lighteningActive || visageBarriere < 60 || mainsPigment < 60) {
+      correlations.push({
+        id: "discordance_pigmentaire",
+        level: lighteningActive ? "danger" : "warn",
+        title: "Discordance Pigmentaire & Fragilisation Acrale (Visage vs Mains)",
+        detail:
+          "Contraste significatif entre la réactivité de la barrière du visage et l'hyperpigmentation péri-articulaire des mains. Risque de rebond pigmentaire élevé : priorité absolue à la restauration barrière.",
+        zonesInvolved: ["visage", "mains"],
+        clinicalRule: "Zéro acide exfoliant fort les 21 premiers jours. Privilégier céramides, karité brut & photoprotection SPF 50+ conjointe visage + mains.",
+      });
+    }
+  }
+
+  // 2. Corrélation : Syndrome Séborrhéique & Folliculaire Étendu (Visage + Dos + Cuir chevelu)
+  const oilyZones: BodyZone[] = [];
+  if (visageRes && visageRes.indicateurs.some((i) => i.nom.toLowerCase().includes("sebum") && i.pourcentage < 65)) oilyZones.push("visage");
+  if (dosRes && dosRes.indicateurs.some((i) => (i.nom.toLowerCase().includes("acne") || i.nom.toLowerCase().includes("sebum")) && i.pourcentage < 65)) oilyZones.push("dos");
+  if (scalpRes && scalpRes.indicateurs.some((i) => (i.nom.toLowerCase().includes("follicul") || i.nom.toLowerCase().includes("desquam")) && i.pourcentage < 65)) oilyZones.push("cuir_chevelu");
+  if (barbeRes && barbeRes.indicateurs.some((i) => i.nom.toLowerCase().includes("follicul") && i.pourcentage < 65)) oilyZones.push("barbe");
+
+  if (oilyZones.length >= 2) {
+    correlations.push({
+      id: "syndrome_seborrheique_etendu",
+      level: "warn",
+      title: `Axe Séborrhéique & Folliculaire Tronco-Facial (${oilyZones.join(" + ")})`,
+      detail:
+        "Excès sébacé et prolifération folliculaire simultanée sur plusieurs zones sous climat humide. Suspicion d'hypersensibilité aux androgènes ou surinfection à Malassezia.",
+      zonesInvolved: oilyZones,
+      clinicalRule: "Nettoyage purifiant doux au zinc PCA & moringa sans savon. Éviter l'application de beurres occlusifs lourds sur les zones pilo-sébacées.",
+    });
+  }
+
+  // 3. Règle d'Alternance Chronobiologique du Soir (Effet Dose-Surface)
+  const largeSurface = zones.includes("dos") || zones.includes("naevi");
+  const alternanceSoir: string[] = [];
+  if (largeSurface && zones.includes("visage")) {
+    alternanceSoir.push("Lundi & Jeudi : Traitement exfoliant/unifiant ciblé pour le Dos & Épaules (spray/lotion AHA).");
+    alternanceSoir.push("Mardi & Vendredi : Sérum régulateur/actif unifiant concentré pour le Visage (Niacinamide/Vitamine C).");
+    alternanceSoir.push("Mercredi, Samedi & Dimanche : Hydratation douce de repos (Baume Karité ou Cérat) sur toutes les zones.");
+  } else {
+    alternanceSoir.push("Routine du soir synchrone : Nettoyage doux suivi des soins ciblés par zone.");
+  }
+
+  // Mutualisation et Déduplication des Produits & Soins
+  const allMatin = new Set<string>();
+  const allSoir = new Set<string>();
+  const allBotaniques = new Set<string>();
+  const allProduits = new Set<string>();
+  const allSoins = new Set<string>();
+  const allHygiene = new Set<string>();
+
+  for (const zr of zoneResults) {
+    const reco = zr.result.recommandations;
+    if (reco) {
+      reco.routine_matin?.forEach((item) => allMatin.add(item));
+      reco.routine_soir?.forEach((item) => allSoir.add(item));
+      reco.botaniques_conseillees?.forEach((item) => allBotaniques.add(item));
+      reco.produits?.forEach((item) => allProduits.add(item));
+      reco.soins_conseilles?.forEach((item) => allSoins.add(item));
+      reco.conseils_hygiene_vie?.forEach((item) => allHygiene.add(item));
+    }
+  }
+
+  const zoneSummaries = zoneResults.map((zr) => {
+    const zDef = BODY_ZONES.find((b) => b.id === zr.zone);
+    const worstInd = [...zr.result.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage)[0];
+    return {
+      zone: zr.zone,
+      zoneLabel: zDef?.label || zr.zone,
+      weight: weightsMap[zr.zone] ?? 0.15,
+      scoreGlobal: zr.result.score_global,
+      diagnosisId: zr.diagnosisId,
+      topConcern: worstInd ? `${worstInd.nom} (${worstInd.pourcentage}/100)` : undefined,
+    };
+  });
+
+  const verdict =
+    weightedScoreGlobal >= 80
+      ? "Peau globale saine et équilibrée — protocole de renforcement et d'éclat"
+      : weightedScoreGlobal >= 65
+      ? "Équilibre global satisfaisant — ciblages prioritaires sur les zones les plus exposées"
+      : weightedScoreGlobal >= 50
+      ? "Déséquilibres cutanés multiples — cure globale coordonnée recommandée"
+      : "Fragilité cutanée étendue — protocole réparateur dermo-cosmétique intensif";
+
+  return {
+    sessionId,
+    zones,
+    weightedScoreGlobal,
+    verdict,
+    correlations,
+    consolidatedRoutine: {
+      matin: Array.from(allMatin).slice(0, 5),
+      soir: Array.from(allSoir).slice(0, 5),
+      alternanceSoir,
+      botaniques: Array.from(allBotaniques).slice(0, 6),
+      produitsDedupliques: Array.from(allProduits).slice(0, 6),
+      soinsCabinePrioritaires: Array.from(allSoins).slice(0, 4),
+      hygieneVie: Array.from(allHygiene).slice(0, 5),
+    },
+    zoneSummaries,
+  };
 }

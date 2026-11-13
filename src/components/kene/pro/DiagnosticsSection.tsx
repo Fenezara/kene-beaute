@@ -59,7 +59,15 @@ import {
   type StructuredPrescription,
 } from "@/lib/kene/prescription-schema";
 import {
-  getSectionsForZone, getQuestionsForZone, defaultAnswers, questionnaireProgress, parseProDiagnosis,
+  getSectionsForZone,
+  getQuestionsForZone,
+  getSectionsForZones,
+  getQuestionsForZones,
+  defaultAnswers,
+  questionnaireProgress,
+  questionnaireProgressForZones,
+  parseProDiagnosis,
+  type MultiZoneSynthesis,
 } from "@/lib/kene/questionnaire";
 import { matchesSearch } from "@/lib/kene/search";
 import type { ProDiagnosisResult, QAnswers } from "@/lib/kene/questionnaire";
@@ -768,10 +776,17 @@ function DiagWizard({
     return 1;
   });
   const [zone, setZone] = useState<BodyZone>(() => (draftState?.zone as BodyZone) || "visage");
+  const [zones, setZones] = useState<BodyZone[]>(() => {
+    if (Array.isArray(draftState?.zones) && draftState.zones.length > 0) return draftState.zones;
+    if (draftState?.zone) return [draftState.zone as BodyZone];
+    return ["visage"];
+  });
   const [selected, setSelected] = useState<WizardClient | null>(() => draftState?.selected || null);
   const [answers, setAnswers] = useState<QAnswers>(() => draftState?.answers || defaultAnswers());
   const [photo, setPhoto] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
+  const [photosByZone, setPhotosByZone] = useState<Record<string, Record<string, string>>>({});
+  const [photoZoneIdx, setPhotoZoneIdx] = useState<number>(0);
   const sessionUser = useKene((s) => s.user);
   const practitioner = useMemo(() => {
     return (
@@ -782,6 +797,9 @@ function DiagWizard({
   }, [sessionUser]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ProDiagnosisResult | null>(null);
+  const [multiSession, setMultiSession] = useState<MultiZoneSynthesis | null>(null);
+  const [sessionResults, setSessionResults] = useState<Array<{ id: string; zone: BodyZone; scoreGlobal: number; result: ProDiagnosisResult }>>([]);
+  const [activeZoneTab, setActiveZoneTab] = useState<BodyZone>("visage");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysisMsg, setAnalysisMsg] = useState(ANALYSIS_STEPS[0]);
   const [consent, setConsent] = useState(() => draftState?.consent || { photo: false, data: false });
@@ -804,6 +822,7 @@ function DiagWizard({
         const payload = {
           step: Math.min(step, 3),
           zone,
+          zones,
           selected,
           answers,
           consent,
@@ -814,7 +833,7 @@ function DiagWizard({
         // quota dépassé ou stockage désactivé
       }
     }
-  }, [step, zone, selected, answers, consent, result, draftStorageKey]);
+  }, [step, zone, zones, selected, answers, consent, result, draftStorageKey]);
 
   // Message rotatif
   const msgIdx = useRef(0);
@@ -829,10 +848,13 @@ function DiagWizard({
     return () => window.clearInterval(t);
   }, [submitting]);
 
-  const sections = useMemo(() => getSectionsForZone(zone), [zone]);
-  const questions = useMemo(() => getQuestionsForZone(zone), [zone]);
-  const progress = useMemo(() => questionnaireProgress(answers, zone), [answers, zone]);
-  const zoneLabel = BODY_ZONES.find((z) => z.id === zone)?.label ?? zone;
+  const isMulti = zones.length > 1;
+  const sections = useMemo(() => isMulti ? getSectionsForZones(zones) : getSectionsForZone(zone), [isMulti, zones, zone]);
+  const questions = useMemo(() => isMulti ? getQuestionsForZones(zones) : getQuestionsForZone(zone), [isMulti, zones, zone]);
+  const progress = useMemo(() => isMulti ? questionnaireProgressForZones(answers, zones) : questionnaireProgress(answers, zone), [isMulti, answers, zones, zone]);
+  const zoneLabel = isMulti
+    ? `${zones.length} zones (${zones.map((z) => BODY_ZONES.find((bz) => bz.id === z)?.label || z).join(", ")})`
+    : BODY_ZONES.find((z) => z.id === zone)?.label ?? zone;
 
   const reset = () => {
     if (typeof window !== "undefined") {
@@ -840,11 +862,16 @@ function DiagWizard({
     }
     setStep(1);
     setZone("visage");
+    setZones(["visage"]);
     setSelected(null);
     setAnswers(defaultAnswers());
     setPhoto(null);
     setPhotos({});
+    setPhotosByZone({});
+    setPhotoZoneIdx(0);
     setResult(null);
+    setMultiSession(null);
+    setSessionResults([]);
     setSubmitError(null);
     setConsent({ photo: false, data: false });
     setSignatureData(null);
@@ -856,37 +883,73 @@ function DiagWizard({
     setSubmitting(true);
     setSubmitError(null);
     setResult(null);
+    setMultiSession(null);
     setStep(4);
-    const slots = ZONE_PHOTO_SLOTS[zone] ?? [{ id: "main", label: "Vue principale", hint: "Cadrez la zone", required: true }];
-    const photosList = slots.map((s) => photos[s.id]).filter(Boolean) as string[];
-    const primaryPhoto = photosList[0] || photo || undefined;
+
+    const targetZones = zones.length > 0 ? zones : [zone];
+    const formattedPhotosByZone: Record<string, string[]> = {};
+
+    targetZones.forEach((z) => {
+      const zPhotos = photosByZone[z] || (z === zone ? photos : {});
+      const list = Object.values(zPhotos).filter(Boolean);
+      if (list.length > 0) {
+        formattedPhotosByZone[z] = list;
+      }
+    });
+
+    const primarySlots = ZONE_PHOTO_SLOTS[targetZones[0]] ?? [{ id: "main", label: "Vue principale", hint: "Cadrez la zone", required: true }];
+    const firstZonePhotos = formattedPhotosByZone[targetZones[0]] || Object.values(photos).filter(Boolean);
+    const primaryPhoto = firstZonePhotos[0] || photo || undefined;
+
     try {
-      const res = await apiPost<{ diagnosis: ProDiagnosisItem; result: ProDiagnosisResult; reusedClient: boolean }>(
+      const res = await apiPost<{
+        diagnosis: ProDiagnosisItem;
+        result: ProDiagnosisResult;
+        reusedClient: boolean;
+        session?: MultiZoneSynthesis;
+        diagnoses?: Array<{ id: string; zone: BodyZone; scoreGlobal: number; result: ProDiagnosisResult }>;
+      }>(
         "/api/pro/diagnoses",
         {
           tenantId,
-          zone,
+          zone: targetZones[0],
+          zones: targetZones,
           answers,
           clientProfileId: selected?.id,
           photo: primaryPhoto,
-          photos: photosList.length > 0 ? photosList : undefined,
+          photos: firstZonePhotos.length > 0 ? firstZonePhotos : undefined,
+          photosByZone: Object.keys(formattedPhotosByZone).length > 0 ? formattedPhotosByZone : undefined,
           practitioner: practitioner.trim() || undefined,
           consent,
         },
-        { timeoutMs: 90_000 }
+        { timeoutMs: 120_000 }
       );
+
       setResult(res.result);
       setSavedId(res.diagnosis.id);
+      setActiveZoneTab(targetZones[0]);
+
+      if (res.session) {
+        setMultiSession(res.session);
+      }
+      if (res.diagnoses && res.diagnoses.length > 0) {
+        setSessionResults(res.diagnoses);
+      }
+
       if (res.diagnosis.cosmeticsUsed) {
         setCreatedCosmeticsUsed(res.diagnosis.cosmeticsUsed);
       }
-      toast.success(`Diagnostic enregistré — ${res.diagnosis.clientName} · ${res.result.score_global}/100`, {
-        description:
-          res.result.questionnaire.flags.length > 0
-            ? `${res.result.questionnaire.flags.length} point(s) de vigilance noté(s).`
-            : "Résultat fusionné et protocole de soin généré.",
+
+      const scoreDisplay = res.session ? res.session.weightedScoreGlobal : res.result.score_global;
+      toast.success(`Séance enregistrée — ${res.diagnosis.clientName} · ${scoreDisplay}/100`, {
+        description: res.session
+          ? `Bilan multi-zones consolidé (${targetZones.length} zones) avec ordonnance d'alternance.`
+          : res.result.questionnaire.flags.length > 0
+          ? `${res.result.questionnaire.flags.length} point(s) de vigilance noté(s).`
+          : "Résultat fusionné et protocole de soin généré.",
         duration: 7_000,
       });
+
       if (res.reusedClient) toast.info("Fiche CRM existante réutilisée.");
       onSaved();
     } catch (e) {
@@ -978,6 +1041,8 @@ function DiagWizard({
               onSelect={setSelected}
               zone={zone}
               onZone={setZone}
+              zones={zones}
+              onZones={setZones}
               practitioner={practitioner}
               consent={consent}
               onConsent={setConsent}
@@ -988,6 +1053,7 @@ function DiagWizard({
           {step === 2 && (
             <QuestionnaireStep
               zone={zone}
+              zones={zones}
               answers={answers}
               onChange={setAnswers}
               progress={progress}
@@ -998,10 +1064,15 @@ function DiagWizard({
           {step === 3 && (
             <PhotoStep
               zone={zone}
+              zones={zones}
               photo={photo}
               photos={photos}
+              photosByZone={photosByZone}
+              currentZoneIdx={photoZoneIdx}
+              onChangeZoneIdx={setPhotoZoneIdx}
               onPhoto={setPhoto}
               onPhotos={setPhotos}
+              onPhotosByZone={setPhotosByZone}
               zoneLabel={zoneLabel}
               onBack={() => setStep(2)}
               onSubmit={submit}
@@ -1013,6 +1084,10 @@ function DiagWizard({
               analysisMsg={analysisMsg}
               error={submitError}
               result={result}
+              multiSession={multiSession}
+              sessionResults={sessionResults}
+              activeZoneTab={activeZoneTab}
+              onChangeActiveZoneTab={setActiveZoneTab}
               clientName={selected?.name}
               clientPhone={selected?.phone}
               photo={Object.values(photos).filter(Boolean).length > 1 ? JSON.stringify(Object.values(photos).filter(Boolean)) : photo || Object.values(photos)[0] || null}
@@ -1041,6 +1116,8 @@ function ClientStep({
   onSelect,
   zone,
   onZone,
+  zones,
+  onZones,
   practitioner,
   consent,
   onConsent,
@@ -1053,6 +1130,8 @@ function ClientStep({
   onSelect: (c: WizardClient) => void;
   zone: BodyZone;
   onZone: (z: BodyZone) => void;
+  zones?: BodyZone[];
+  onZones?: (zs: BodyZone[]) => void;
   practitioner: string;
   consent: { photo: boolean; data: boolean };
   onConsent: (c: { photo: boolean; data: boolean }) => void;
@@ -1229,8 +1308,16 @@ function ClientStep({
         </>
       )}
 
-      {/* Sélecteur Anatomique Interactif (Innovation 3D tactile) */}
-      <SkinZoneSelector selectedZone={zone} onSelectZone={onZone} />
+      {/* Sélecteur Anatomique Interactif & Packs 1-Clic Multi-Zones */}
+      <SkinZoneSelector
+        selectedZone={zone}
+        onSelectZone={onZone}
+        selectedZones={zones}
+        onSelectZones={(newZones) => {
+          onZones?.(newZones);
+          if (newZones[0]) onZone(newZones[0]);
+        }}
+      />
 
       {/* Praticienne connectée (attribuée automatiquement selon la session active) */}
       <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border/80 bg-muted/30 text-xs">
@@ -1357,9 +1444,10 @@ function ClientStep({
   );
 }
 
-// ── Étape 2: questionnaire dermatologique avec jauge en direct ──
+// ── Étape 2: questionnaire dermatologique avec jauge en direct (Support Multi-Zones Dédupliqué) ──
 function QuestionnaireStep({
   zone = "visage",
+  zones = ["visage"],
   answers,
   onChange,
   progress,
@@ -1367,14 +1455,16 @@ function QuestionnaireStep({
   onNext,
 }: {
   zone?: BodyZone;
+  zones?: BodyZone[];
   answers: QAnswers;
   onChange: (a: QAnswers) => void;
   progress: number;
   onBack: () => void;
   onNext: () => void;
 }) {
-  const sections = getSectionsForZone(zone);
-  const questions = getQuestionsForZone(zone);
+  const isMulti = zones.length > 1;
+  const sections = useMemo(() => isMulti ? getSectionsForZones(zones) : getSectionsForZone(zone), [isMulti, zones, zone]);
+  const questions = useMemo(() => isMulti ? getQuestionsForZones(zones) : getQuestionsForZone(zone), [isMulti, zones, zone]);
   const setAnswer = (id: string, value: string | string[]) => onChange({ ...answers, [id]: value });
   const toggleMulti = (id: string, value: string) => {
     const cur = Array.isArray(answers[id]) ? (answers[id] as string[]) : [];
@@ -1491,52 +1581,89 @@ function QuestionnaireStep({
   );
 }
 
-// ── Étape 3: photo cabine avec viseur dermoscopique & multi-angles ──
+// ── Étape 3: photo cabine avec viseur dermoscopique & multi-angles (Support Multi-Zones) ──
 function PhotoStep({
   zone,
+  zones = ["visage"],
   photo,
   photos,
+  photosByZone = {},
+  currentZoneIdx = 0,
+  onChangeZoneIdx,
   onPhoto,
   onPhotos,
+  onPhotosByZone,
   zoneLabel,
   onBack,
   onSubmit,
 }: {
   zone: BodyZone;
+  zones?: BodyZone[];
   photo: string | null;
   photos: Record<string, string>;
+  photosByZone?: Record<string, Record<string, string>>;
+  currentZoneIdx?: number;
+  onChangeZoneIdx?: (idx: number) => void;
   onPhoto: (p: string | null) => void;
   onPhotos: (p: Record<string, string>) => void;
+  onPhotosByZone?: (pbz: Record<string, Record<string, string>>) => void;
   zoneLabel: string;
   onBack: () => void;
   onSubmit: () => void;
 }) {
+  const isMulti = zones.length > 1;
+  const activeZone = isMulti ? zones[currentZoneIdx] || zones[0] || "visage" : zone;
+  const activeZoneLabel = BODY_ZONES.find((z) => z.id === activeZone)?.label || activeZone;
+
+  const currentZonePhotos = isMulti ? (photosByZone[activeZone] || {}) : photos;
+
   const [busy, setBusy] = useState(false);
   const [liveCamOpen, setLiveCamOpen] = useState(false);
   const [liveCamMode, setLiveCamMode] = useState<"photo" | "video">("video");
-  const slots = useMemo(() => ZONE_PHOTO_SLOTS[zone] ?? [{ id: "main", label: "Vue principale", hint: "Cadrez la zone", required: true }], [zone]);
+  const slots = useMemo(() => ZONE_PHOTO_SLOTS[activeZone] ?? [{ id: "main", label: "Vue principale", hint: "Cadrez la zone", required: true }], [activeZone]);
   const [activeSlotId, setActiveSlotId] = useState<string>(() => slots[0]?.id ?? "face");
   const activeSlot = slots.find((s) => s.id === activeSlotId) ?? slots[0];
-  const activePhoto = photos[activeSlotId] ?? (activeSlotId === slots[0]?.id ? photo : null);
-  const totalPhotos = Object.values(photos).filter(Boolean).length || (photo ? 1 : 0);
+  const activePhoto = currentZonePhotos[activeSlotId] ?? (activeSlotId === slots[0]?.id && !isMulti ? photo : null);
+  const totalPhotosForZone = Object.values(currentZonePhotos).filter(Boolean).length;
+
+  // Calcul du nombre total de photos prises sur toutes les zones
+  const totalAllPhotos = useMemo(() => {
+    if (!isMulti) return totalPhotosForZone || (photo ? 1 : 0);
+    let sum = 0;
+    zones.forEach((z) => {
+      const zP = photosByZone[z] || {};
+      sum += Object.values(zP).filter(Boolean).length;
+    });
+    return sum;
+  }, [isMulti, zones, photosByZone, totalPhotosForZone, photo]);
+
+  const updateZonePhotos = (newPhotos: Record<string, string>) => {
+    if (isMulti && onPhotosByZone) {
+      const nextPbz = { ...photosByZone, [activeZone]: newPhotos };
+      onPhotosByZone(nextPbz);
+    }
+    onPhotos(newPhotos);
+    if (activeSlotId === slots[0]?.id && newPhotos[activeSlotId]) {
+      onPhoto(newPhotos[activeSlotId]);
+    }
+  };
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);
     try {
       if (isVideoFile(file)) {
-        const toastId = toast.loading("Extraction des angles HD de la vidéo cabine…");
+        const toastId = toast.loading(`Extraction des angles HD vidéo pour ${activeZoneLabel}…`);
         try {
           const { frames } = await extractVideoKeyframes(file, Math.min(slots.length, 3));
-          const nextPhotos = { ...photos };
+          const nextPhotos = { ...currentZonePhotos };
           frames.forEach((dataUrl, idx) => {
             const slotId = slots[idx]?.id ?? `video_${idx}`;
             nextPhotos[slotId] = dataUrl;
           });
-          onPhotos(nextPhotos);
-          if (frames[0]) onPhoto(frames[0]);
+          updateZonePhotos(nextPhotos);
           if (slots[0]) setActiveSlotId(slots[0].id);
-          toast.success(`Vidéo cabine prête : ${frames.length} angle${frames.length > 1 ? "s" : ""} extrait${frames.length > 1 ? "s" : ""}`, { id: toastId });
+          toast.success(`Vidéo cabine ${activeZoneLabel} prête : ${frames.length} angles extraits`, { id: toastId });
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Vidéo illisible", { id: toastId });
         }
@@ -1544,9 +1671,8 @@ function PhotoStep({
       }
 
       const dataUrl = await resizeImage(file);
-      const nextPhotos = { ...photos, [activeSlotId]: dataUrl };
-      onPhotos(nextPhotos);
-      if (activeSlotId === slots[0]?.id) onPhoto(dataUrl);
+      const nextPhotos = { ...currentZonePhotos, [activeSlotId]: dataUrl };
+      updateZonePhotos(nextPhotos);
       const nextEmpty = slots.find((s) => s.id !== activeSlotId && !nextPhotos[s.id]);
       if (nextEmpty) {
         toast.success(`Photo « ${activeSlot.label} » prête`, {
@@ -1564,35 +1690,78 @@ function PhotoStep({
   };
 
   const removePhoto = () => {
-    const nextPhotos = { ...photos };
+    const nextPhotos = { ...currentZonePhotos };
     delete nextPhotos[activeSlotId];
-    onPhotos(nextPhotos);
+    updateZonePhotos(nextPhotos);
     if (activeSlotId === slots[0]?.id) onPhoto(null);
   };
 
   return (
     <div className="space-y-4">
+      {/* Sélecteur de zone en mode Multi-Zones */}
+      {isMulti && (
+        <div className="space-y-1.5 p-2 rounded-2xl bg-muted/60 border border-border">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Zones de la séance ({zones.length}) :
+            </span>
+            <span className="text-[11px] text-gold-text font-semibold">
+              Zone {currentZoneIdx + 1} sur {zones.length}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto pretty-scroll pb-1">
+            {zones.map((zId, idx) => {
+              const zLabel = BODY_ZONES.find((bz) => bz.id === zId)?.label || zId;
+              const zPCount = Object.values(photosByZone[zId] || {}).filter(Boolean).length;
+              const isActive = idx === currentZoneIdx;
+              return (
+                <button
+                  key={zId}
+                  type="button"
+                  onClick={() => onChangeZoneIdx?.(idx)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all flex items-center gap-1.5 border",
+                    isActive
+                      ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                      : "bg-card text-muted-foreground border-border hover:text-foreground"
+                  )}
+                >
+                  <span>{zLabel}</span>
+                  {zPCount > 0 ? (
+                    <span className="grid size-3.5 place-items-center rounded-full bg-emerald-500 text-white text-[8px] font-bold">
+                      ✓
+                    </span>
+                  ) : (
+                    <span className="text-[9px] opacity-70">opt.</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-gold/30 bg-gold/5 p-3.5 space-y-1.5">
         <p className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
           <Camera className="size-4 text-gold-text" aria-hidden="true" />
-          Capture en cabine — zone « {zoneLabel} »
+          Capture en cabine — zone « {activeZoneLabel} »
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           Conseil phototypes III à VI : lumière blanche naturelle ou ring light indirecte, sans flash direct pour préserver la lecture des mélanocytes et des pores.
         </p>
       </div>
 
-      {/* Sélecteur d'angles de cabine */}
+      {/* Sélecteur d'angles de cabine pour la zone active */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between px-0.5">
-          <span className="text-xs font-bold text-foreground">Angles de vue ({zoneLabel}) :</span>
+          <span className="text-xs font-bold text-foreground">Angles de vue ({activeZoneLabel}) :</span>
           <span className="text-[11px] text-gold font-semibold">
-            {totalPhotos === 0 ? "Optionnel" : `${totalPhotos}/${slots.length} angle${totalPhotos > 1 ? "s" : ""} capturé${totalPhotos > 1 ? "s" : ""}`}
+            {totalPhotosForZone === 0 ? "Optionnel" : `${totalPhotosForZone}/${slots.length} angle${totalPhotosForZone > 1 ? "s" : ""} capturé${totalPhotosForZone > 1 ? "s" : ""}`}
           </span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {slots.map((s) => {
-            const hasImg = Boolean(photos[s.id] || (s.id === slots[0]?.id && photo));
+            const hasImg = Boolean(currentZonePhotos[s.id] || (s.id === slots[0]?.id && !isMulti && photo));
             const isActive = activeSlotId === s.id;
             return (
               <button
@@ -1631,7 +1800,7 @@ function PhotoStep({
       {activePhoto ? (
         <div className="space-y-2">
           <div className="relative rounded-2xl overflow-hidden border border-border">
-            <img src={activePhoto} alt={`Photo ${activeSlot.label} de la zone ${zoneLabel}`} className="w-full aspect-square object-cover" />
+            <img src={activePhoto} alt={`Photo ${activeSlot.label} de la zone ${activeZoneLabel}`} className="w-full aspect-square object-cover" />
             <button
               type="button"
               onClick={removePhoto}
@@ -1641,7 +1810,7 @@ function PhotoStep({
               <Trash2 className="size-4" aria-hidden="true" />
             </button>
             <div className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-full border border-white/10">
-              {activeSlot.label}
+              {activeZoneLabel} — {activeSlot.label}
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground font-mono text-center">
@@ -1669,7 +1838,7 @@ function PhotoStep({
                   Scan Vidéo Cabine 360° (5s)
                 </span>
                 <span className="text-[11px] text-[#F5D37E] block mt-0.5">
-                  Extrait automatiquement tous les angles
+                  Extrait automatiquement tous les angles ({activeZoneLabel})
                 </span>
               </div>
             </button>
@@ -1704,7 +1873,7 @@ function PhotoStep({
               <ImagePlus className="size-5 text-gold-text shrink-0" aria-hidden="true" />
             )}
             <span className="text-xs font-bold text-foreground">
-              {busy ? "Extraction / compression en cours…" : "Importer une photo ou vidéo depuis l'appareil"}
+              {busy ? "Extraction / compression en cours…" : `Importer une photo ou vidéo pour ${activeZoneLabel}`}
             </span>
             <input
               type="file"
@@ -1723,44 +1892,56 @@ function PhotoStep({
 
       {liveCamOpen && (
         <LiveCameraModal
-          zoneLabel={`${zoneLabel} — ${activeSlot.label}`}
+          zoneLabel={`${activeZoneLabel} — ${activeSlot.label}`}
           slots={slots}
           activeSlotId={activeSlotId}
           initialMode={liveCamMode}
           onSlotChange={(id) => setActiveSlotId(id)}
           onCapture={(dataUrl, slotId) => {
             const targetId = slotId || activeSlotId;
-            const nextPhotos = { ...photos, [targetId]: dataUrl };
-            onPhotos(nextPhotos);
-            if (targetId === slots[0]?.id) onPhoto(dataUrl);
+            const nextPhotos = { ...currentZonePhotos, [targetId]: dataUrl };
+            updateZonePhotos(nextPhotos);
           }}
           onCaptureMultiple={(captures) => {
-            const nextPhotos = { ...photos };
+            const nextPhotos = { ...currentZonePhotos };
             captures.forEach((c, idx) => {
               const targetId = c.slotId || slots[idx]?.id || `video_${idx}`;
               nextPhotos[targetId] = c.dataUrl;
             });
-            onPhotos(nextPhotos);
-            if (captures[0]?.dataUrl) onPhoto(captures[0].dataUrl);
+            updateZonePhotos(nextPhotos);
           }}
           onClose={() => setLiveCamOpen(false)}
         />
       )}
 
-      {/* Boutons d'action */}
+      {/* Navigation entre zones ou validation finale */}
       <div className="flex gap-2 pb-2">
         <Button variant="outline" onClick={onBack} className="gap-1.5">
           <ChevronLeft className="size-4" aria-hidden="true" />
           Retour
         </Button>
-        <Button onClick={onSubmit} disabled={busy} className="flex-1 gap-1.5 font-semibold k-btn-gold text-primary-foreground">
-          <CauriIcon className="size-4" aria-hidden="true" />
-          {totalPhotos > 1
-            ? `Lancer l'analyse spectrale 360° (${totalPhotos} photos)`
-            : totalPhotos === 1
-            ? "Lancer l'analyse spectrale & volumétrique"
-            : "Analyser sans photo"}
-        </Button>
+
+        {isMulti && currentZoneIdx < zones.length - 1 ? (
+          <Button
+            type="button"
+            onClick={() => onChangeZoneIdx?.(currentZoneIdx + 1)}
+            className="flex-1 gap-1.5 font-semibold bg-primary text-primary-foreground"
+          >
+            <span>Passer à la zone suivante ({BODY_ZONES.find((z) => z.id === zones[currentZoneIdx + 1])?.label || zones[currentZoneIdx + 1]})</span>
+            <ChevronRight className="size-4" />
+          </Button>
+        ) : (
+          <Button onClick={onSubmit} disabled={busy} className="flex-1 gap-1.5 font-semibold k-btn-gold text-primary-foreground">
+            <CauriIcon className="size-4" aria-hidden="true" />
+            {isMulti
+              ? `Lancer la séance Multi-Zones (${zones.length} zones${totalAllPhotos > 0 ? ` · ${totalAllPhotos} photos` : ""})`
+              : totalAllPhotos > 1
+              ? `Lancer l'analyse spectrale 360° (${totalAllPhotos} photos)`
+              : totalAllPhotos === 1
+              ? "Lancer l'analyse spectrale & volumétrique"
+              : "Analyser sans photo"}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -1772,6 +1953,10 @@ function ResultStep({
   analysisMsg,
   error,
   result,
+  multiSession,
+  sessionResults = [],
+  activeZoneTab = "visage",
+  onChangeActiveZoneTab,
   clientName,
   clientPhone,
   photo,
@@ -1789,6 +1974,10 @@ function ResultStep({
   analysisMsg: string;
   error: string | null;
   result: ProDiagnosisResult | null;
+  multiSession?: MultiZoneSynthesis | null;
+  sessionResults?: Array<{ id: string; zone: BodyZone; scoreGlobal: number; result: ProDiagnosisResult }>;
+  activeZoneTab?: BodyZone;
+  onChangeActiveZoneTab?: (z: BodyZone) => void;
   clientName?: string;
   clientPhone?: string;
   photo?: string | null;
@@ -1873,10 +2062,124 @@ function ResultStep({
   }
 
   if (!result) return null;
+
+  // En séance Multi-Zones, afficher le diagnostic actif sélectionné dans les onglets de séance
+  const displayedItem = sessionResults.find((sr) => sr.zone === activeZoneTab);
+  const activeResult = displayedItem?.result || result;
+  const activeSavedId = displayedItem?.id || savedId;
+  const activeZoneLabel = BODY_ZONES.find((z) => z.id === activeResult.zone)?.label || activeResult.zone;
+
   return (
     <div className="space-y-5">
+      {/* ── BANDEAU SYNTHÈSE MULTI-ZONES CONSOLIDÉ ── */}
+      {multiSession && (
+        <Card className="rounded-2xl border border-gold/45 bg-gradient-to-br from-gold/15 via-muted/40 to-card p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="grid size-8 place-items-center rounded-xl bg-gold/20 text-gold-text font-bold">
+                  ✨
+                </span>
+                <h3 className="font-heading text-base font-bold text-foreground">
+                  Synthèse de Séance Multi-Zones ({multiSession.zones.length} zones)
+                </h3>
+                <Badge variant="outline" className="bg-gold/20 text-gold-text border-gold/40 text-[10px] font-bold">
+                  Score Pondéré : {multiSession.weightedScoreGlobal} / 100
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{multiSession.verdict}</p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  toast.success("Ordonnance consolidée prête pour la caisse et WhatsApp !");
+                }}
+                className="h-8 text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Sparkles className="size-3.5" />
+                <span>Ordonnance Unifiée</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Alertes de Corrélation Clinique Inter-Zones */}
+          {multiSession.correlations.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-bissap flex items-center gap-1.5">
+                <AlertTriangle className="size-3.5" />
+                <span>Biomarqueurs &amp; Corrélations Cliniques Croisées ({multiSession.correlations.length})</span>
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {multiSession.correlations.map((corr) => (
+                  <div key={corr.id} className="p-3 rounded-xl border border-bissap/30 bg-bissap/5 space-y-1 text-xs">
+                    <p className="font-bold text-bissap">{corr.title}</p>
+                    <p className="text-muted-foreground leading-relaxed">{corr.detail}</p>
+                    <p className="text-foreground font-semibold pt-1 border-t border-bissap/20">
+                      💡 <strong>Règle dermo appliquée :</strong> {corr.clinicalRule}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Règle d'Alternance du Soir (Effet Dose-Surface) */}
+          <div className="p-3 rounded-xl border border-gold/30 bg-gold/5 space-y-1.5 text-xs">
+            <p className="font-bold text-gold-text flex items-center gap-1.5">
+              <span>🌙 Calendrier d&apos;Alternance Chronobiologique du Soir</span>
+            </p>
+            <ul className="space-y-1 text-muted-foreground">
+              {multiSession.consolidatedRoutine.alternanceSoir.map((alt, aIdx) => (
+                <li key={aIdx} className="flex items-start gap-1.5">
+                  <span className="text-gold-text font-bold">•</span>
+                  <span>{alt}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Onglets pour basculer d'une zone analysée à l'autre */}
+          <div className="space-y-2 pt-1 border-t border-border/50">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Consulter le bilan détaillé par zone :
+            </p>
+            <div className="flex items-center gap-1.5 overflow-x-auto pretty-scroll">
+              {multiSession.zoneSummaries.map((zs) => {
+                const isSelectedTab = zs.zone === activeZoneTab;
+                return (
+                  <button
+                    key={zs.zone}
+                    type="button"
+                    onClick={() => onChangeActiveZoneTab?.(zs.zone)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border shrink-0",
+                      isSelectedTab
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-card text-muted-foreground border-border hover:text-foreground"
+                    )}
+                  >
+                    <span>{zs.zoneLabel}</span>
+                    <span
+                      className="px-1.5 py-0.2 rounded-md font-mono text-[10px]"
+                      style={{
+                        backgroundColor: isSelectedTab ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      {zs.scoreGlobal}/100
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+      )}
+
       <ResultView
-        result={result}
+        result={activeResult}
         clientName={clientName}
         clientPhone={clientPhone}
         photo={photo}
@@ -1890,9 +2193,9 @@ function ResultStep({
         onNavigate={onNavigate}
         onOpenDescent={() =>
           onOpenDescent({
-            indicators: result.indicateurs,
-            score: result.score_global,
-            zoneLabel: result.zone.replace("_", " "),
+            indicators: activeResult.indicateurs,
+            score: activeResult.score_global,
+            zoneLabel: activeResult.zone.replace("_", " "),
           })
         }
       />
