@@ -29,7 +29,7 @@ import { CauriIcon, SankofaIcon, AbanIcon } from "@/components/kene/icons";
 import { KenteTop, Money, ApptStatusBadge } from "./ui-bits";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { formatTime, formatDate } from "@/lib/kene/format";
-import { formatRole, formatWorkScheduleLabel } from "@/lib/kene/hr-constants";
+import { formatRole, formatWorkScheduleLabel, evaluateEmployeeAttendance } from "@/lib/kene/hr-constants";
 import { waLink } from "@/lib/kene/followups";
 import { useApi } from "./useApi";
 import { apiGet } from "@/lib/kene/api";
@@ -173,6 +173,15 @@ export function EmployeeDashboardSection({
   const hour = now.getHours();
   const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bel après-midi" : "Bonsoir";
 
+  const evaluatedAttendance = evaluateEmployeeAttendance({
+    checkIn: attendance?.checkIn ?? null,
+    checkOut: attendance?.checkOut ?? null,
+    rawStatus: attendance?.status ?? null,
+    schedule: employeeSchedule ?? null,
+    tenantOpeningHour: employeeSchedule?.tenantOpeningHour ?? 9,
+    tenantClosingHour: employeeSchedule?.tenantClosingHour ?? 19,
+  });
+
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       {/* ── 1. BANNIÈRE PRESTIGE MÉTIER & BIENVENUE ── */}
@@ -216,14 +225,33 @@ export function EmployeeDashboardSection({
                     </span>
                   )}
                 </div>
-                <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <div className="text-xs font-semibold text-foreground flex items-center gap-1.5 flex-wrap">
                   {attendance?.checkIn ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
-                      <span className="size-2 rounded-full bg-emerald-500 animate-ping" />
-                      Arrivée à {attendance.checkIn}
-                    </span>
+                    <>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 font-bold",
+                          evaluatedAttendance.status === "late"
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-emerald-600 dark:text-emerald-400"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "size-2 rounded-full animate-ping",
+                            evaluatedAttendance.status === "late" ? "bg-amber-500" : "bg-emerald-500"
+                          )}
+                        />
+                        Arrivée à {attendance.checkIn}
+                      </span>
+                      <span className="text-[10.5px] font-mono text-muted-foreground">
+                        ({evaluatedAttendance.punctualityLabel})
+                      </span>
+                    </>
                   ) : (
-                    <span className="text-amber-600 dark:text-amber-400 font-medium">Non pointé(e)</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-medium">
+                      {evaluatedAttendance.punctualityLabel}
+                    </span>
                   )}
                 </div>
               </div>
@@ -236,7 +264,7 @@ export function EmployeeDashboardSection({
                   className="k-btn-gold text-primary-foreground font-bold h-9 px-3.5 rounded-xl text-xs gap-1.5 shadow whitespace-nowrap shrink-0"
                 >
                   <LogIn className="size-3.5 shrink-0" />
-                  <span>Pointer mon arrivée</span>
+                  <span>Pointer arrivée ({evaluatedAttendance.expectedStart.replace(":", "h")})</span>
                 </Button>
               ) : !attendance.checkOut ? (
                 <Button
@@ -247,7 +275,7 @@ export function EmployeeDashboardSection({
                   className="border-border hover:bg-muted font-medium h-9 px-3 rounded-xl text-xs gap-1.5"
                 >
                   <LogOut className="size-3.5 text-muted-foreground" />
-                  <span>Fin de service</span>
+                  <span>Fin de service ({evaluatedAttendance.expectedEnd.replace(":", "h")})</span>
                 </Button>
               ) : (
                 <Badge variant="outline" className="bg-muted text-muted-foreground text-xs py-1 px-2.5">

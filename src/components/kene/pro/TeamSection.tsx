@@ -75,6 +75,7 @@ import {
   SHIFT_PRESETS,
   WEEKDAYS_SHORT,
   formatWorkScheduleLabel,
+  evaluateEmployeeAttendance,
   type ModulableModule,
 } from "@/lib/kene/hr-constants";
 
@@ -221,6 +222,42 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
 
   const list = employees.data?.employees ?? [];
   const attendanceToday = employees.data?.attendanceToday ?? [];
+  const tenantOpeningHour = employees.data?.tenantOpeningHour ?? 9;
+  const tenantClosingHour = employees.data?.tenantClosingHour ?? 19;
+  const [companyHoursOpen, setCompanyHoursOpen] = useState(false);
+  const [companyOpenInput, setCompanyOpenInput] = useState<number | null>(null);
+  const [companyCloseInput, setCompanyCloseInput] = useState<number | null>(null);
+  const [savingCompanyHours, setSavingCompanyHours] = useState(false);
+
+  async function saveCompanyDefaultHours() {
+    const openH = companyOpenInput ?? tenantOpeningHour;
+    const closeH = companyCloseInput ?? tenantClosingHour;
+    if (closeH <= openH) {
+      toast.error("L'heure de fermeture doit être postérieure à l'heure d'arrivée");
+      return;
+    }
+    try {
+      setSavingCompanyHours(true);
+      await apiPatch("/api/pro/tenants", {
+        tenantId,
+        openingHour: openH,
+        closingHour: closeH,
+      });
+      toast.success(
+        `Horaires d'entreprise mis à jour (${String(openH).padStart(2, "0")}h00 – ${String(closeH).padStart(2, "0")}h00)`,
+        { description: "Le pointage des employés standards est désormais évalué sur cette heure d'arrivée." }
+      );
+      setCompanyHoursOpen(false);
+      await employees.refetch();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("kene:refresh-overview"));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Impossible d'enregistrer les horaires d'entreprise");
+    } finally {
+      setSavingCompanyHours(false);
+    }
+  }
   const leaveList = leaves.data?.leaves ?? [];
   const balances = leaves.data?.balances ?? [];
   const balanceOf = (id: string) => balances.find((b) => b.employeeId === id);
@@ -361,6 +398,144 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         )}
       </div>
 
+      {/* ── Bandeau Horaires d'arrivée de l'Entreprise & Pointage ── */}
+      <div className="rounded-2xl border border-gold/30 bg-gradient-to-r from-gold/10 via-card to-card p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-3 min-w-0">
+          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-text border border-gold/30">
+            <Clock className="size-4" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs sm:text-sm font-bold text-foreground">
+                Horaires d&apos;arrivée &amp; de fermeture de l&apos;entreprise :{" "}
+                <span className="font-mono text-gold-text">
+                  {String(tenantOpeningHour).padStart(2, "0")}h00 – {String(tenantClosingHour).padStart(2, "0")}h00
+                </span>
+              </p>
+              <Badge variant="outline" className="text-[10px] border-gold/40 bg-gold/10 text-gold-text">
+                Pointage indexé sur l&apos;heure d&apos;arrivée
+              </Badge>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Chaque pointage est évalué selon l&apos;heure d&apos;arrivée propre à l&apos;employé(e) (si définie sur sa fiche) ou selon l&apos;heure d&apos;arrivée générale de l&apos;entreprise ({String(tenantOpeningHour).padStart(2, "0")}h00).
+            </p>
+          </div>
+        </div>
+        {isOwner && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setCompanyOpenInput(tenantOpeningHour);
+                setCompanyCloseInput(tenantClosingHour);
+                setCompanyHoursOpen((v) => !v);
+              }}
+              className="h-8 text-xs gap-1.5 border-gold/40 text-gold-text hover:bg-gold/15 font-semibold"
+            >
+              <Clock className="size-3.5" />
+              {companyHoursOpen ? "Fermer" : "Régler l'heure d'arrivée entreprise"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {isOwner && companyHoursOpen && (
+        <div className="rounded-2xl border border-gold/40 bg-card p-4 space-y-3 shadow-sm animate-in fade-in duration-200">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gold-text">
+                Définir l&apos;heure d&apos;arrivée &amp; de fin de journée de l&apos;entreprise
+              </h4>
+              <p className="text-[11px] text-muted-foreground">
+                S&apos;applique automatiquement à tous les employés en « Horaires entreprise ». Pour un employé ayant des horaires différents, cliquez sur le crayon ✏️ de sa fiche.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "07h – 18h", o: 7, c: 18 },
+                { label: "08h – 18h", o: 8, c: 18 },
+                { label: "08h – 19h", o: 8, c: 19 },
+                { label: "09h – 19h", o: 9, c: 19 },
+                { label: "09h – 20h", o: 9, c: 20 },
+                { label: "10h – 20h", o: 10, c: 20 },
+              ].map((p) => {
+                const active =
+                  (companyOpenInput ?? tenantOpeningHour) === p.o &&
+                  (companyCloseInput ?? tenantClosingHour) === p.c;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      setCompanyOpenInput(p.o);
+                      setCompanyCloseInput(p.c);
+                    }}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer",
+                      active
+                        ? "bg-gold/20 border-gold text-gold-text font-bold"
+                        : "bg-muted/50 border-border text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end pt-1">
+            <div>
+              <Label className="text-xs">Heure d&apos;arrivée entreprise (Début)</Label>
+              <Select
+                value={String(companyOpenInput ?? tenantOpeningHour)}
+                onValueChange={(v) => setCompanyOpenInput(Number(v))}
+              >
+                <SelectTrigger className="mt-1 h-9 text-xs font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 19 }, (_, i) => i + 5).map((h) => (
+                    <SelectItem key={h} value={String(h)} className="text-xs font-mono">
+                      {String(h).padStart(2, "0")}h00
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Heure de fermeture entreprise (Fin)</Label>
+              <Select
+                value={String(companyCloseInput ?? tenantClosingHour)}
+                onValueChange={(v) => setCompanyCloseInput(Number(v))}
+              >
+                <SelectTrigger className="mt-1 h-9 text-xs font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 17 }, (_, i) => i + 12).map((h) => (
+                    <SelectItem key={h} value={String(h)} className="text-xs font-mono">
+                      {String(h).padStart(2, "0")}h00
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => void saveCompanyDefaultHours()}
+                disabled={savingCompanyHours}
+                className="h-9 flex-1 k-btn-gold text-[#18120C] font-bold text-xs"
+              >
+                {savingCompanyHours ? "Enregistrement..." : "Valider l'heure d'arrivée"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Fiches ── */}
       {employees.error && !employees.data ? (
         typeof navigator !== "undefined" && !navigator.onLine ? (
@@ -391,10 +566,53 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {list.map((emp) => {
             const att = attendanceToday.find((a) => a.employeeId === emp.id);
-            const st = ATTENDANCE_STYLES[att?.status ?? "absent"] ?? ATTENDANCE_STYLES.absent;
+            const cur = leaveList.find((l) => l.employeeId === emp.id && l.current);
+            const ev = evaluateEmployeeAttendance({
+              checkIn: att?.checkIn ?? null,
+              checkOut: att?.checkOut ?? null,
+              rawStatus: cur ? "leave" : (att?.status ?? null),
+              schedule: { workStart: emp.workStart, workEnd: emp.workEnd, workDays: emp.workDays },
+              tenantOpeningHour,
+              tenantClosingHour,
+            });
+            const effectiveStatus = cur ? "leave" : (att?.checkIn ? ev.status : "absent");
+            let st = ATTENDANCE_STYLES[effectiveStatus] ?? ATTENDANCE_STYLES.absent;
+            if (!att?.checkIn && !cur) {
+              if (ev.shiftState === "upcoming") {
+                st = {
+                  label: `Service à ${ev.expectedStart.replace(":", "h")}`,
+                  cls: "bg-gold/15 text-gold-text border-gold/30",
+                };
+              } else if (ev.shiftState === "rest_day") {
+                st = {
+                  label: "Jour de repos",
+                  cls: "bg-muted text-muted-foreground border-border",
+                };
+              } else if (ev.shiftState === "late_unpointed") {
+                st = {
+                  label: `Non pointé(e) · prévu ${ev.expectedStart.replace(":", "h")}`,
+                  cls: "bg-sunset/15 text-sunset border-sunset/30",
+                };
+              } else {
+                st = {
+                  label: `Attendu(e) à ${ev.expectedStart.replace(":", "h")}`,
+                  cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+                };
+              }
+            } else if (att?.checkIn && !cur) {
+              st =
+                ev.status === "late"
+                  ? {
+                      label: ev.punctualityLabel,
+                      cls: "bg-sunset/15 text-sunset border-sunset/30 font-bold",
+                    }
+                  : {
+                      label: `À l'heure · Prévu ${ev.expectedStart.replace(":", "h")}`,
+                      cls: "bg-success/15 text-success border-success/30 font-bold",
+                    };
+            }
             const primes = (emp.transport ?? 0) + (emp.housing ?? 0);
             const bal = balanceOf(emp.id);
-            const cur = leaveList.find((l) => l.employeeId === emp.id && l.current);
             return (
               <Card key={emp.id} className={cn("gap-2 overflow-hidden", !emp.active && "opacity-75")}>
                 <CardContent className="p-4 space-y-3">
@@ -447,7 +665,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                     )}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-muted-foreground flex items-center gap-1">
-                        <Clock className="size-3 text-gold-text" aria-hidden="true" /> Horaires
+                        <Clock className="size-3 text-gold-text" aria-hidden="true" /> Horaires d&apos;arrivée
                       </span>
                       <span
                         className={cn(
@@ -459,8 +677,8 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                       >
                         {formatWorkScheduleLabel(
                           { workStart: emp.workStart, workEnd: emp.workEnd, workDays: emp.workDays },
-                          9,
-                          19
+                          tenantOpeningHour,
+                          tenantClosingHour
                         )}
                       </span>
                     </div>
@@ -543,11 +761,20 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
 
                   {emp.active && (
                     <div className="rounded-xl border border-border bg-muted/40 p-2.5 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
                         <Badge variant="outline" className={cn("text-[10px]", st.cls)}>{st.label}</Badge>
                         <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
                           {att?.checkIn ?? "--:--"} → {att?.checkOut ?? "--:--"}
                           {att?.hours ? ` (${att.hours} h)` : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10.5px] text-muted-foreground px-0.5">
+                        <span>
+                          Arrivée définie : <strong className="font-mono text-foreground">{ev.expectedStart.replace(":", "h")}</strong> · Fin :{" "}
+                          <strong className="font-mono text-foreground">{ev.expectedEnd.replace(":", "h")}</strong>
+                        </span>
+                        <span className="text-[10px]">
+                          {emp.workStart ? "Horaire individuel" : "Horaire entreprise"}
                         </span>
                       </div>
                       {att?.status === "leave" || cur ? (
@@ -564,7 +791,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                             className="h-7 text-[11px] gap-1"
                             onClick={() => void point(emp.id, "in", emp.name)}
                           >
-                            <LogIn className="size-3" aria-hidden="true" /> Arrivée
+                            <LogIn className="size-3" aria-hidden="true" /> Arrivée ({ev.expectedStart.replace(":", "h")})
                           </Button>
                           <Button
                             size="sm"
@@ -573,7 +800,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                             className="h-7 text-[11px] gap-1"
                             onClick={() => void point(emp.id, "out", emp.name)}
                           >
-                            <LogOut className="size-3" aria-hidden="true" /> Départ
+                            <LogOut className="size-3" aria-hidden="true" /> Départ ({ev.expectedEnd.replace(":", "h")})
                           </Button>
                         </div>
                       )}
@@ -764,6 +991,8 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         onOpenChange={setHireOpen}
         tenantId={tenantId}
         defaultCountry={defaultCountry}
+        tenantOpeningHour={tenantOpeningHour}
+        tenantClosingHour={tenantClosingHour}
         onCreated={() => void refreshTeam()}
       />
       {editing && (
@@ -771,6 +1000,8 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
           key={editing.id}
           employee={editing}
           tenantId={tenantId}
+          tenantOpeningHour={tenantOpeningHour}
+          tenantClosingHour={tenantClosingHour}
           onClose={() => setEditing(null)}
           onSaved={() => void employees.refetch()}
         />
@@ -1089,15 +1320,21 @@ function WorkScheduleSelector({
   workStart,
   workEnd,
   workDays,
+  tenantOpeningHour = 9,
+  tenantClosingHour = 19,
   onChange,
 }: {
   workStart: string | null;
   workEnd: string | null;
   workDays: number[] | null;
+  tenantOpeningHour?: number;
+  tenantClosingHour?: number;
   onChange: (next: { workStart: string | null; workEnd: string | null; workDays: number[] | null }) => void;
 }) {
   const activeDays = workDays && workDays.length > 0 ? workDays : [1, 2, 3, 4, 5, 6];
   const isCustomHours = Boolean(workStart || workEnd);
+  const defaultStartStr = `${String(tenantOpeningHour).padStart(2, "0")}:00`;
+  const defaultEndStr = `${String(tenantClosingHour).padStart(2, "0")}:00`;
 
   const toggleDay = (d: number) => {
     const exists = activeDays.includes(d);
@@ -1115,17 +1352,17 @@ function WorkScheduleSelector({
           <div className="flex items-center gap-1.5">
             <Clock className="size-4 text-gold-text" />
             <span className="text-xs font-semibold text-foreground">
-              Horaires de travail &amp; Jours de présence
+              Horaires d&apos;arrivée &amp; Jours de présence
             </span>
             <Badge
               variant="outline"
               className="text-[10px] bg-gold/15 text-gold-text border-gold/30 font-bold"
             >
-              {formatWorkScheduleLabel({ workStart, workEnd, workDays: activeDays }, 9, 19)}
+              {formatWorkScheduleLabel({ workStart, workEnd, workDays: activeDays }, tenantOpeningHour, tenantClosingHour)}
             </Badge>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Chaque collaboratrice peut avoir ses propres heures de début et de fin (ex: équipe matin, après-midi, temps partiel). Le pointage s&apos;adapte automatiquement à son horaire.
+            Le pointage de cet(te) employé(e) sera calculé en fonction de cette heure d&apos;arrivée ({workStart ?? defaultStartStr}).
           </p>
         </div>
       </div>
@@ -1156,7 +1393,9 @@ function WorkScheduleSelector({
                   : "bg-background/80 text-muted-foreground border-border/70 hover:text-foreground"
               )}
             >
-              {preset.shortLabel}
+              {preset.id === "company_default"
+                ? `Horaires entreprise (${String(tenantOpeningHour).padStart(2, "0")}h–${String(tenantClosingHour).padStart(2, "0")}h)`
+                : preset.shortLabel}
             </button>
           );
         })}
@@ -1166,24 +1405,24 @@ function WorkScheduleSelector({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <Label className="text-[11px] font-semibold">Heure de prise de poste (Début)</Label>
+            <Label className="text-[11px] font-semibold">Heure d&apos;arrivée prévue (Pointage)</Label>
             {workStart && (
               <button
                 type="button"
                 onClick={() => onChange({ workStart: null, workEnd, workDays: activeDays })}
                 className="text-[10px] text-muted-foreground hover:text-foreground underline cursor-pointer"
               >
-                Heure salon
+                Heure entreprise ({defaultStartStr})
               </button>
             )}
           </div>
           <Input
             type="time"
-            value={workStart ?? "09:00"}
+            value={workStart ?? defaultStartStr}
             onChange={(e) =>
               onChange({
                 workStart: e.target.value || null,
-                workEnd: workEnd ?? "19:00",
+                workEnd: workEnd ?? defaultEndStr,
                 workDays: activeDays,
               })
             }
@@ -1192,23 +1431,23 @@ function WorkScheduleSelector({
         </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <Label className="text-[11px] font-semibold">Heure de fin de service (Fermeture)</Label>
+            <Label className="text-[11px] font-semibold">Heure de fin de service (Départ)</Label>
             {workEnd && (
               <button
                 type="button"
                 onClick={() => onChange({ workStart, workEnd: null, workDays: activeDays })}
                 className="text-[10px] text-muted-foreground hover:text-foreground underline cursor-pointer"
               >
-                Heure salon
+                Heure entreprise ({defaultEndStr})
               </button>
             )}
           </div>
           <Input
             type="time"
-            value={workEnd ?? "19:00"}
+            value={workEnd ?? defaultEndStr}
             onChange={(e) =>
               onChange({
-                workStart: workStart ?? "09:00",
+                workStart: workStart ?? defaultStartStr,
                 workEnd: e.target.value || null,
                 workDays: activeDays,
               })
@@ -1266,12 +1505,16 @@ function HireDialog({
   onOpenChange,
   tenantId,
   defaultCountry,
+  tenantOpeningHour = 9,
+  tenantClosingHour = 19,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   tenantId: string;
   defaultCountry: string;
+  tenantOpeningHour?: number;
+  tenantClosingHour?: number;
   onCreated: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -1521,6 +1764,8 @@ function HireDialog({
             workStart={workStart}
             workEnd={workEnd}
             workDays={workDays}
+            tenantOpeningHour={tenantOpeningHour}
+            tenantClosingHour={tenantClosingHour}
             onChange={(next) => {
               setWorkStart(next.workStart);
               setWorkEnd(next.workEnd);
@@ -1548,11 +1793,15 @@ function HireDialog({
 function EditDialog({
   employee,
   tenantId,
+  tenantOpeningHour = 9,
+  tenantClosingHour = 19,
   onClose,
   onSaved,
 }: {
   employee: ProEmployee;
   tenantId: string;
+  tenantOpeningHour?: number;
+  tenantClosingHour?: number;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
@@ -1818,6 +2067,8 @@ function EditDialog({
             workStart={workStart}
             workEnd={workEnd}
             workDays={workDays}
+            tenantOpeningHour={tenantOpeningHour}
+            tenantClosingHour={tenantClosingHour}
             onChange={(next) => {
               setWorkStart(next.workStart);
               setWorkEnd(next.workEnd);

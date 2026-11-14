@@ -10,6 +10,7 @@ import {
   parseEmployeeScheduleFromRaw,
   timeHHMMToMinutes,
   isValidTimeHHMM,
+  evaluateEmployeeAttendance,
 } from "@/lib/kene/hr-constants";
 
 const Body = z.object({
@@ -59,9 +60,38 @@ export async function GET(req: NextRequest) {
     const sched = parseEmployeeScheduleFromRaw(employee.permissions);
     const tenantOpen = authorizedTenant.openingHour ?? 9;
     const tenantClose = authorizedTenant.closingHour ?? 19;
+    const evaluated = evaluateEmployeeAttendance({
+      checkIn: attendance?.checkIn ?? null,
+      checkOut: attendance?.checkOut ?? null,
+      rawStatus: attendance?.status ?? null,
+      schedule: sched,
+      tenantOpeningHour: tenantOpen,
+      tenantClosingHour: tenantClose,
+    });
+
+    // Synchroniser automatiquement le statut en base si l'horaire d'arrivée de l'employé ou de l'entreprise a été modifié
+    if (attendance && attendance.checkIn && attendance.status !== "leave" && attendance.status !== evaluated.status) {
+      void db.attendance
+        .update({
+          where: { id: attendance.id },
+          data: { status: evaluated.status },
+        })
+        .catch(() => {});
+    }
 
     return NextResponse.json({
-      attendance,
+      attendance: attendance
+        ? {
+            ...attendance,
+            status: evaluated.status,
+            expectedStart: evaluated.expectedStart,
+            expectedEnd: evaluated.expectedEnd,
+            lateMinutes: evaluated.lateMinutes,
+            earlyMinutes: evaluated.earlyMinutes,
+            shiftState: evaluated.shiftState,
+            punctualityLabel: evaluated.punctualityLabel,
+          }
+        : null,
       employee: {
         id: employee.id,
         name: employee.name,
@@ -70,6 +100,10 @@ export async function GET(req: NextRequest) {
         workStart: sched.workStart,
         workEnd: sched.workEnd,
         workDays: sched.workDays,
+        expectedStart: evaluated.expectedStart,
+        expectedEnd: evaluated.expectedEnd,
+        shiftState: evaluated.shiftState,
+        punctualityLabel: evaluated.punctualityLabel,
         tenantOpeningHour: tenantOpen,
         tenantClosingHour: tenantClose,
       },
@@ -175,13 +209,29 @@ export async function POST(req: NextRequest) {
 
     if (parsed.data.action === "in") {
       const time = hhmm(now);
-      const minutes = now.getHours() * 60 + now.getMinutes();
-      // Tolérance de 15 minutes après l'heure de prise de poste prévue (horaire individuel ou ouverture entreprise)
-      const status = minutes > expectedStartMin + 15 ? "late" : "present";
+      const evaluated = evaluateEmployeeAttendance({
+        checkIn: time,
+        checkOut: existing?.checkOut ?? null,
+        schedule: sched,
+        tenantOpeningHour: tenantOpenHour,
+        tenantClosingHour: tenantCloseHour,
+      });
+      const status = evaluated.status;
       const attendance = existing
         ? await db.attendance.update({ where: { id: existing.id }, data: { checkIn: time, status } })
         : await db.attendance.create({ data: { employeeId: employee.id, date: now, checkIn: time, status } });
-      return NextResponse.json({ attendance, employee });
+      return NextResponse.json({
+        attendance: {
+          ...attendance,
+          expectedStart: evaluated.expectedStart,
+          expectedEnd: evaluated.expectedEnd,
+          lateMinutes: evaluated.lateMinutes,
+          earlyMinutes: evaluated.earlyMinutes,
+          shiftState: evaluated.shiftState,
+          punctualityLabel: evaluated.punctualityLabel,
+        },
+        employee,
+      });
     }
 
     // action "out"
@@ -198,11 +248,29 @@ export async function POST(req: NextRequest) {
       const [h, m] = existing.checkIn.split(":").map(Number);
       hours = Math.max(0, Math.round(((now.getHours() * 60 + now.getMinutes()) - (h * 60 + m)) / 6) / 10);
     }
+    const evaluatedOut = evaluateEmployeeAttendance({
+      checkIn: existing.checkIn,
+      checkOut: time,
+      schedule: sched,
+      tenantOpeningHour: tenantOpenHour,
+      tenantClosingHour: tenantCloseHour,
+    });
     const attendance = await db.attendance.update({
       where: { id: existing.id },
-      data: { checkOut: time, hours },
+      data: { checkOut: time, hours, status: evaluatedOut.status },
     });
-    return NextResponse.json({ attendance, employee });
+    return NextResponse.json({
+      attendance: {
+        ...attendance,
+        expectedStart: evaluatedOut.expectedStart,
+        expectedEnd: evaluatedOut.expectedEnd,
+        lateMinutes: evaluatedOut.lateMinutes,
+        earlyMinutes: evaluatedOut.earlyMinutes,
+        shiftState: evaluatedOut.shiftState,
+        punctualityLabel: evaluatedOut.punctualityLabel,
+      },
+      employee,
+    });
   } catch (err) {
     return serverError("pro/employees/attendance", err);
   }

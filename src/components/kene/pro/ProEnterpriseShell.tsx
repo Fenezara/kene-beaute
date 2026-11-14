@@ -86,7 +86,7 @@ import { KeneMirrorKioskModal } from "./KeneMirrorKioskModal";
 import { AssistantSection } from "./AssistantSection";
 import { TeamCommsDrawer } from "./TeamCommsDrawer";
 import { ProWalkthroughTour, PRO_TOUR_STORAGE_KEY_PREFIX } from "./ProWalkthroughTour";
-import { formatRole } from "@/lib/kene/hr-constants";
+import { formatRole, evaluateEmployeeAttendance } from "@/lib/kene/hr-constants";
 
 export type ProSectionId =
   | "dashboard"
@@ -1242,44 +1242,59 @@ export function ProEnterpriseShell() {
               </span>
             )}
 
-            {staffEmployee && (
-              <div className="hidden md:flex items-center shrink-0">
-                {!staffAttendance?.checkIn ? (
-                  <button
-                    type="button"
-                    onClick={() => handleSelfPointage("in")}
-                    disabled={attendanceBusy}
-                    className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
-                    title="Enregistrer mon heure d'arrivée au salon"
-                  >
-                    <LogIn size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span className="hidden 2xl:inline">Pointer mon arrivée</span>
-                    <span className="2xl:hidden">Pointer arrivée</span>
-                  </button>
-                ) : !staffAttendance?.checkOut ? (
-                  <button
-                    type="button"
-                    onClick={() => handleSelfPointage("out")}
-                    disabled={attendanceBusy}
-                    className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
-                    title="Enregistrer mon départ du salon"
-                  >
-                    <LogOut size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span className="hidden 2xl:inline">Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
-                    <span className="2xl:hidden">{staffAttendance.checkIn} · Sortie</span>
-                  </button>
-                ) : (
-                  <span
-                    className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
-                    title={`Pointage effectué aujourd'hui : ${staffAttendance.checkIn} → ${staffAttendance.checkOut} (${staffAttendance.hours || 0}h)`}
-                  >
-                    <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
-                    <span className="hidden 2xl:inline">Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
-                    <span className="2xl:hidden">Pointé</span>
-                  </span>
-                )}
-              </div>
-            )}
+            {staffEmployee && (() => {
+              const evStaff = evaluateEmployeeAttendance({
+                checkIn: staffAttendance?.checkIn ?? null,
+                checkOut: staffAttendance?.checkOut ?? null,
+                rawStatus: staffAttendance?.status ?? null,
+                schedule: {
+                  workStart: staffEmployee.workStart,
+                  workEnd: staffEmployee.workEnd,
+                  workDays: staffEmployee.workDays,
+                },
+                tenantOpeningHour: staffEmployee.tenantOpeningHour ?? 9,
+                tenantClosingHour: staffEmployee.tenantClosingHour ?? 19,
+              });
+              const expStartFmt = evStaff.expectedStart.replace(":", "h");
+              return (
+                <div className="hidden md:flex items-center shrink-0">
+                  {!staffAttendance?.checkIn ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSelfPointage("in")}
+                      disabled={attendanceBusy}
+                      className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                      title={`Enregistrer mon heure d'arrivée au salon (${evStaff.punctualityLabel})`}
+                    >
+                      <LogIn size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span className="hidden 2xl:inline">Pointer arrivée ({expStartFmt})</span>
+                      <span className="2xl:hidden">Pointer ({expStartFmt})</span>
+                    </button>
+                  ) : !staffAttendance?.checkOut ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSelfPointage("out")}
+                      disabled={attendanceBusy}
+                      className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                      title={`Enregistrer mon départ du salon (${evStaff.punctualityLabel})`}
+                    >
+                      <LogOut size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="hidden 2xl:inline">Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
+                      <span className="2xl:hidden">{staffAttendance.checkIn} · Sortie</span>
+                    </button>
+                  ) : (
+                    <span
+                      className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
+                      title={`Pointage effectué aujourd'hui : ${staffAttendance.checkIn} → ${staffAttendance.checkOut} (${staffAttendance.hours || 0}h · ${evStaff.punctualityLabel})`}
+                    >
+                      <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                      <span className="hidden 2xl:inline">Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
+                      <span className="2xl:hidden">Pointé</span>
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             <button
               type="button"

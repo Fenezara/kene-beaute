@@ -99,6 +99,10 @@ export interface StaffPresenceItem {
   name: string;
   role: string;
   checkIn?: string | null;
+  status?: string;
+  expectedStart?: string;
+  shiftState?: string;
+  punctualityLabel?: string;
 }
 
 export interface ProStaffPresence {
@@ -469,11 +473,19 @@ export interface AttendanceRow {
   checkOut: string | null;
   status: string; // present | late | absent | leave
   hours: number;
+  expectedStart?: string;
+  expectedEnd?: string;
+  lateMinutes?: number;
+  earlyMinutes?: number;
+  shiftState?: string;
+  punctualityLabel?: string;
 }
 
 export interface EmployeesResponse {
   employees: ProEmployee[];
   attendanceToday: AttendanceRow[];
+  tenantOpeningHour?: number;
+  tenantClosingHour?: number;
 }
 
 // ─────────────── Congés ───────────────

@@ -8,6 +8,7 @@ import { hashPin, isValidPin } from "@/lib/kene/pin";
 import {
   parseEmployeeScheduleFromRaw,
   serializePermissionsWithSchedule,
+  evaluateEmployeeAttendance,
 } from "@/lib/kene/hr-constants";
 
 const PRACTITIONER_ROLES = new Set([
@@ -149,16 +150,78 @@ export async function GET(req: NextRequest) {
     // même sans ligne de pointage (le congé prime sur le pointage).
     const onLeaveIds = new Set(leavesToday.map((l) => l.employeeId));
     const seen = new Set(attendanceToday.map((a) => a.employeeId));
-    const rows = attendanceToday.map((a) =>
-      onLeaveIds.has(a.employeeId) ? { ...a, status: "leave" } : a,
-    );
+    const empById = new Map(employees.map((e) => [e.id, e]));
+    const tenantOpenHour = tenant.openingHour ?? 9;
+    const tenantCloseHour = tenant.closingHour ?? 19;
+
+    const rows = attendanceToday.map((a) => {
+      const emp = empById.get(a.employeeId);
+      const sched = parseEmployeeScheduleFromRaw(emp?.permissions);
+      const rawStatus = onLeaveIds.has(a.employeeId) ? "leave" : a.status;
+      const evaluated = evaluateEmployeeAttendance({
+        checkIn: a.checkIn,
+        checkOut: a.checkOut,
+        rawStatus,
+        schedule: sched,
+        tenantOpeningHour: tenantOpenHour,
+        tenantClosingHour: tenantCloseHour,
+      });
+
+      // Synchroniser en base si l'horaire d'arrivée a été modifié après le pointage
+      if (a.checkIn && rawStatus !== "leave" && a.status !== evaluated.status && !a.id.startsWith("leave-")) {
+        void db.attendance
+          .update({ where: { id: a.id }, data: { status: evaluated.status } })
+          .catch(() => {});
+      }
+
+      return {
+        ...a,
+        status: evaluated.status,
+        expectedStart: evaluated.expectedStart,
+        expectedEnd: evaluated.expectedEnd,
+        lateMinutes: evaluated.lateMinutes,
+        earlyMinutes: evaluated.earlyMinutes,
+        shiftState: evaluated.shiftState,
+        punctualityLabel: evaluated.punctualityLabel,
+      };
+    });
+
     for (const emp of employees) {
       if (onLeaveIds.has(emp.id) && !seen.has(emp.id)) {
-        rows.push({ id: `leave-${emp.id}`, date: new Date(), employeeId: emp.id, checkIn: null, checkOut: null, status: "leave", hours: 0, employee: { id: emp.id, name: emp.name } });
+        const sched = parseEmployeeScheduleFromRaw(emp.permissions);
+        const evaluated = evaluateEmployeeAttendance({
+          checkIn: null,
+          checkOut: null,
+          rawStatus: "leave",
+          schedule: sched,
+          tenantOpeningHour: tenantOpenHour,
+          tenantClosingHour: tenantCloseHour,
+        });
+        rows.push({
+          id: `leave-${emp.id}`,
+          date: new Date(),
+          employeeId: emp.id,
+          checkIn: null,
+          checkOut: null,
+          status: "leave",
+          hours: 0,
+          expectedStart: evaluated.expectedStart,
+          expectedEnd: evaluated.expectedEnd,
+          lateMinutes: 0,
+          earlyMinutes: 0,
+          shiftState: "leave",
+          punctualityLabel: "En congé",
+          employee: { id: emp.id, name: emp.name },
+        });
       }
     }
 
-    return NextResponse.json({ employees: await withAccountPhones(employees), attendanceToday: rows });
+    return NextResponse.json({
+      employees: await withAccountPhones(employees),
+      attendanceToday: rows,
+      tenantOpeningHour: tenantOpenHour,
+      tenantClosingHour: tenantCloseHour,
+    });
   } catch (err) {
     return serverError("pro/employees:get", err);
   }

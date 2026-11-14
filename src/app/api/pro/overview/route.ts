@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, resolveProTenants, resolveUserProContext, dayStart, dayEnd, daysAgo, ddMM } from "@/lib/kene/server";
 import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 import { parseSplitPayments } from "@/lib/accounting/split-payment";
+import {
+  parseEmployeeScheduleFromRaw,
+  evaluateEmployeeAttendance,
+} from "@/lib/kene/hr-constants";
 
 export async function GET(req: NextRequest) {
   try {
@@ -204,7 +208,7 @@ export async function GET(req: NextRequest) {
       // Employées actives du salon (pour la jauge de présence en direct sur le tableau de bord)
       db.employee.findMany({
         where: { tenantId: tenant.id, active: true },
-        select: { id: true, name: true, role: true },
+        select: { id: true, name: true, role: true, permissions: true },
         orderBy: { name: "asc" },
       }),
       // Pointages du jour
@@ -482,26 +486,76 @@ export async function GET(req: NextRequest) {
     const monthlyFixedCosts = 600000; // Charges fixes de référence
     const pacingPercentage = monthlyRevenueTarget > 0 ? Math.min(100, Math.round((currentMonthRevenue / monthlyRevenueTarget) * 100)) : 0;
 
-    // Calcul de la présence du personnel en temps réel (pour le tableau de bord)
+    // Calcul de la présence du personnel en temps réel selon les horaires d'arrivée définis (entreprise ou employé)
     const onLeaveEmpIds = new Set(leavesToday.map((l) => l.employeeId));
-    const attendanceMap = new Map<string, { checkIn: string | null; status: string }>();
+    const attendanceMap = new Map<string, { checkIn: string | null; checkOut: string | null; status: string }>();
     for (const a of attendancesToday) {
       if (a.checkIn && a.status !== "leave" && !onLeaveEmpIds.has(a.employeeId)) {
-        attendanceMap.set(a.employeeId, { checkIn: a.checkIn, status: a.status });
+        attendanceMap.set(a.employeeId, { checkIn: a.checkIn, checkOut: a.checkOut, status: a.status });
       }
     }
 
-    const presentStaff: { id: string; name: string; role: string; checkIn: string | null }[] = [];
-    const absentStaff: { id: string; name: string; role: string }[] = [];
+    const tenantOpenHour = tenant.openingHour ?? 9;
+    const tenantCloseHour = tenant.closingHour ?? 19;
+
+    const presentStaff: {
+      id: string;
+      name: string;
+      role: string;
+      checkIn: string | null;
+      status?: string;
+      expectedStart?: string;
+      punctualityLabel?: string;
+    }[] = [];
+    const absentStaff: {
+      id: string;
+      name: string;
+      role: string;
+      expectedStart?: string;
+      shiftState?: string;
+      punctualityLabel?: string;
+    }[] = [];
     const onLeaveStaff: { id: string; name: string; role: string }[] = [];
 
     for (const emp of activeEmployeesList) {
+      const sched = parseEmployeeScheduleFromRaw(emp.permissions);
       if (onLeaveEmpIds.has(emp.id)) {
         onLeaveStaff.push({ id: emp.id, name: emp.name, role: emp.role });
       } else if (attendanceMap.has(emp.id)) {
-        presentStaff.push({ id: emp.id, name: emp.name, role: emp.role, checkIn: attendanceMap.get(emp.id)!.checkIn });
+        const att = attendanceMap.get(emp.id)!;
+        const ev = evaluateEmployeeAttendance({
+          checkIn: att.checkIn,
+          checkOut: att.checkOut,
+          rawStatus: att.status,
+          schedule: sched,
+          tenantOpeningHour: tenantOpenHour,
+          tenantClosingHour: tenantCloseHour,
+        });
+        presentStaff.push({
+          id: emp.id,
+          name: emp.name,
+          role: emp.role,
+          checkIn: att.checkIn,
+          status: ev.status,
+          expectedStart: ev.expectedStart,
+          punctualityLabel: ev.punctualityLabel,
+        });
       } else {
-        absentStaff.push({ id: emp.id, name: emp.name, role: emp.role });
+        const ev = evaluateEmployeeAttendance({
+          checkIn: null,
+          checkOut: null,
+          schedule: sched,
+          tenantOpeningHour: tenantOpenHour,
+          tenantClosingHour: tenantCloseHour,
+        });
+        absentStaff.push({
+          id: emp.id,
+          name: emp.name,
+          role: emp.role,
+          expectedStart: ev.expectedStart,
+          shiftState: ev.shiftState,
+          punctualityLabel: ev.punctualityLabel,
+        });
       }
     }
 

@@ -5,6 +5,11 @@ import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { buildAttendanceExcel, type AttendanceExportRow } from "@/lib/accounting/excel";
 import { toCsv, type CsvCell } from "@/lib/accounting/csv";
+import {
+  parseEmployeeScheduleFromRaw,
+  evaluateEmployeeAttendance,
+  getIsoWeekday,
+} from "@/lib/kene/hr-constants";
 
 export async function GET(req: NextRequest) {
   try {
@@ -49,20 +54,39 @@ export async function GET(req: NextRequest) {
         ...(dateFilter ? { date: dateFilter } : {}),
       },
       include: {
-        employee: { select: { name: true, role: true } },
+        employee: { select: { name: true, role: true, permissions: true } },
       },
       orderBy: [{ date: "desc" }, { checkIn: "asc" }],
     });
 
-    const rows: AttendanceExportRow[] = attendances.map((a) => ({
-      date: a.date,
-      employeeName: a.employee.name,
-      role: a.employee.role,
-      checkIn: a.checkIn,
-      checkOut: a.checkOut,
-      hoursWorked: a.hours,
-      status: (a.status as "present" | "late" | "absent" | "leave") || "present",
-    }));
+    const tenantOpenHour = tenant.openingHour ?? 9;
+    const tenantCloseHour = tenant.closingHour ?? 19;
+
+    const rows: (AttendanceExportRow & { expectedStart: string; expectedEnd: string; punctualityLabel: string })[] =
+      attendances.map((a) => {
+        const sched = parseEmployeeScheduleFromRaw(a.employee.permissions);
+        const ev = evaluateEmployeeAttendance({
+          checkIn: a.checkIn,
+          checkOut: a.checkOut,
+          rawStatus: a.status,
+          schedule: sched,
+          tenantOpeningHour: tenantOpenHour,
+          tenantClosingHour: tenantCloseHour,
+          isoWeekday: getIsoWeekday(a.date),
+        });
+        return {
+          date: a.date,
+          employeeName: a.employee.name,
+          role: a.employee.role,
+          checkIn: a.checkIn,
+          checkOut: a.checkOut,
+          hoursWorked: a.hours,
+          status: (ev.status as "present" | "late" | "absent" | "leave") || "present",
+          expectedStart: ev.expectedStart,
+          expectedEnd: ev.expectedEnd,
+          punctualityLabel: ev.punctualityLabel,
+        };
+      });
 
     const countLabel = `${attendances.length} pointages enregistrés`;
     const meta = {
@@ -82,17 +106,19 @@ export async function GET(req: NextRequest) {
         [tenant.name],
         [`Période : ${periodStr} · ${countLabel}`],
         [],
-        ["Date", "Collaboratrice", "Rôle", "Heure Arrivée", "Heure Départ", "Heures", "Statut"],
+        ["Date", "Collaboratrice", "Rôle", "Horaire Prévu", "Heure Arrivée", "Heure Départ", "Heures", "Statut", "Ponctualité"],
       ];
       for (const r of rows) {
         csvRows.push([
           new Date(r.date).toLocaleDateString("fr-FR"),
           r.employeeName,
           r.role,
+          `${r.expectedStart} – ${r.expectedEnd}`,
           r.checkIn ?? "--:--",
           r.checkOut ?? "--:--",
           r.hoursWorked,
           r.status,
+          r.punctualityLabel,
         ]);
       }
       return new NextResponse(toCsv(csvRows), {

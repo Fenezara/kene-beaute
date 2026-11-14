@@ -26,7 +26,7 @@ import { InitialAvatar, SectionHeader } from "./ui-bits";
 import type { ProSectionId } from "./ProApp";
 import { Switch } from "@/components/ui/switch";
 import { getTenantPosSettings, saveTenantPosSettings, type TenantPosSettings } from "@/lib/kene/tenant-settings";
-import { formatRole, formatWorkScheduleLabel } from "@/lib/kene/hr-constants";
+import { formatRole, formatWorkScheduleLabel, evaluateEmployeeAttendance } from "@/lib/kene/hr-constants";
 import { CommercialKitModal } from "./CommercialKitModal";
 import { TierThemeSelector } from "@/components/kene/TierThemeSelector";
 import { ContactKeneModal } from "@/components/kene/client/ContactKeneModal";
@@ -321,6 +321,14 @@ export function SettingsSection({
     void performLogout({ redirectUrl: "/", message: "Session institut fermée" });
   }
 
+  const evaluatedStaffAttendance = evaluateEmployeeAttendance({
+    checkIn: staffAttendance?.checkIn ?? null,
+    checkOut: staffAttendance?.checkOut ?? null,
+    schedule: employeeSchedule ?? null,
+    tenantOpeningHour: employeeSchedule?.tenantOpeningHour ?? openingHour,
+    tenantClosingHour: employeeSchedule?.tenantClosingHour ?? closingHour,
+  });
+
   return (
     <div className="w-full max-w-7xl space-y-6">
       <SectionHeader
@@ -477,32 +485,39 @@ export function SettingsSection({
                   Journée clôturée
                 </Badge>
               ) : (
-                <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
-                  En poste
+                <Badge
+                  variant="outline"
+                  className={
+                    evaluatedStaffAttendance.status === "late"
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold"
+                      : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold"
+                  }
+                >
+                  {evaluatedStaffAttendance.punctualityLabel}
                 </Badge>
               )
             ) : (
               <Badge variant="outline" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
-                Non pointé
+                {evaluatedStaffAttendance.punctualityLabel}
               </Badge>
             )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
             <div className="rounded-xl bg-muted/40 p-2.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Arrivée</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                Arrivée (prévu {evaluatedStaffAttendance.expectedStart.replace(":", "h")})
+              </span>
               <span className="text-xs font-mono font-bold text-foreground block mt-0.5">
-                {staffAttendance?.checkIn
-                  ? new Date(staffAttendance.checkIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                  : "—"}
+                {staffAttendance?.checkIn || "—"}
               </span>
             </div>
             <div className="rounded-xl bg-muted/40 p-2.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Départ</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                Départ (prévu {evaluatedStaffAttendance.expectedEnd.replace(":", "h")})
+              </span>
               <span className="text-xs font-mono font-bold text-foreground block mt-0.5">
-                {staffAttendance?.checkOut
-                  ? new Date(staffAttendance.checkOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                  : "—"}
+                {staffAttendance?.checkOut || "—"}
               </span>
             </div>
             <div className="rounded-xl bg-muted/40 p-2.5 col-span-2 sm:col-span-1">

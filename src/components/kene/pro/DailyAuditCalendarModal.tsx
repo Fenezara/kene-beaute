@@ -59,8 +59,21 @@ interface DailyAuditResponse {
     checkOut?: string | null;
     status: string;
     hours?: number | null;
+    expectedStart?: string;
+    expectedEnd?: string;
+    lateMinutes?: number;
+    earlyMinutes?: number;
+    punctualityLabel?: string;
   }>;
-  absentEmployees: Array<{ id: string; name: string; role: string }>;
+  absentEmployees: Array<{
+    id: string;
+    name: string;
+    role: string;
+    expectedStart?: string;
+    expectedEnd?: string;
+    shiftState?: string;
+    punctualityLabel?: string;
+  }>;
   sales: Array<{
     id: string;
     total: number;
@@ -418,35 +431,68 @@ export function DailyAuditCalendarModal({ tenantId, tenantName, trigger }: Daily
                     {data.attendances.map((att) => (
                       <div key={att.id} className="p-3.5 flex items-center justify-between gap-3 bg-card">
                         <div className="flex items-center gap-3">
-                          <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                          <div
+                            className={cn(
+                              "size-9 rounded-xl flex items-center justify-center font-bold text-xs",
+                              att.status === "late"
+                                ? "bg-amber-500/15 text-amber-600"
+                                : "bg-emerald-500/10 text-emerald-600"
+                            )}
+                          >
                             <CheckCircle2 className="size-4" />
                           </div>
                           <div>
-                            <p className="font-heading text-sm font-bold text-foreground">{att.employeeName}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-heading text-sm font-bold text-foreground">{att.employeeName}</p>
+                              {att.expectedStart && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gold/15 text-gold-text border border-gold/30 font-semibold">
+                                  Prévu {att.expectedStart.replace(":", "h")} – {(att.expectedEnd || "19:00").replace(":", "h")}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">{att.role}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <div className="text-right space-y-0.5">
+                          <p
+                            className={cn(
+                              "text-xs font-bold",
+                              att.status === "late"
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-emerald-600 dark:text-emerald-400"
+                            )}
+                          >
                             Arrivée : {att.checkIn || "—"} {att.checkOut ? `→ Départ : ${att.checkOut}` : "(En poste)"}
                           </p>
+                          {att.punctualityLabel && (
+                            <p className="text-[10.5px] font-mono text-muted-foreground">{att.punctualityLabel}</p>
+                          )}
                           {att.hours && <p className="text-[10px] text-muted-foreground">{att.hours.toFixed(1)}h travaillées</p>}
                         </div>
                       </div>
                     ))}
 
                     {data.absentEmployees.map((abs) => (
-                      <div key={abs.id} className="p-3.5 flex items-center justify-between gap-3 bg-muted/10 opacity-70">
+                      <div key={abs.id} className="p-3.5 flex items-center justify-between gap-3 bg-muted/10 opacity-75">
                         <div className="flex items-center gap-3">
                           <div className="size-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center font-bold text-xs">
                             <XCircle className="size-4" />
                           </div>
                           <div>
-                            <p className="font-heading text-sm font-bold text-foreground">{abs.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-heading text-sm font-bold text-foreground">{abs.name}</p>
+                              {abs.expectedStart && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                                  Prévu {abs.expectedStart.replace(":", "h")} – {(abs.expectedEnd || "19:00").replace(":", "h")}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">{abs.role}</p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-xs text-muted-foreground bg-muted">Non pointée</Badge>
+                        <Badge variant="outline" className="text-xs text-muted-foreground bg-muted">
+                          {abs.punctualityLabel || "Non pointée"}
+                        </Badge>
                       </div>
                     ))}
                   </div>

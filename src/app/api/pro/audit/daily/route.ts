@@ -4,6 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, resolveUserProContext } from "@/lib/kene/server";
 import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
+import {
+  parseEmployeeScheduleFromRaw,
+  evaluateEmployeeAttendance,
+  getIsoWeekday,
+} from "@/lib/kene/hr-constants";
 
 export const runtime = "nodejs";
 
@@ -55,14 +60,14 @@ export async function GET(req: NextRequest) {
         date: { gte: startOfDay, lte: endOfDay },
       },
       include: {
-        employee: { select: { id: true, name: true, role: true } },
+        employee: { select: { id: true, name: true, role: true, permissions: true } },
       },
       orderBy: { checkIn: "asc" },
     });
 
     const activeEmployees = await db.employee.findMany({
       where: { tenantId: tenant.id, active: true },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, permissions: true },
     });
 
     // 2. Ventes & Encaissements de caisse du jour
@@ -126,6 +131,61 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
+    const tenantOpenHour = tenant.openingHour ?? 9;
+    const tenantCloseHour = tenant.closingHour ?? 19;
+    const targetIsoWeekday = getIsoWeekday(targetDate);
+
+    const evaluatedAttendances = attendances.map((a) => {
+      const sched = parseEmployeeScheduleFromRaw(a.employee.permissions);
+      const ev = evaluateEmployeeAttendance({
+        checkIn: a.checkIn,
+        checkOut: a.checkOut,
+        rawStatus: a.status,
+        schedule: sched,
+        tenantOpeningHour: tenantOpenHour,
+        tenantClosingHour: tenantCloseHour,
+        isoWeekday: targetIsoWeekday,
+      });
+      return {
+        id: a.id,
+        employeeId: a.employeeId,
+        employeeName: a.employee.name,
+        role: a.employee.role,
+        checkIn: a.checkIn,
+        checkOut: a.checkOut,
+        status: ev.status,
+        hours: a.hours,
+        expectedStart: ev.expectedStart,
+        expectedEnd: ev.expectedEnd,
+        lateMinutes: ev.lateMinutes,
+        earlyMinutes: ev.earlyMinutes,
+        punctualityLabel: ev.punctualityLabel,
+      };
+    });
+
+    const absentEmployees = activeEmployees
+      .filter((emp) => !attendances.some((a) => a.employeeId === emp.id && a.checkIn))
+      .map((emp) => {
+        const sched = parseEmployeeScheduleFromRaw(emp.permissions);
+        const ev = evaluateEmployeeAttendance({
+          checkIn: null,
+          checkOut: null,
+          schedule: sched,
+          tenantOpeningHour: tenantOpenHour,
+          tenantClosingHour: tenantCloseHour,
+          isoWeekday: targetIsoWeekday,
+        });
+        return {
+          id: emp.id,
+          name: emp.name,
+          role: emp.role,
+          expectedStart: ev.expectedStart,
+          expectedEnd: ev.expectedEnd,
+          shiftState: ev.shiftState,
+          punctualityLabel: ev.punctualityLabel,
+        };
+      });
+
     return NextResponse.json({
       date: dateParam || targetDate.toISOString().slice(0, 10),
       summary: {
@@ -140,23 +200,13 @@ export async function GET(req: NextRequest) {
           cash: cashTotal,
           card: cardTotal,
         },
-        presentStaffCount: attendances.filter((a) => a.checkIn && a.status !== "leave").length,
+        presentStaffCount: evaluatedAttendances.filter((a) => a.checkIn && a.status !== "leave").length,
         totalStaffCount: activeEmployees.length,
         apptsTotal: appointments.length,
         apptsCompleted: appointments.filter((a) => a.status === "completed").length,
       },
-      attendances: attendances.map((a) => ({
-        id: a.id,
-        employeeName: a.employee.name,
-        role: a.employee.role,
-        checkIn: a.checkIn,
-        checkOut: a.checkOut,
-        status: a.status,
-        hours: a.hours,
-      })),
-      absentEmployees: activeEmployees
-        .filter((emp) => !attendances.some((a) => a.employeeId === emp.id && a.checkIn))
-        .map((emp) => ({ id: emp.id, name: emp.name, role: emp.role })),
+      attendances: evaluatedAttendances,
+      absentEmployees,
       sales: sales.map((s) => ({
         id: s.id,
         total: s.total,

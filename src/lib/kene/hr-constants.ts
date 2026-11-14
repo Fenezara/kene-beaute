@@ -440,4 +440,184 @@ export function formatWorkScheduleLabel(
   return daysLabel ? `${timePart} · ${daysLabel}` : timePart;
 }
 
+export interface EvaluatedAttendance {
+  /** Heure d'arrivée prévue au format "HH:MM" (soit celle définie pour l'employé, soit l'ouverture de l'entreprise) */
+  expectedStart: string;
+  /** Heure de départ prévue au format "HH:MM" (soit celle définie pour l'employé, soit la fermeture de l'entreprise) */
+  expectedEnd: string;
+  /** Vrai si l'employé a ses propres horaires personnalisés différents de l'entreprise */
+  isCustomSchedule: boolean;
+  /** Vrai si le jour évalué fait partie des jours travaillés de l'employé */
+  isWorkDayToday: boolean;
+  /** Statut recalculé dynamiquement selon l'heure d'arrivée prévue ("present" | "late" | "absent" | "leave") */
+  status: string;
+  /** Minutes de retard par rapport à l'heure d'arrivée définie (0 si à l'heure ou en avance) */
+  lateMinutes: number;
+  /** Minutes d'avance par rapport à l'heure d'arrivée définie (0 si pile à l'heure ou en retard) */
+  earlyMinutes: number;
+  /** État du service quand l'employé n'a pas encore pointé : "rest_day" | "upcoming" | "pending" | "late_unpointed" | "checked_in" | "completed" | "leave" */
+  shiftState: "rest_day" | "upcoming" | "pending" | "late_unpointed" | "checked_in" | "completed" | "leave";
+  /** Libellé synthétique prêt à l'affichage (ex: "À l'heure · Prévu 09h00", "Retard +25 min · Prévu 08h00", "Prise de poste à 13h00") */
+  punctualityLabel: string;
+}
+
+/**
+ * Convertit le jour JS (`Date.getDay()`, 0=Dim..6=Sam) en jour ISO (1=Lun..7=Dim).
+ */
+export function getIsoWeekday(date: Date = new Date()): number {
+  const d = date.getDay();
+  return d === 0 ? 7 : d;
+}
+
+/**
+ * Évalue le pointage d'un(e) employé(e) en fonction de :
+ * 1) L'heure d'arrivée personnelle (`schedule.workStart`) définie pour cet employé, OU
+ * 2) L'heure d'arrivée / ouverture (`tenantOpeningHour`) définie par l'entreprise.
+ * Tolérance de pointage : 15 minutes après l'heure d'arrivée prévue.
+ */
+export function evaluateEmployeeAttendance(opts: {
+  checkIn?: string | null;
+  checkOut?: string | null;
+  rawStatus?: string | null;
+  schedule?: { workStart?: string | null; workEnd?: string | null; workDays?: number[] | null } | null;
+  tenantOpeningHour?: number | null;
+  tenantClosingHour?: number | null;
+  nowMinutes?: number;
+  isoWeekday?: number;
+  toleranceMinutes?: number;
+}): EvaluatedAttendance {
+  const tolerance = typeof opts.toleranceMinutes === "number" ? opts.toleranceMinutes : 15;
+  const openH = typeof opts.tenantOpeningHour === "number" ? opts.tenantOpeningHour : 9;
+  const closeH = typeof opts.tenantClosingHour === "number" ? opts.tenantClosingHour : 19;
+
+  const expectedStart = isValidTimeHHMM(opts.schedule?.workStart)
+    ? opts.schedule!.workStart!.trim()
+    : hourIntToHHMM(openH, 9);
+  const expectedEnd = isValidTimeHHMM(opts.schedule?.workEnd)
+    ? opts.schedule!.workEnd!.trim()
+    : hourIntToHHMM(closeH, 19);
+  const isCustomSchedule =
+    isValidTimeHHMM(opts.schedule?.workStart) ||
+    isValidTimeHHMM(opts.schedule?.workEnd) ||
+    (Array.isArray(opts.schedule?.workDays) &&
+      opts.schedule!.workDays!.length > 0 &&
+      opts.schedule!.workDays!.join(",") !== "1,2,3,4,5,6");
+
+  const expectedStartMin = timeHHMMToMinutes(expectedStart, openH);
+  const weekday = opts.isoWeekday ?? getIsoWeekday();
+  const workDays = opts.schedule?.workDays;
+  const isWorkDayToday =
+    !Array.isArray(workDays) || workDays.length === 0 ? weekday !== 7 : workDays.includes(weekday);
+
+  const fmtStart = expectedStart.replace(":", "h");
+
+  if (opts.rawStatus === "leave") {
+    return {
+      expectedStart,
+      expectedEnd,
+      isCustomSchedule,
+      isWorkDayToday,
+      status: "leave",
+      lateMinutes: 0,
+      earlyMinutes: 0,
+      shiftState: "leave",
+      punctualityLabel: "En congé",
+    };
+  }
+
+  if (opts.checkIn && isValidTimeHHMM(opts.checkIn)) {
+    const checkInMin = timeHHMMToMinutes(opts.checkIn, openH);
+    const diff = checkInMin - expectedStartMin;
+    const isLate = diff > tolerance;
+    const lateMinutes = isLate ? diff : 0;
+    const earlyMinutes = diff < 0 ? Math.abs(diff) : 0;
+    const status = isLate ? "late" : "present";
+    const shiftState = opts.checkOut ? "completed" : "checked_in";
+
+    let punctualityLabel = `À l'heure (prévu ${fmtStart})`;
+    if (isLate) {
+      const hLate = Math.floor(lateMinutes / 60);
+      const mLate = lateMinutes % 60;
+      const delayTxt = hLate > 0 ? `${hLate}h${mLate > 0 ? String(mLate).padStart(2, "0") : ""}` : `${lateMinutes} min`;
+      punctualityLabel = `Retard +${delayTxt} (prévu ${fmtStart})`;
+    } else if (earlyMinutes >= 5) {
+      punctualityLabel = `À l'heure · -${earlyMinutes} min (prévu ${fmtStart})`;
+    }
+
+    return {
+      expectedStart,
+      expectedEnd,
+      isCustomSchedule,
+      isWorkDayToday,
+      status,
+      lateMinutes,
+      earlyMinutes,
+      shiftState,
+      punctualityLabel,
+    };
+  }
+
+  // Pas encore pointé(e)
+  if (!isWorkDayToday) {
+    return {
+      expectedStart,
+      expectedEnd,
+      isCustomSchedule,
+      isWorkDayToday: false,
+      status: "absent",
+      lateMinutes: 0,
+      earlyMinutes: 0,
+      shiftState: "rest_day",
+      punctualityLabel: "Jour de repos",
+    };
+  }
+
+  const nowMin =
+    typeof opts.nowMinutes === "number"
+      ? opts.nowMinutes
+      : new Date().getHours() * 60 + new Date().getMinutes();
+
+  if (nowMin < expectedStartMin) {
+    return {
+      expectedStart,
+      expectedEnd,
+      isCustomSchedule,
+      isWorkDayToday: true,
+      status: "absent",
+      lateMinutes: 0,
+      earlyMinutes: 0,
+      shiftState: "upcoming",
+      punctualityLabel: `Prise de poste à ${fmtStart}`,
+    };
+  }
+
+  if (nowMin > expectedStartMin + tolerance) {
+    const unpointedLate = nowMin - expectedStartMin;
+    return {
+      expectedStart,
+      expectedEnd,
+      isCustomSchedule,
+      isWorkDayToday: true,
+      status: "absent",
+      lateMinutes: unpointedLate,
+      earlyMinutes: 0,
+      shiftState: "late_unpointed",
+      punctualityLabel: `Non pointé(e) · Prévu ${fmtStart}`,
+    };
+  }
+
+  return {
+    expectedStart,
+    expectedEnd,
+    isCustomSchedule,
+    isWorkDayToday: true,
+    status: "absent",
+    lateMinutes: 0,
+    earlyMinutes: 0,
+    shiftState: "pending",
+    punctualityLabel: `Attendu(e) à ${fmtStart}`,
+  };
+}
+
+
 
