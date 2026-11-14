@@ -3,7 +3,7 @@
 // comportement inchangé): KPIs plateforme, courbe diagnostics 14 j,
 // top instituts par CA 30 j.
 import { useEffect, useState } from "react";
-import { Activity, AlertCircle, Building2, CheckCircle2, Cpu, CreditCard, Crown, Database, ExternalLink, HeartHandshake, MessageSquare, ReceiptText, RefreshCw, Server, ShoppingBag, Smartphone, ShieldCheck, BriefcaseBusiness, Users } from "lucide-react";
+import { Activity, AlertCircle, Building2, CheckCircle2, Cpu, CreditCard, Crown, Database, ExternalLink, HardDrive, HeartHandshake, MessageSquare, ReceiptText, RefreshCw, Server, ShoppingBag, Smartphone, ShieldCheck, BriefcaseBusiness, Users } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,11 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiGet } from "@/lib/kene/api";
 import { cn } from "@/lib/utils";
-import { xof } from "@/lib/kene/format";
+import { formatBytes, xof } from "@/lib/kene/format";
 import { useApi } from "@/components/kene/pro/useApi";
 import { useKene } from "@/store/kene";
 import { EmptyState, KpiCard, Money, dayLabel } from "@/components/kene/pro/ui-bits";
 import { AdminMaintenanceControl } from "./AdminMaintenanceControl";
+import { AdminStorageCard } from "./AdminStorageCard";
 import type { AdminSecurity, AdminStats } from "@/components/kene/pro/types";
 
 function formatUptime(seconds: number): string {
@@ -222,12 +223,16 @@ export function AdminOverview({
                       : "bg-rose-500/10 text-rose-600 border-rose-500/30"
                   )}
                 >
-                  {sec.data.health.status === "optimal" ? "🟢 Système Optimal (100%)" : sec.data.health.status === "warning" ? "🟠 Sous Tension" : "🔴 Attention Requise"}
+                  {sec.data.health.status === "optimal"
+                    ? `🟢 Système Optimal (${sec.data.health.score}%)`
+                    : sec.data.health.status === "warning"
+                      ? `🟠 Sous Tension (${sec.data.health.score}%)`
+                      : `🔴 Attention Requise (${sec.data.health.score}%)`}
                 </Badge>
               )}
             </CardTitle>
             <CardDescription className="text-xs">
-              Supervision directe de l&apos;infrastructure Kènè : base SQLite, mémoire vive, cyber-menaces et intégrité des flux.
+              Supervision directe de l&apos;infrastructure Kènè : base SQLite, disque VPS, mémoire vive et cyber-menaces.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -256,8 +261,8 @@ export function AdminOverview({
             )}
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {/* 1. Base de données */}
             <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1">
               <div className="flex items-center justify-between text-muted-foreground">
@@ -292,17 +297,75 @@ export function AdminOverview({
             <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="text-[11px] font-semibold flex items-center gap-1.5">
-                  <Cpu className="size-3.5 text-purple-500" /> Mémoire RAM
+                  <Cpu className="size-3.5 text-purple-500" /> RAM Serveur
                 </span>
-                <span className="text-[10px] font-mono text-muted-foreground">Node.js</span>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {sec?.data?.health?.hostRam ? `${sec.data.health.hostRam.usedPct}%` : "Node.js"}
+                </span>
               </div>
               <p className="font-heading text-lg font-black text-foreground">
-                {sec?.data?.health ? `${sec.data.health.memoryUsageMb} Mo` : "…"}
+                {sec?.data?.health?.hostRam
+                  ? `${(sec.data.health.hostRam.usedMb / 1024).toFixed(1)} Go`
+                  : sec?.data?.health
+                    ? `${sec.data.health.memoryUsageMb} Mo`
+                    : "…"}
               </p>
-              <p className="text-[10px] text-muted-foreground">Allocation serveur active</p>
+              <p className="text-[10px] text-muted-foreground">
+                {sec?.data?.health?.hostRam
+                  ? `${(sec.data.health.hostRam.freeMb / 1024).toFixed(1)} Go libres · Node ${sec.data.health.memoryUsageMb} Mo`
+                  : "Allocation serveur active"}
+              </p>
             </div>
 
-            {/* 4. Menaces Bloquées 24h */}
+            {/* 4. Stockage Disque VPS */}
+            <div
+              className={cn(
+                "rounded-xl border p-3 space-y-1 transition-all",
+                sec?.data?.health?.disk?.status === "critical"
+                  ? "border-rose-500/45 bg-rose-500/10"
+                  : sec?.data?.health?.disk?.status === "warn"
+                    ? "border-amber-500/45 bg-amber-500/10"
+                    : "border-border/70 bg-card/60"
+              )}
+            >
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[11px] font-semibold flex items-center gap-1.5">
+                  <HardDrive
+                    className={cn(
+                      "size-3.5",
+                      sec?.data?.health?.disk?.status === "critical"
+                        ? "text-rose-500"
+                        : sec?.data?.health?.disk?.status === "warn"
+                          ? "text-amber-500"
+                          : "text-emerald-500"
+                    )}
+                  />{" "}
+                  Disque VPS
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {sec?.data?.health?.disk ? sec.data.health.disk.mountLabel : "Volume"}
+                </span>
+              </div>
+              <p
+                className={cn(
+                  "font-heading text-lg font-black",
+                  sec?.data?.health?.disk?.status === "critical"
+                    ? "text-rose-600 dark:text-rose-400"
+                    : sec?.data?.health?.disk?.status === "warn"
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-foreground"
+                )}
+              >
+                {sec?.data?.health?.disk ? `${sec.data.health.disk.usedPct} %` : "…"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {sec?.data?.health?.disk
+                  ? `${formatBytes(sec.data.health.disk.freeBytes)} libres`
+                  : "Mesure capacité serveur"}
+              </p>
+            </div>
+
+            {/* 5. Menaces Bloquées 24h */}
             <div className={cn(
               "rounded-xl border p-3 space-y-1 transition-all",
               (sec?.data?.stats.threats24h ?? 0) > 0
@@ -321,8 +384,8 @@ export function AdminOverview({
               <p className="text-[10px] text-muted-foreground">Honeypot, robots, force-brute</p>
             </div>
 
-            {/* 5. Incidents applicatifs */}
-            <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1 col-span-2 sm:col-span-4 lg:col-span-1">
+            {/* 6. Incidents applicatifs */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-1">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="text-[11px] font-semibold flex items-center gap-1.5">
                   <Activity className="size-3.5 text-amber-500" /> Bugs / Erreurs 24h
@@ -335,6 +398,17 @@ export function AdminOverview({
               <p className="text-[10px] text-muted-foreground">Remontées client &amp; cabine</p>
             </div>
           </div>
+
+          {sec?.data?.health && (
+            <AdminStorageCard
+              disk={sec.data.health.disk}
+              hostRam={sec.data.health.hostRam}
+              folders={sec.data.health.folders}
+              loadAvg={sec.data.health.loadAvg}
+              memoryUsageMb={sec.data.health.memoryUsageMb}
+              memoryRssMb={sec.data.health.memoryRssMb}
+            />
+          )}
         </CardContent>
       </Card>
 

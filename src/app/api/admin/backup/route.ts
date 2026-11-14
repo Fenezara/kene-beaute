@@ -15,32 +15,9 @@ import { serverError } from "@/lib/kene/server";
 import { sessionFromRequest, sanitizeUser } from "@/lib/kene/session";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
+import { getServerStorageSnapshot, resolveBackupDir, resolveDbPath } from "@/lib/kene/server-storage";
 
 export const runtime = "nodejs";
-
-function resolveDbPath(): string {
-  const candidates = [
-    path.join(process.cwd(), "db", "custom.db"),
-    path.join(process.cwd(), "prisma", "custom.db"),
-    "/app/db/custom.db",
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(/*turbopackIgnore: true*/ p)) return p;
-  }
-  return candidates[0];
-}
-
-function resolveBackupDir(): string {
-  const dir = path.join(path.dirname(resolveDbPath()), "backups");
-  if (!fs.existsSync(/*turbopackIgnore: true*/ dir)) {
-    try {
-      fs.mkdirSync(/*turbopackIgnore: true*/ dir, { recursive: true });
-    } catch {
-      // ignore if read-only
-    }
-  }
-  return dir;
-}
 
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "admin:backup"), ADMIN_STATS);
@@ -68,7 +45,7 @@ export async function GET(req: NextRequest) {
         updatedAt = stat.mtime.toISOString();
       }
 
-      const backupDir = resolveBackupDir();
+      const backupDir = resolveBackupDir(true);
       let snapshots: Array<{ name: string; sizeBytes: number; createdAt: string }> = [];
       if (fs.existsSync(/*turbopackIgnore: true*/ backupDir)) {
         const files = fs.readdirSync(/*turbopackIgnore: true*/ backupDir).filter((f) => f.endsWith(".db") || f.endsWith(".gz") || f.endsWith(".json"));
@@ -81,12 +58,15 @@ export async function GET(req: NextRequest) {
           .slice(0, 15);
       }
 
+      const storage = getServerStorageSnapshot();
       return NextResponse.json(
         {
           dbSizeBytes: sizeBytes,
           dbUpdatedAt: updatedAt,
           snapshots,
           autoBackupSchedule: "Quotidien · 03h00 UTC (Rétention 30 jours)",
+          disk: storage.disk,
+          folders: storage.folders,
         },
         { headers: { "Cache-Control": "no-store" } }
       );
@@ -99,7 +79,7 @@ export async function GET(req: NextRequest) {
       detail: `backup_download:${format}`,
     });
     try {
-      const statusFile = path.join(resolveBackupDir(), ".offsite-status.json");
+      const statusFile = path.join(resolveBackupDir(true), ".offsite-status.json");
       fs.writeFileSync(
         /*turbopackIgnore: true*/ statusFile,
         JSON.stringify({
@@ -203,7 +183,7 @@ export async function POST(req: NextRequest) {
 
     await db.$executeRawUnsafe("PRAGMA wal_checkpoint(TRUNCATE);").catch(() => null);
 
-    const backupDir = resolveBackupDir();
+    const backupDir = resolveBackupDir(true);
     const now = new Date();
     const ts = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const fileName = `kene-snapshot-${ts}.db`;

@@ -39,6 +39,7 @@ import type { UseApiResult } from "@/components/kene/pro/useApi";
 import { KenteTop } from "@/components/kene/pro/ui-bits";
 import type { AdminSecurity, AdminSystemHealth } from "@/components/kene/pro/types";
 import { apiPost } from "@/lib/kene/api";
+import { AdminStorageCard } from "./AdminStorageCard";
 import { toast } from "sonner";
 
 /** Canaux d'alerte (Telegram/WhatsApp/SMS) + copie des sauvegardes hors serveur. */
@@ -210,12 +211,16 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
                       : "bg-rose-500/10 text-rose-600 border-rose-500/30"
                   )}
                 >
-                  {health.status === "optimal" ? "🟢 État Optimal (100%)" : health.status === "warning" ? "🟠 Sous Tension" : "🔴 Attention Requise"}
+                  {health.status === "optimal"
+                    ? `🟢 État Optimal (${health.score}%)`
+                    : health.status === "warning"
+                      ? `🟠 Sous Tension (${health.score}%)`
+                      : `🔴 Attention Requise (${health.score}%)`}
                 </Badge>
               )}
             </CardTitle>
             <CardDescription className="text-xs">
-              Sonde de diagnostic interne : mémoire vive, latence de la base de données SQLite et flux fintech.
+              Sonde de diagnostic interne : disque VPS, mémoire vive, latence SQLite et flux fintech.
             </CardDescription>
           </div>
           <Button
@@ -229,7 +234,7 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
             <span>Tester maintenant</span>
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {/* Base de données */}
             <div className="rounded-2xl border border-border/70 bg-card/60 p-3 space-y-1">
@@ -253,13 +258,19 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
                 <span className="text-[11px] font-semibold flex items-center gap-1.5">
                   <Cpu className="size-3.5 text-primary" /> Mémoire Vive
                 </span>
-                <span className="text-[10px] font-mono text-muted-foreground">Heap</span>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {health?.hostRam ? `${health.hostRam.usedPct}% VPS` : "Heap"}
+                </span>
               </div>
               <p className="font-heading text-lg font-black text-foreground">
-                {health ? `${health.memoryUsageMb} Mo` : "…"}
+                {health?.hostRam
+                  ? `${(health.hostRam.usedMb / 1024).toFixed(1)} / ${(health.hostRam.totalMb / 1024).toFixed(1)} Go`
+                  : health
+                    ? `${health.memoryUsageMb} Mo`
+                    : "…"}
               </p>
               <p className="text-[10px] text-muted-foreground">
-                {health ? `Total RSS : ${health.memoryRssMb} Mo` : "Allocation Node.js"}
+                {health ? `Node Heap ${health.memoryUsageMb} Mo · RSS ${health.memoryRssMb} Mo` : "Allocation Node.js"}
               </p>
             </div>
 
@@ -295,6 +306,17 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
               </p>
             </div>
           </div>
+
+          {health && (
+            <AdminStorageCard
+              disk={health.disk}
+              hostRam={health.hostRam}
+              folders={health.folders}
+              loadAvg={health.loadAvg}
+              memoryUsageMb={health.memoryUsageMb}
+              memoryRssMb={health.memoryRssMb}
+            />
+          )}
 
           <AlertsAndOffsitePanel health={health} />
         </CardContent>

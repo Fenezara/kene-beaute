@@ -671,6 +671,26 @@ export interface AdminSystemHealth {
   lastWebhookAt?: string | null;
   alertChannels?: { telegram: boolean; whatsapp: boolean; sms: boolean; webhook: boolean };
   offsiteBackup?: { ok: boolean; at: string | null; target: string | null; detail?: string | null };
+  disk?: {
+    totalBytes: number;
+    usedBytes: number;
+    freeBytes: number;
+    usedPct: number;
+    mountLabel: string;
+    status: "ok" | "warn" | "critical";
+  } | null;
+  hostRam?: {
+    totalMb: number;
+    usedMb: number;
+    freeMb: number;
+    usedPct: number;
+  };
+  folders?: {
+    dbBytes: number;
+    backupsBytes: number;
+    uploadsBytes: number;
+    backupsCount: number;
+  };
 }
 
 export interface AdminSecurity {

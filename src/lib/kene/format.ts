@@ -81,6 +81,19 @@ export function readableTextColor(bgHex: string): string {
   return L > 0.22 ? "#1A1410" : "#FFF9EC";
 }
 
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 Ko";
+  const units = ["o", "Ko", "Mo", "Go", "To"];
+  let idx = 0;
+  let val = bytes;
+  while (val >= 1024 && idx < units.length - 1) {
+    val /= 1024;
+    idx += 1;
+  }
+  const decimals = idx === 0 ? 0 : idx >= 3 ? 1 : val >= 100 ? 0 : 1;
+  return `${val.toFixed(decimals)} ${units[idx]}`;
+}
+
 export function genRef(prefix: string): string {
   return `${prefix}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 }

@@ -10,7 +10,8 @@ import { NextRequest, NextResponse } from "next/server";
 import os from "node:os";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { alertChannelsStatus } from "@/lib/kene/admin-alerts";
+import { alertChannelsStatus, sendAdminAlert } from "@/lib/kene/admin-alerts";
+import { getServerStorageSnapshot } from "@/lib/kene/server-storage";
 import { lookupIpGeoBatch } from "@/lib/kene/ip-geo";
 import { db } from "@/lib/db";
 import { serverError } from "@/lib/kene/server";
@@ -121,6 +122,7 @@ export async function GET(req: NextRequest) {
     const memRssMb = Math.round(mem.rss / 1024 / 1024);
     const uptime = Math.floor(process.uptime());
     const rlStats = getRateLimitStoreStats();
+    const storage = getServerStorageSnapshot();
 
     // Calcul du score de santé global (0 - 100)
     let score = 100;
@@ -129,10 +131,45 @@ export async function GET(req: NextRequest) {
     if (memUsageMb > 800) score -= 15;
     if (threats24h > 10) score -= 10;
     if (clientErrors24h > 20) score -= 10;
+    if (storage.hostRam.usedPct >= 95) score -= 25;
+    else if (storage.hostRam.usedPct >= 85) score -= 15;
+    if (storage.disk) {
+      if (storage.disk.usedPct >= 85) score -= 45;
+      else if (storage.disk.usedPct >= 75) score -= 20;
+    }
     score = Math.max(10, Math.min(100, score));
 
-    const status: AdminSystemHealth["status"] =
+    let status: AdminSystemHealth["status"] =
       score >= 85 ? "optimal" : score >= 60 ? "warning" : "critical";
+    if ((storage.disk && storage.disk.usedPct >= 85) || storage.hostRam.usedPct >= 95) {
+      status = "critical";
+    } else if (
+      status === "optimal" &&
+      ((storage.disk && storage.disk.usedPct >= 75) || storage.hostRam.usedPct >= 85)
+    ) {
+      status = "warning";
+    }
+
+    // Alerte admin anti-spam (max 1 fois / 6 h) si le disque serveur dépasse 85 %
+    const gDisk = globalThis as typeof globalThis & { __keneDiskAlertAt?: number };
+    if (storage.disk && storage.disk.usedPct >= 85) {
+      const nowMs = Date.now();
+      if (!gDisk.__keneDiskAlertAt || nowMs - gDisk.__keneDiskAlertAt >= 6 * 3_600_000) {
+        gDisk.__keneDiskAlertAt = nowMs;
+        const freeGo = (storage.disk.freeBytes / 1024 ** 3).toFixed(1);
+        const totalGo = (storage.disk.totalBytes / 1024 ** 3).toFixed(1);
+        void sendAdminAlert({
+          key: `disk_high:${storage.disk.mountLabel}`,
+          severity: storage.disk.usedPct >= 92 ? "critical" : "warning",
+          title: `Disque serveur presque plein (${storage.disk.usedPct} %)`,
+          lines: [
+            `Espace libre restant : ${freeGo} Go sur ${totalGo} Go (${storage.disk.mountLabel})`,
+            `Base SQLite + WAL : ${(storage.folders.dbBytes / (1024 * 1024)).toFixed(1)} Mo · Backups : ${(storage.folders.backupsBytes / (1024 * 1024)).toFixed(1)} Mo`,
+            "Action conseillée : purger le cache Docker ou anciens snapshots via SSH.",
+          ],
+        });
+      }
+    }
 
     const health: AdminSystemHealth = {
       status,
@@ -151,6 +188,9 @@ export async function GET(req: NextRequest) {
       lastWebhookAt: lastWebhook?.processedAt ? lastWebhook.processedAt.toISOString() : null,
       alertChannels: alertChannelsStatus(),
       offsiteBackup,
+      disk: storage.disk,
+      hostRam: storage.hostRam,
+      folders: storage.folders,
     };
 
     const payload: AdminSecurity = {

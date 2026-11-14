@@ -21,8 +21,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiGet, apiPost } from "@/lib/kene/api";
-import { formatDate } from "@/lib/kene/format";
+import { formatBytes, formatDate } from "@/lib/kene/format";
 import { KenteTop } from "@/components/kene/pro/ui-bits";
+import type { AdminSystemHealth } from "@/components/kene/pro/types";
+import { AdminStorageCard } from "./AdminStorageCard";
 
 interface SnapshotItem {
   name: string;
@@ -35,13 +37,8 @@ interface BackupInfo {
   dbUpdatedAt: string;
   snapshots: SnapshotItem[];
   autoBackupSchedule: string;
-}
-
-function formatBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) return "0 Ko";
-  if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`;
+  disk?: AdminSystemHealth["disk"];
+  folders?: AdminSystemHealth["folders"];
 }
 
 export function AdminBackupAndShieldCard() {
@@ -168,6 +165,10 @@ export function AdminBackupAndShieldCard() {
               </p>
             </div>
           </div>
+
+          {(info?.disk || info?.folders) && (
+            <AdminStorageCard disk={info?.disk} folders={info?.folders} compact />
+          )}
 
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
