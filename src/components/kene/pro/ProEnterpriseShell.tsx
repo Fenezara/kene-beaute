@@ -965,16 +965,16 @@ export function ProEnterpriseShell() {
       : sessionUser?.name && sessionUser.name.trim()
       ? sessionUser.name.trim()
       : isOwner
-      ? "Gérante"
-      : "Collaboratrice";
+      ? "Direction"
+      : "Équipe";
 
   const chipRole = isAdmin
-    ? "Gérante / Admin"
+    ? "Direction Générale"
     : employeeRole
     ? formatRole(employeeRole)
     : isOwner
-      ? "Fondatrice / Gérante"
-      : "Collaboratrice";
+      ? "Direction Générale"
+      : "Équipe";
 
   const chipInitials =
     (chipName || "")
@@ -1379,10 +1379,10 @@ export function ProEnterpriseShell() {
                 <span>{chipInitials}</span>
               </span>
               <div className="flex flex-col text-left leading-tight min-w-0">
-                <p className="text-[11px] sm:text-xs font-bold text-foreground truncate max-w-[85px] sm:max-w-[120px] xl:max-w-[150px]">
+                <p className="text-[11px] sm:text-xs font-bold text-foreground whitespace-nowrap truncate max-w-[140px] sm:max-w-[200px] xl:max-w-[240px]">
                   {chipName}
                 </p>
-                <Eyebrow className="mt-0.5 text-[8px] sm:text-[9px] truncate max-w-[85px] sm:max-w-[120px] xl:max-w-[150px]">
+                <Eyebrow className="mt-0.5 text-[8.5px] sm:text-[9.5px] whitespace-nowrap truncate max-w-[140px] sm:max-w-[200px] xl:max-w-[240px]">
                   {chipRole}
                 </Eyebrow>
               </div>

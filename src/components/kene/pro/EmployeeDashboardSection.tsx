@@ -29,7 +29,7 @@ import { CauriIcon, SankofaIcon, AbanIcon } from "@/components/kene/icons";
 import { KenteTop, Money, ApptStatusBadge } from "./ui-bits";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { formatTime, formatDate } from "@/lib/kene/format";
-import { formatWorkScheduleLabel } from "@/lib/kene/hr-constants";
+import { formatRole, formatWorkScheduleLabel } from "@/lib/kene/hr-constants";
 import { waLink } from "@/lib/kene/followups";
 import { useApi } from "./useApi";
 import { apiGet } from "@/lib/kene/api";
@@ -183,7 +183,7 @@ export function EmployeeDashboardSection({
             <div className="flex items-center gap-2">
               <Badge className="bg-gold/15 text-gold-text border-gold/30 hover:bg-gold/20 gap-1.5 py-0.5 px-2.5">
                 <Sparkles className="size-3.5 text-gold-text animate-pulse" />
-                <span>Espace Praticienne · {tenantName}</span>
+                <span>{employeeRole ? formatRole(employeeRole) : "Espace Équipe"} · {tenantName}</span>
               </Badge>
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="size-3 text-gold-text" />
@@ -223,7 +223,7 @@ export function EmployeeDashboardSection({
                       Arrivée à {attendance.checkIn}
                     </span>
                   ) : (
-                    <span className="text-amber-600 dark:text-amber-400 font-medium">Non pointée</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-medium">Non pointé(e)</span>
                   )}
                 </div>
               </div>

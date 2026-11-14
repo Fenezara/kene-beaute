@@ -324,10 +324,10 @@ export function SettingsSection({
   return (
     <div className="w-full max-w-7xl space-y-6">
       <SectionHeader
-        title={isOwner ? "Paramètres de l'Établissement & Direction" : "Mon Espace Collaboratrice & Réglages"}
+        title={isOwner ? "Paramètres de l'Établissement & Direction" : "Mon Espace Collaborateur & Réglages"}
         sub={
           isOwner
-            ? "Identité de l'institut, coordonnées officielles, fiscalité et abonnement"
+            ? "Identité de l'institut, coordonnées officielles, horaires, fiscalité et abonnement"
             : "Mon compte de poste, code secret PIN, pointage du jour et préférences"
         }
         actions={
@@ -339,7 +339,7 @@ export function SettingsSection({
                 : "bg-primary/10 text-primary border-primary/20 font-bold"
             }
           >
-            {isOwner ? "Direction & Gérance" : `✨ ${sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice"}`}
+            {isOwner ? "Direction Générale" : `✨ ${sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Équipe"}`}
           </Badge>
         }
       />
@@ -404,7 +404,7 @@ export function SettingsSection({
               <div className="min-w-0">
                 <span className="truncate tabular-nums font-bold text-[#FFF9EC] text-sm block">{managerPhone}</span>
                 <span className="text-[10px] text-[#F5ECDD]/70 block">
-                  {isOwner ? "Ligne gérante (privée & confidentielle)" : "Ligne collaboratrice"}
+                  {isOwner ? "Ligne direction (privée & confidentielle)" : "Ligne collaborateur / collaboratrice"}
                 </span>
               </div>
             </div>
