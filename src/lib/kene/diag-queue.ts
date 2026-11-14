@@ -21,10 +21,11 @@ export interface QueuedDiag {
   id: string;
   userId: string;
   zone: string;
-  image: string; // dataUrl JPEG ≤ 820 px (resizeImage)
+  image: string; // dataUrl JPEG ≤ 1024 px (resizeImage)
   images?: string[]; // clichés multiples éventuels
   fitzpatrick?: string;
   allergies?: string;
+  skinContext?: string;
   createdAt: number;
 }
 
@@ -144,6 +145,7 @@ export async function replayDiagQueue(): Promise<number> {
         images: e.images,
         fitzpatrick: e.fitzpatrick,
         allergies: e.allergies,
+        skinContext: e.skinContext,
       });
       sent += 1;
       removeDiag(e.id);

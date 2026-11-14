@@ -27,7 +27,7 @@ const inFlight: Map<string, true> = (g.__keneDiagJobsInFlight ??= new Map());
  * Fire-and-forget: `void processDiagnosisJob(id)` — ne JAMAIS await côté
  * route POST (c'est tout l'objet du pipeline asynchrone).
  */
-export async function processDiagnosisJob(diagnosisId: string): Promise<void> {
+export async function processDiagnosisJob(diagnosisId: string, skinContext?: string): Promise<void> {
   // Check-and-set: un seul worker par diagnostic (double POST, re-render de
   // route, HMR… ne relancent jamais l'analyse payée).
   if (inFlight.has(diagnosisId)) return;
@@ -62,6 +62,7 @@ export async function processDiagnosisJob(diagnosisId: string): Promise<void> {
       zone: diagnosis.zone as BodyZone,
       fitzpatrick: user.fitzpatrick ?? undefined,
       allergies: user.allergies ?? undefined,
+      clinicalContext: skinContext,
       previousSummary,
     });
 

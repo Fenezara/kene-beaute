@@ -966,6 +966,32 @@ function applyCssFiltersOnRgbBuffer(data: Buffer, filterList: FilterStep[]): voi
   }
 }
 
+function applyLambertBeerChromophoreEnhancement(data: Buffer, id: SpectralViewId): void {
+  if (id !== "amber585" && id !== "green540") return;
+  const len = data.length;
+  for (let i = 0; i < len; i += 3) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    if (id === "amber585") {
+      // Renforcement densitométrique de la mélanine par loi de Lambert-Beer : OD_mel = log10(255 / R)
+      const melOd = Math.log10(255 / Math.max(12, r));
+      // Accentue le contraste des amas mélaniques (HPI / mélasma) dans le spectre ambre
+      const factor = melOd > 0.38 ? Math.max(0.76, 1 - (melOd - 0.38) * 0.32) : 1.04;
+      data[i] = Math.min(255, Math.max(0, Math.round(r * factor)));
+      data[i + 1] = Math.min(255, Math.max(0, Math.round(g * (factor * 0.96))));
+      data[i + 2] = Math.min(255, Math.max(0, Math.round(b * 0.9)));
+    } else if (id === "green540") {
+      // Séparation différentielle de l'oxyhémoglobine : OD_hemo = log10(R / G)
+      const hemoOd = Math.log10(Math.max(8, r) / Math.max(8, g));
+      if (hemoOd > 0.08) {
+        const boost = Math.min(38, Math.round((hemoOd - 0.08) * 140));
+        data[i + 1] = Math.min(255, g + boost);
+      }
+    }
+  }
+}
+
 async function renderRealPhotoBandBuffer(
   id: SpectralViewId,
   basePhoto: Buffer,
@@ -979,7 +1005,8 @@ async function renderRealPhotoBandBuffer(
     .raw()
     .toBuffer({ resolveWithObject: true });
 
-  // 2. Appliquer les filtres CSS pixel par pixel pour une stricte identité visuelle avec SpectralViewer
+  // 2. Appliquer l'accentuation biophysique Lambert-Beer (Mélanine 585nm / Hémoglobine 540nm) + filtres spectraux
+  applyLambertBeerChromophoreEnhancement(data, id);
   const filters = SPECTRAL_CSS_FILTERS[id] ?? [];
   applyCssFiltersOnRgbBuffer(data, filters);
 

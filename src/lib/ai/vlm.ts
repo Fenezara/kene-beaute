@@ -25,6 +25,11 @@ import {
   formatOpticalTelemetryForPrompt,
   type OpticalSkinMetrics,
 } from "@/lib/kene/optical-biometrics";
+import {
+  getAfricanExposomeContext,
+  getSeasonalFallbackExposome,
+  type ExposomeContext,
+} from "@/lib/kene/exposome";
 
 /** Gardes par phase: 40 s vision (variance de service mesurée
  * 18-77 s — au-delà, le fallback déterministe est plus utile qu'une
@@ -64,6 +69,7 @@ function buildAnalysisPrompt(
     opticalPrompt?: string;
     clinicalContext?: string;
     previousSummary?: string;
+    exposomePrompt?: string;
   },
 ): string {
   const indicateurs = ZONE_INDICATORS[zone];
@@ -79,19 +85,20 @@ function buildAnalysisPrompt(
   const clinicalLine = extra?.clinicalContext ? `\nContexte clinique / anamnèse déclaré(e) : ${extra.clinicalContext}` : "";
   const prevLine = extra?.previousSummary ? `\nRéférence longitudinale (dernier bilan de cette zone) : ${extra.previousSummary}` : "";
   const opticalLine = extra?.opticalPrompt ?? "";
+  const exposomeLine = extra?.exposomePrompt ?? "";
 
-  return `Analyse cutanée de haute précision sur peaux noires et afro-descendantes (Albinos OCA, Afro-rousse / Rouquine phéomélanique, Chabine III, Métissée / Caramel IV, Brune cuivrée V, Ébène intense VI), zone « ${zoneLabel} ».${knownFitz ? ` Phototype/Nuance déclaré(e) : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}${multiAnglePart}${opticalLine}${clinicalLine}${prevLine}
+  return `Analyse cutanée de haute précision sur peaux noires et afro-descendantes (Albinos OCA, Afro-rousse / Rouquine phéomélanique, Chabine III, Métissée / Caramel IV, Brune cuivrée V, Ébène intense VI), zone « ${zoneLabel} ».${knownFitz ? ` Phototype/Nuance déclaré(e) : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}${multiAnglePart}${opticalLine}${exposomeLine}${clinicalLine}${prevLine}
 Catalogue des affections africaines plausibles sur cette zone (id=signature visuelle sur peau noire) : ${vlmCatalogForZone(zone)}.
 Ne pas confondre pigmentation constitutive (ou éphélides naturelles sur peau afro-rousse/chabine) et pathologie. Sur peau albinos, surveiller l'érythème solaire et les kératoses actiniques ; sur peau foncée (IV-VI), l'érythème est masqué par l'eumélanine (teinte violacée, ardoisée ou brune chaude).
 CONVENTION STRICTE DES SCORES "ind" : chaque score (0-100) exprime l'indice de SANTÉ CUTANÉE de l'indicateur : 100 = peau parfaitement saine / AUCUNE anomalie (0 acné, 0 tache PIH, 0 mélasma, 0 excès de sébum, hydratation optimale) et 0 = atteinte sévère. Ne note JAMAIS la gravité d'un défaut vers 100.
 Réponds STRICTEMENT en JSON ultra-compact (≤ 650 caractères, sans markdown, sans texte autour) :
 {"score":<0-100>,"fitz":"albinos"|"rouquine"|"III"|"IV"|"V"|"VI","ind":{${indicateurs.map((i) => `"${i}":<0-100>`).join(",")}},"marks":[["<zone>",<x 0-100>,<y 0-100>,<w 10-28>,<h 10-28>,<sev 0-3>],...],"focus":[["<indicateur le plus faible>","<note ≤ 40 caractères>"],...2-3 entrées],"conds":[["<id du catalogue>",<confiance 0-100>],...0-2],"derm":<bool>,"why":"<si derm, ≤ 80 caractères>"${abcdePart}}
-Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks précis sur la peau ; sev 0=sain 1=léger 2=modéré 3=marqué ; conds = UNIQUEMENT des ids exacts du catalogue ci-dessus (0-2, confiance ≥ 40 seulement) ; si la photo ne montre pas de peau : score 0, derm false, conds vide.`;
+Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks précis sur la peau (ancrés sur les sous-zones ROI mesurées) ; sev 0=sain 1=léger 2=modéré 3=marqué ; conds = UNIQUEMENT des ids exacts du catalogue ci-dessus (0-2, confiance ≥ 40 seulement) ; si la photo ne montre pas de peau : score 0, derm false, conds vide.`;
 }
 
-/** Phase 2 — prompt texte (glm-4.6): recommandations personnalisées à partir
- * de l'analyse réelle. Texte pur = génération rapide (~4 s). */
-function buildRecommendationsPrompt(analysisJson: string, zone: BodyZone): string {
+/** Phase 2 — prompt texte (glm-4.6 / Gemini): recommandations personnalisées à partir
+ * de l'analyse réelle et de l'exposome climatique africain. Texte pur = génération rapide (~4 s). */
+function buildRecommendationsPrompt(analysisJson: string, zone: BodyZone, exposomePrompt?: string): string {
   const zoneFocus: Record<BodyZone, string> = {
     cuir_chevelu: "cuir chevelu et cheveux (rituels capillaires, racines, tempes, pas de démaquillant visage)",
     dos: "dos et décolleté/épaules (douche purifiante, gel sans savon moringa/zinc, spray dos, pas de crème visage)",
@@ -102,8 +109,8 @@ function buildRecommendationsPrompt(analysisJson: string, zone: BodyZone): strin
   };
   const zoneDesc = zoneFocus[zone] ?? zone;
   return `Tu es conseillère dermo-cosmétique Kènè pour peaux mélanodermes africaines. Kènè ne vend aucun cosmétique (recommandations neutres, zéro prix, marques ou incitation commerciale).
-Analyse cutanée récente (zone « ${zone} », contexte : ${zoneDesc}) : ${analysisJson.slice(0, 700)}
-Règles strictes : les recommandations DOIVENT être adaptées spécifiquement à la zone « ${zone} » et cibler ses indicateurs les plus faibles.
+Analyse cutanée récente (zone « ${zone} », contexte : ${zoneDesc}) : ${analysisJson.slice(0, 700)}${exposomePrompt ?? ""}
+Règles strictes : les recommandations DOIVENT être adaptées spécifiquement à la zone « ${zone} », cibler ses indicateurs les plus faibles et tenir compte de l'exposome climatique local (Harmattan/humidité/UV).
 JSON STRICT compact (≤ 800 caractères, sans texte autour) :
 {"resume":"<2 phrases, ton bienveillant, tutoiement>","routine_matin":["≤ 3 étapes courtes adaptées à la zone"],"routine_soir":["≤ 3 étapes courtes adaptées à la zone"],"botaniques_conseillees":["≤ 3 botaniques africaines"],"produits":["≤ 3 types précis de soins ou principes actifs"],"soins_conseilles":["≤ 2 soins en institut"],"conseils_hygiene_vie":["≤ 2 conseils précis de vie/hygiène pour cette zone"]}`;
 }
@@ -222,10 +229,24 @@ function normalizeAnalysis(
   raw: unknown,
   zone: BodyZone,
   opticalHint?: OpticalSkinMetrics | null,
+  clinicalContext?: string,
 ): Omit<DiagnosisResult, "recommandations" | "source" | "confidence" | "avertissement"> | null {
   if (!isRecord(raw)) return null;
   const o: Record<string, unknown> = raw;
   const indicateursList = ZONE_INDICATORS[zone];
+  const ctxLower = (clinicalContext ?? "").toLowerCase();
+  const hasRecentOilOrCream =
+    ctxLower.includes("crème") ||
+    ctxLower.includes("creme") ||
+    ctxLower.includes("huile") ||
+    ctxLower.includes("karité") ||
+    ctxLower.includes("karite") ||
+    (opticalHint?.specularGlarePct ?? 0) > 13;
+  const hasMakeupOrFilter =
+    ctxLower.includes("maquill") ||
+    ctxLower.includes("poudre") ||
+    ctxLower.includes("fond de teint") ||
+    opticalHint?.makeupOrFilterLikely === true;
 
   // Notes de réalisme : champ focus [[nom, note]] du format compact.
   const focusNotes = new Map<string, string>();
@@ -275,10 +296,23 @@ function normalizeAnalysis(
       pct = clamp(100 - pct, 22, 64, 48);
     }
 
-    const note =
+    let note =
       focusNotes.get(focusKey) ||
       Array.from(focusNotes.entries()).find(([fk]) => fk.length >= 5 && (focusKey.startsWith(fk.slice(0, 7)) || fk.startsWith(focusKey.slice(0, 7))))?.[1] ||
       undefined;
+
+    // Compensation optique / pré-scan : si la cliente vient d'appliquer du karité/huile ou s'il y a un reflet direct,
+    // ne pas pénaliser abusivement l'indicateur « Sébum / brillance ».
+    if (hasRecentOilOrCream && (targetNorm.includes("sebum") || targetNorm.includes("brillance")) && pct < 62) {
+      pct = Math.min(82, pct + 14);
+      if (!note) note = "Brillance liée au soin ou éclairage récent";
+    }
+
+    // Compensation maquillage / filtre lissant : tempérer un score d'uniformité ou de pores artificiellement parfait.
+    if (hasMakeupOrFilter && (targetNorm.includes("uniform") || targetNorm.includes("pore")) && pct > 86) {
+      pct = 79;
+      if (!note) note = "Surface lissée (maquillage ou filtre détecté)";
+    }
 
     return {
       nom,
@@ -324,6 +358,37 @@ function normalizeAnalysis(
       severite: clamp(m?.severite, 0, 3, 1),
     })),
   ].slice(0, 8);
+
+  // Ancrage chirurgical ROI : si le VLM a renvoyé moins de 3 marquages sur le visage/barbe
+  // et que nous disposons de la parcellisation optique des 5 sous-zones, on complète avec les sous-zones réelles.
+  if (opticalHint?.subzones && opticalHint.subzones.length > 0 && marquages.length < 3) {
+    const issueLabel: Record<string, string> = {
+      pih: "Pigmentation / HPI",
+      erytheme: "Réactivité",
+      sebum: "Brillance sébacée",
+      texture: "Grain & pores",
+      sain: "Équilibre",
+    };
+    const sortedSubs = [...opticalHint.subzones].sort(
+      (a, b) => b.severity - a.severity || b.pigmentScore + b.erythemaScore - (a.pigmentScore + a.erythemaScore),
+    );
+    for (const sub of sortedSubs) {
+      if (marquages.length >= 4) break;
+      const alreadyNear = marquages.some(
+        (m) => Math.abs(m.x - sub.x) < 14 && Math.abs(m.y - sub.y) < 14,
+      );
+      if (!alreadyNear) {
+        marquages.push({
+          label: `${sub.label} (${issueLabel[sub.dominantIssue] ?? "Analyse"})`.slice(0, 40),
+          x: sub.x,
+          y: sub.y,
+          w: sub.w,
+          h: sub.h,
+          severite: sub.severity,
+        });
+      }
+    }
+  }
 
   // ABCDE: paires [[critere, intitule, alerte, detail]] ou anciens objets.
   const abcdePairs = coerceArray<unknown>(o.abcde)
@@ -411,6 +476,7 @@ export function derivePersonalizedRecommendations(
   zone: BodyZone,
   indicateurs: Indicator[],
   scoreGlobal: number,
+  exposome?: ExposomeContext | null,
 ): RecommendationSet {
   const byPct = [...indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
   const worst = byPct[0];
@@ -559,6 +625,10 @@ export function derivePersonalizedRecommendations(
     hygiene = ["Maintenir une hydratation régulière tout au long de la journée", "Privilégier une alimentation riche en antioxydants et fruits frais"];
   }
 
+  if (exposome?.hygieneTip && !hygiene.includes(exposome.hygieneTip)) {
+    hygiene = [exposome.hygieneTip, ...hygiene].slice(0, 3);
+  }
+
   const focusTxt = worst ? `« ${worst.nom} » (${worst.pourcentage} %)` : "l'harmonie générale de votre peau";
 
   return {
@@ -577,47 +647,113 @@ export function derivePersonalizedRecommendations(
  * restent personnalisés par indicateurs (les plus faibles d'abord). */
 function ruleRecommendations(
   analysis: Omit<DiagnosisResult, "recommandations" | "source" | "confidence" | "avertissement">,
+  exposome?: ExposomeContext | null,
 ): RecommendationSet {
   return derivePersonalizedRecommendations(
     analysis.zone,
     analysis.indicateurs,
     analysis.score_global,
+    exposome,
   );
 }
 
-/** Fallback déterministe si le VLM échoue (toujours fonctionnel) */
-export function fallbackResult(zone: BodyZone, seed: number): DiagnosisResult {
+/**
+ * Fallback déterministe 100% piloté par la biométrie optique réelle de la photo
+ * (CIE L*a*b*, ITA°, Lambert-Beer Mélanine/Hémoglobine, GLCM Pores et 5 sous-zones ROI).
+ * Même si tous les VLM distants sont hors-ligne, l'analyse reflète les pixels réels de la peau photographiée.
+ */
+export function fallbackResult(
+  zone: BodyZone,
+  seed: number,
+  opticalMetrics?: OpticalSkinMetrics | null,
+  exposome?: ExposomeContext | null,
+): DiagnosisResult {
   const rand = (i: number) => {
     const x = Math.sin(seed * 97.13 + i * 41.7) * 10000;
     return x - Math.floor(x);
   };
   const names = ZONE_INDICATORS[zone];
+  const het = opticalMetrics?.pigmentHeterogeneity ?? 24;
+  const ery = opticalMetrics?.erythemaIndex ?? 22;
+  const glare = opticalMetrics?.specularGlarePct ?? 4;
+  const rough = opticalMetrics?.poreRoughnessIndex ?? 28;
+  const sharp = opticalMetrics?.sharpnessScore ?? 72;
+
   const indicateurs: Indicator[] = names.map((nom, i) => {
-    const pct = Math.round(45 + rand(i) * 50);
+    if (!opticalMetrics) {
+      const pct = Math.round(52 + rand(i) * 38);
+      return { nom, pourcentage: pct, severite: severityFromPercent(pct) };
+    }
+    const n = nom.toLowerCase();
+    const jitter = Math.round((rand(i) - 0.5) * 6);
+    let base = 74;
+    if (n.includes("tache") || n.includes("pih") || n.includes("pigment") || n.includes("uniform") || n.includes("mélasma") || n.includes("melasma")) {
+      base = 92 - Math.round(het * 0.62);
+    } else if (n.includes("rougeur") || n.includes("irrit") || n.includes("sensib") || n.includes("follicul") || n.includes("acné") || n.includes("acne")) {
+      base = 90 - Math.round(ery * 0.58);
+    } else if (n.includes("sébum") || n.includes("sebum") || n.includes("brillance")) {
+      base = 88 - Math.round(glare * 2.2 + rough * 0.25);
+    } else if (n.includes("pore") || n.includes("grain") || n.includes("texture") || n.includes("rugos")) {
+      base = 90 - Math.round(rough * 0.55);
+    } else if (n.includes("hydrat") || n.includes("barri") || n.includes("éclat") || n.includes("eclat")) {
+      base = 86 - Math.round(rough * 0.35 + het * 0.2);
+    } else {
+      base = 82 - Math.round((het * 0.25 + ery * 0.25 + rough * 0.2) * 0.6) + Math.round((sharp - 65) * 0.1);
+    }
+    const pct = clamp(base + jitter, 34, 94, 72);
     return { nom, pourcentage: pct, severite: severityFromPercent(pct) };
   });
-  const score = Math.round(indicateurs.reduce((s, i) => s + i.pourcentage, 0) / indicateurs.length);
-  const marquages: ZoneMark[] = [
-    { label: "Zone T", x: 50, y: 32, w: 34, h: 22, severite: Math.min(3, Math.round(rand(1) * 3)) },
-    { label: "Joue gauche", x: 28, y: 52, w: 20, h: 20, severite: Math.min(3, Math.round(rand(2) * 3)) },
-    { label: "Joue droite", x: 72, y: 52, w: 20, h: 20, severite: Math.min(3, Math.round(rand(3) * 3)) },
-    { label: "Menton", x: 50, y: 74, w: 18, h: 14, severite: Math.min(3, Math.round(rand(4) * 3)) },
-  ].slice(0, zone === "visage" ? 4 : 2);
 
-  const customRec = derivePersonalizedRecommendations(zone, indicateurs, score);
+  const score = Math.round(indicateurs.reduce((s, i) => s + i.pourcentage, 0) / indicateurs.length);
+
+  let marquages: ZoneMark[];
+  if (opticalMetrics?.subzones && opticalMetrics.subzones.length > 0) {
+    const issueLabel: Record<string, string> = {
+      pih: "Pigmentation / HPI",
+      erytheme: "Réactivité",
+      sebum: "Brillance sébacée",
+      texture: "Grain & pores",
+      sain: "Équilibre",
+    };
+    marquages = [...opticalMetrics.subzones]
+      .sort((a, b) => b.severity - a.severity || b.pigmentScore + b.erythemaScore - (a.pigmentScore + a.erythemaScore))
+      .slice(0, zone === "visage" ? 4 : 2)
+      .map((sub) => ({
+        label: `${sub.label} (${issueLabel[sub.dominantIssue] ?? "Analyse"})`.slice(0, 40),
+        x: sub.x,
+        y: sub.y,
+        w: sub.w,
+        h: sub.h,
+        severite: sub.severity,
+      }));
+  } else {
+    marquages = [
+      { label: "Zone T", x: 50, y: 32, w: 34, h: 22, severite: Math.min(3, Math.round(rand(1) * 3)) },
+      { label: "Joue gauche", x: 28, y: 52, w: 20, h: 20, severite: Math.min(3, Math.round(rand(2) * 3)) },
+      { label: "Joue droite", x: 72, y: 52, w: 20, h: 20, severite: Math.min(3, Math.round(rand(3) * 3)) },
+      { label: "Menton", x: 50, y: 74, w: 18, h: 14, severite: Math.min(3, Math.round(rand(4) * 3)) },
+    ].slice(0, zone === "visage" ? 4 : 2);
+  }
+
+  const customRec = derivePersonalizedRecommendations(zone, indicateurs, score, exposome);
+  const fitzEstimated = opticalMetrics?.itaPhototypeHint ?? "V";
 
   return {
     score_global: score,
-    fitzpatrick_estime: "V",
+    fitzpatrick_estime: fitzEstimated,
     zone,
     indicateurs,
     zones_marquages: marquages,
     recommandations: {
       ...customRec,
-      resume: `Analyse simulée (mode secours). Votre peau montre un score global de ${score}/100. Routine personnalisée sans engagement commercial adaptée à vos indicateurs.`,
+      resume: opticalMetrics
+        ? `Analyse biométrique optique directe (CIE L*a*b* / ITA° ${opticalMetrics.itaDegrees}°). Votre peau affiche un score de santé de ${score}/100 avec une routine ciblée sur vos indicateurs.`
+        : `Analyse simulée (mode secours). Votre peau montre un score global de ${score}/100. Routine personnalisée sans engagement commercial adaptée à vos indicateurs.`,
     },
     orientation_dermato: false,
-    avertissement: "Mode secours : résultat simulé car le moteur IA est momentanément indisponible.",
+    avertissement: opticalMetrics
+      ? "Analyse calculée par biométrie optique directe (CIE L*a*b* & Lambert-Beer) — moteur VLM en relais local."
+      : "Mode secours : résultat simulé car le moteur IA est momentanément indisponible.",
     source: "fallback",
     confidence: "indicative",
   };
@@ -636,6 +772,7 @@ async function callGeminiVision(opts: {
   opticalPrompt?: string;
   clinicalContext?: string;
   previousSummary?: string;
+  exposomePrompt?: string;
 }): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || opts.images.length === 0) return null;
@@ -661,6 +798,7 @@ async function callGeminiVision(opts: {
         opticalPrompt: opts.opticalPrompt,
         clinicalContext: opts.clinicalContext,
         previousSummary: opts.previousSummary,
+        exposomePrompt: opts.exposomePrompt,
       },
     );
     labeledParts.push({ text: prompt });
@@ -736,7 +874,11 @@ async function callGeminiVision(opts: {
   }
 }
 
-async function callGeminiRecommendations(analysisJson: string, zone: BodyZone): Promise<string | null> {
+async function callGeminiRecommendations(
+  analysisJson: string,
+  zone: BodyZone,
+  exposomePrompt?: string,
+): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -749,7 +891,7 @@ async function callGeminiRecommendations(analysisJson: string, zone: BodyZone): 
         "gemini-2.0-flash",
       ]),
     );
-    const prompt = buildRecommendationsPrompt(analysisJson, zone);
+    const prompt = buildRecommendationsPrompt(analysisJson, zone, exposomePrompt);
 
     for (const model of models) {
       const isThinkingModel = model.includes("2.5") || model.includes("3.");
@@ -944,12 +1086,162 @@ Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
   }
 }
 
-/** Appel principal — pipeline 2 phases avec fallback par phase.
- * Phase 1: vision minimale (analyse réelle de la photo, ~12 s).
+/**
+ * Appel VLM multi-fournisseurs additionnels (OpenAI GPT-4o Vision, OpenRouter Qwen2.5-VL-72B / Llama-4,
+ * Groq Llama-4 Vision ou Anthropic Claude Vision) si configurés dans l'environnement.
+ * Sert à la fois de palier haute disponibilité et de second avis d'arbitrage dermatologique.
+ */
+async function callAdditionalProviderVision(opts: {
+  images: string[];
+  prompt: string;
+  zone: BodyZone;
+  timeoutMs?: number;
+}): Promise<string | null> {
+  const timeout = opts.timeoutMs ?? 18_000;
+
+  // 1) Anthropic Claude Vision (si ANTHROPIC_API_KEY est défini)
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const contentBlocks: Array<Record<string, unknown>> = [{ type: "text", text: opts.prompt }];
+      opts.images.forEach((img, idx) => {
+        const match = img.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          if (opts.images.length > 1) {
+            contentBlocks.push({ type: "text", text: `[${angleLabelFor(opts.zone, idx, opts.images.length)}]` });
+          }
+          contentBlocks.push({
+            type: "image",
+            source: { type: "base64", media_type: match[1], data: match[2] },
+          });
+        }
+      });
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": process.env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: process.env.ANTHROPIC_VISION_MODEL || "claude-sonnet-4-20250514",
+          max_tokens: 750,
+          temperature: 0.15,
+          messages: [{ role: "user", content: contentBlocks }],
+        }),
+        signal: AbortSignal.timeout(timeout),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        const txt = j?.content?.[0]?.text;
+        if (typeof txt === "string" && txt.trim()) return txt;
+      }
+    } catch (e) {
+      console.warn("[kene:vlm:anthropic] failed:", (e as Error).message);
+    }
+  }
+
+  // 2) Fournisseurs compatibles OpenAI Vision (OpenAI GPT-4o, OpenRouter Qwen2.5-VL, Groq Llama-4)
+  const providers: Array<{ name: string; url: string; key?: string; model: string }> = [
+    {
+      name: "openai",
+      url: "https://api.openai.com/v1/chat/completions",
+      key: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_VISION_MODEL || "gpt-4o-mini",
+    },
+    {
+      name: "openrouter",
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      key: process.env.OPENROUTER_API_KEY,
+      model: process.env.OPENROUTER_VISION_MODEL || "qwen/qwen2.5-vl-72b-instruct",
+    },
+    {
+      name: "groq",
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      key: process.env.GROQ_API_KEY,
+      model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
+    },
+  ];
+
+  for (const p of providers) {
+    if (!p.key) continue;
+    try {
+      const content: Array<Record<string, unknown>> = [{ type: "text", text: opts.prompt }];
+      opts.images.forEach((img, idx) => {
+        if (opts.images.length > 1) {
+          content.push({ type: "text", text: `[${angleLabelFor(opts.zone, idx, opts.images.length)}]` });
+        }
+        content.push({ type: "image_url", image_url: { url: img } });
+      });
+
+      const res = await fetch(p.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${p.key}`,
+        },
+        body: JSON.stringify({
+          model: p.model,
+          temperature: 0.15,
+          max_tokens: 750,
+          messages: [{ role: "user", content }],
+        }),
+        signal: AbortSignal.timeout(timeout),
+      });
+      if (!res.ok) continue;
+      const dataJson = await res.json();
+      const txt = dataJson?.choices?.[0]?.message?.content;
+      if (typeof txt === "string" && txt.trim()) return txt;
+    } catch (e) {
+      console.warn(`[kene:vlm:${p.name}] failed:`, (e as Error).message);
+    }
+  }
+  return null;
+}
+
+/**
+ * Arbitre par consensus multi-modèles : fusionne deux analyses issues de familles VLM différentes
+ * (ex: Gemini 2.5 Flash + Z.ai GLM-4.6v ou OpenAI/Claude/Qwen) sur les cas sensibles (nævi ou alerte dermato).
+ */
+function blendConsensusAnalysis(
+  primary: NonNullable<ReturnType<typeof normalizeAnalysis>>,
+  secondary: NonNullable<ReturnType<typeof normalizeAnalysis>>,
+): NonNullable<ReturnType<typeof normalizeAnalysis>> {
+  const blendedInd: Indicator[] = primary.indicateurs.map((pInd) => {
+    const sInd = secondary.indicateurs.find((x) => normIndKey(x.nom) === normIndKey(pInd.nom));
+    if (!sInd) return pInd;
+    const pct = Math.round(pInd.pourcentage * 0.6 + sInd.pourcentage * 0.4);
+    return {
+      nom: pInd.nom,
+      pourcentage: pct,
+      severite: severityFromPercent(pct),
+      note: pInd.note || sInd.note,
+    };
+  });
+  const scoreGlobal = Math.round(
+    blendedInd.reduce((s, i) => s + i.pourcentage, 0) / Math.max(1, blendedInd.length),
+  );
+  // Sécurité clinique : si l'un des deux modèles lève un drapeau dermatologique sur nævi, ou si les deux convergent
+  const derm =
+    primary.zone === "naevi"
+      ? primary.orientation_dermato || secondary.orientation_dermato
+      : (primary.orientation_dermato && secondary.orientation_dermato) ||
+        (primary.orientation_dermato && scoreGlobal < 58);
+
+  return {
+    ...primary,
+    score_global: scoreGlobal,
+    indicateurs: blendedInd,
+    orientation_dermato: derm,
+    raison_orientation: primary.raison_orientation || secondary.raison_orientation,
+  };
+}
+
+/** Appel principal — pipeline 2 phases avec fallback par phase + télémétrie optique + exposome africain.
+ * Phase 1: vision minimale (analyse réelle de la photo, ~12 s) + arbitrage consensus sur cas sensibles.
  * Phase 2: LLM texte (recommandations personnalisées, ~4 s) — si elle
  * échoue, des recommandations dérivées de l'analyse réelle prennent le
  * relais (le diagnostic reste « haute » confiance: la vision a réussi).
- * Phase 1 en échec → fallback global déterministe (mode secours assumé). */
+ * Phase 1 en échec → fallback global déterministe piloté par la biométrie optique réelle de l'image. */
 export async function runDiagnosis(opts: {
   imageBase64?: string | string[]; // data URL complète ou tableau
   images?: string[];
@@ -960,7 +1252,6 @@ export async function runDiagnosis(opts: {
   previousSummary?: string;
 }): Promise<DiagnosisResult> {
   const { zone, fitzpatrick, allergies, clinicalContext, previousSummary } = opts;
-  const seed = Date.now() % 1000;
 
   // Normalisation des images (tolère string, string[], ou string JSON sérialisé)
   let imageList: string[] = [];
@@ -984,14 +1275,26 @@ export async function runDiagnosis(opts: {
 
   // Filtrer les images valides
   const validImages = imageList.filter((img) => typeof img === "string" && img.startsWith("data:image/"));
+  const seed = validImages[0] ? computeImageSeed(validImages[0]) % 10000 : Date.now() % 1000;
   if (validImages.length === 0) {
-    return fallbackResult(zone, seed);
+    return fallbackResult(zone, seed, null, getSeasonalFallbackExposome());
   }
 
-  // Extraction rapide (< 0.1 ms, zéro dépendance native) des biomarqueurs CIE L*a*b* / ITA° embarqués
+  // Extraction rapide (< 0.1 ms, zéro dépendance native) des biomarqueurs CIE L*a*b* / ITA° / Lambert-Beer / 5 sous-zones ROI
   const opticalMetricsList = validImages.map((img) => extractOpticalTelemetryFromDataUrl(img));
   const primaryOptical = opticalMetricsList.find((m) => m !== null) ?? null;
   const opticalPrompt = formatOpticalTelemetryForPrompt(opticalMetricsList);
+
+  // Récupération de l'Exposome climatique africain en direct (UV, Harmattan, Hygrométrie — cache 1h / timeout 1.2s)
+  const exposome = await getAfricanExposomeContext("abidjan").catch(() => getSeasonalFallbackExposome("abidjan"));
+  const exposomePrompt = exposome.promptSummary;
+
+  const fullPrompt = buildAnalysisPrompt(zone, fitzpatrick, allergies, validImages.length, {
+    opticalPrompt,
+    clinicalContext,
+    previousSummary,
+    exposomePrompt,
+  });
 
   // 1. Essai primaire Gemini VLM si configuré
   if (process.env.GEMINI_API_KEY) {
@@ -1004,10 +1307,27 @@ export async function runDiagnosis(opts: {
         opticalPrompt,
         clinicalContext,
         previousSummary,
+        exposomePrompt,
       });
       if (geminiRaw) {
-        const analysis = normalizeAnalysis(extractJson(geminiRaw), zone, primaryOptical);
+        let analysis = normalizeAnalysis(extractJson(geminiRaw), zone, primaryOptical, clinicalContext);
         if (analysis) {
+          // Arbitrage de second avis sur les cas à haut risque (nævi ou orientation_dermato)
+          if (zone === "naevi" || analysis.orientation_dermato) {
+            const secondRaw = await callAdditionalProviderVision({
+              images: validImages,
+              prompt: fullPrompt,
+              zone,
+              timeoutMs: 12_000,
+            }).catch(() => null);
+            if (secondRaw) {
+              const secondAnalysis = normalizeAnalysis(extractJson(secondRaw), zone, primaryOptical, clinicalContext);
+              if (secondAnalysis) {
+                analysis = blendConsensusAnalysis(analysis, secondAnalysis);
+              }
+            }
+          }
+
           let rec: RecommendationSet | null = null;
           const recRaw = await callGeminiRecommendations(
             JSON.stringify({
@@ -1016,13 +1336,14 @@ export async function runDiagnosis(opts: {
               zones_marquages: analysis.zones_marquages.map((m) => ({ label: m.label, severite: m.severite })),
               fitzpatrick_estime: analysis.fitzpatrick_estime ?? null,
             }),
-            zone
+            zone,
+            exposomePrompt,
           );
           if (recRaw) {
             rec = normalizeRecommendations(extractJson(recRaw));
           }
           if (!rec) {
-            rec = ruleRecommendations(analysis);
+            rec = ruleRecommendations(analysis, exposome);
           }
           return {
             ...analysis,
@@ -1035,10 +1356,36 @@ export async function runDiagnosis(opts: {
         }
       }
     } catch (err) {
-      console.error("[kene:vlm] Gemini attempt failed, falling back to ZAI/default:", (err as Error).message);
+      console.error("[kene:vlm] Gemini attempt failed, falling back to multi-provider/ZAI:", (err as Error).message);
     }
   }
 
+  // 2. Essai VLM Multi-Fournisseurs additionnels (OpenAI GPT-4o / OpenRouter Qwen2.5-VL / Groq / Anthropic) si configurés
+  try {
+    const extraRaw = await callAdditionalProviderVision({
+      images: validImages,
+      prompt: fullPrompt,
+      zone,
+    });
+    if (extraRaw) {
+      const analysis = normalizeAnalysis(extractJson(extraRaw), zone, primaryOptical, clinicalContext);
+      if (analysis) {
+        const rec = ruleRecommendations(analysis, exposome);
+        return {
+          ...analysis,
+          recommandations: rec,
+          avertissement:
+            "Estimation IA éducative — ne constitue pas un diagnostic médical. En cas de lésion évolutive, consultez un dermatologue.",
+          source: "vlm",
+          confidence: "haute",
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[kene:vlm] Additional provider attempt failed:", (err as Error).message);
+  }
+
+  // 3. Essai Z.ai glm-4.6v VLM
   try {
     const zai = await ZAI.create();
 
@@ -1047,12 +1394,7 @@ export async function runDiagnosis(opts: {
     // fois; la 2e réponse est souvent propre). ──────────────────────────
     let analysis: ReturnType<typeof normalizeAnalysis> = null;
     let lastRaw = "";
-    const prompt = buildAnalysisPrompt(zone, fitzpatrick, allergies, validImages.length, {
-      opticalPrompt,
-      clinicalContext,
-      previousSummary,
-    });
-    const content: VisionMessage["content"] = [{ type: "text", text: prompt }];
+    const content: VisionMessage["content"] = [{ type: "text", text: fullPrompt }];
     validImages.forEach((img, idx) => {
       if (validImages.length > 1) {
         content.push({ type: "text", text: `[${angleLabelFor(zone, idx, validImages.length)}]` });
@@ -1080,7 +1422,7 @@ export async function runDiagnosis(opts: {
         { label: "vlm:vision", timeoutMs: attempt === 0 ? VLM_TIMEOUT_MS : VLM_RETRY_TIMEOUT_MS, busyRetries: 2 },
       );
       lastRaw = response.choices[0]?.message?.content ?? "";
-      analysis = normalizeAnalysis(extractJson(lastRaw), zone, primaryOptical);
+      analysis = normalizeAnalysis(extractJson(lastRaw), zone, primaryOptical, clinicalContext);
       if (!analysis) {
         console.error(
           `[kene:vlm] phase 1 réponse illisible (tentative ${attempt + 1}/2) — complet :`,
@@ -1088,7 +1430,7 @@ export async function runDiagnosis(opts: {
         );
       }
     }
-    if (!analysis) return fallbackResult(zone, seed);
+    if (!analysis) return fallbackResult(zone, seed, primaryOptical, exposome);
 
     // ── Phase 2: recommandations rédigées (LLM texte rapide) ──────────
     let recommandations: RecommendationSet | null = null;
@@ -1108,6 +1450,7 @@ export async function runDiagnosis(opts: {
                     fitzpatrick_estime: analysis.fitzpatrick_estime ?? null,
                   }),
                   zone,
+                  exposomePrompt,
                 ),
               },
             ],
@@ -1119,7 +1462,7 @@ export async function runDiagnosis(opts: {
     } catch (err) {
       console.error("[kene:vlm] recommandations LLM indisponible (règles locales) :", (err as Error).message);
     }
-    if (!recommandations) recommandations = ruleRecommendations(analysis);
+    if (!recommandations) recommandations = ruleRecommendations(analysis, exposome);
 
     return {
       ...analysis,
@@ -1131,7 +1474,7 @@ export async function runDiagnosis(opts: {
     };
   } catch (err) {
     console.error("[kene:vlm] diagnostic fallback:", (err as Error).message);
-    return fallbackResult(zone, seed);
+    return fallbackResult(zone, seed, primaryOptical, exposome);
   }
 }
 

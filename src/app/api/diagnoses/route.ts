@@ -27,6 +27,7 @@ const Body = z.object({
   images: z.array(z.string().startsWith("data:image/")).min(1).max(5).optional(),
   fitzpatrick: z.string().optional(),
   allergies: z.string().optional(),
+  skinContext: z.string().max(400).optional(),
 }).refine((data) => Boolean(data.image || (data.images && data.images.length > 0)), {
   message: "Au moins une image requise (image ou images)",
   path: ["image"],
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
     // 2. Analyse VLM (10-45 s): lancée en tâche de fond, on NE l'attend PAS
     // (fire-and-forget — l'ancien await ici bloquait la réponse 20-45 s et
     // déclenchait les 502 du gateway en fin de diagnostic).
-    void processDiagnosisJob(diagnosis.id);
+    void processDiagnosisJob(diagnosis.id, parsed.data.skinContext);
 
     // 3. Réponse immédiate 202: payload { diagnosis } compatible 66-b, le
     // champ status vaut "pending" au moment de la réponse — c'est le but.

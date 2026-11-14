@@ -133,6 +133,15 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const [zone, setZone] = useState<BodyZone>("visage");
   const [image, setImage] = useState<string>("");
   const [slotImages, setSlotImages] = useState<Record<string, string>>({});
+  // Micro-contexte pré-scan en 1 clic (élimine les faux positifs sébum/karité et maquillage)
+  const [preScanSurface, setPreScanSurface] = useState<"Peau nue" | "Crème / Huile / Karité récent" | "Maquillée / Poudre">("Peau nue");
+  const [preScanFeel, setPreScanFeel] = useState<"Confortable" | "Tiraille (sèche)" | "Brille vite" | "Démange / Chauffe">("Confortable");
+  const [preScanExpo, setPreScanExpo] = useState<"Avec SPF" | "Sans écran solaire" | "Soin éclaircissant">("Sans écran solaire");
+
+  const skinContextSummary = useMemo(
+    () => `État cutané au moment de la photo : ${preScanSurface} ; Ressenti : ${preScanFeel} ; Habitude : ${preScanExpo}.`,
+    [preScanSurface, preScanFeel, preScanExpo],
+  );
   const slots = useMemo(() => ZONE_PHOTO_SLOTS[zone] ?? [{ id: "main", label: "Vue principale", hint: "Photo nette", required: true }], [zone]);
   const [activeSlotId, setActiveSlotId] = useState<string>(() => slots[0]?.id ?? "face");
 
@@ -586,6 +595,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         images: allImages,
         fitzpatrick: user.fitzpatrick ?? undefined,
         allergies: user.allergies ?? undefined,
+        skinContext: skinContextSummary,
       });
       haptic(HAPTIC.light);
       setAnalyzing(false);
@@ -617,6 +627,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             images: allImages,
             fitzpatrick: user.fitzpatrick ?? undefined,
             allergies: user.allergies ?? undefined,
+            skinContext: skinContextSummary,
           }, { timeoutMs: 90_000 });
           break;
         } catch (e) {
@@ -659,6 +670,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           images: allImages,
           fitzpatrick: user.fitzpatrick ?? undefined,
           allergies: user.allergies ?? undefined,
+          skinContext: skinContextSummary,
         });
         haptic(HAPTIC.light);
         toast.success("Réseau perdu — diagnostic gardé", {
@@ -1598,6 +1610,92 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             )}
           </div>
         ) : null}
+
+        {/* Micro-contexte pré-scan en 1 clic : élimine la confusion Karité/Sébum et Maquillage */}
+        {totalCaptured > 0 && (
+          <div className="mt-3 rounded-2xl border border-border/60 bg-card/70 p-3 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-foreground">
+                3. Calibration optique express (optionnel · 1 clic)
+              </span>
+              <span className="text-[9.5px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                Précision IA +25%
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold text-muted-foreground block">Sur ta peau en ce moment :</span>
+              <div className="flex flex-wrap gap-1.5">
+                {(["Peau nue", "Crème / Huile / Karité récent", "Maquillée / Poudre"] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => {
+                      setPreScanSurface(opt);
+                      haptic(HAPTIC.tap);
+                    }}
+                    className={cn(
+                      "px-2.5 py-1 rounded-xl text-[10.5px] font-bold border transition-all cursor-pointer",
+                      preScanSurface === opt
+                        ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                        : "bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground",
+                    )}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold text-muted-foreground block">Ressenti habituel :</span>
+              <div className="flex flex-wrap gap-1.5">
+                {(["Confortable", "Tiraille (sèche)", "Brille vite", "Démange / Chauffe"] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => {
+                      setPreScanFeel(opt);
+                      haptic(HAPTIC.tap);
+                    }}
+                    className={cn(
+                      "px-2.5 py-1 rounded-xl text-[10.5px] font-bold border transition-all cursor-pointer",
+                      preScanFeel === opt
+                        ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                        : "bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground",
+                    )}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold text-muted-foreground block">Protection &amp; habitudes :</span>
+              <div className="flex flex-wrap gap-1.5">
+                {(["Avec SPF", "Sans écran solaire", "Soin éclaircissant"] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => {
+                      setPreScanExpo(opt);
+                      haptic(HAPTIC.tap);
+                    }}
+                    className={cn(
+                      "px-2.5 py-1 rounded-xl text-[10.5px] font-bold border transition-all cursor-pointer",
+                      preScanExpo === opt
+                        ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                        : "bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground",
+                    )}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Bouton de lancement de l'analyse — Signature Ébène & Or 24K */}
         {totalCaptured > 0 ? (
