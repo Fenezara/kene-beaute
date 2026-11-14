@@ -20,7 +20,7 @@ import { AuroraBackdrop, Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Re
 import { CauriIcon, KeneEmblemLockup } from "@/components/kene/icons";
 import { useT } from "@/lib/kene/use-t";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { useKene, type SessionUser } from "@/store/kene";
+import { useKene, createLocalGuestUser, type SessionUser } from "@/store/kene";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, type ApiProRegisterResponse, type ApiUser, readSession } from "./types";
 import { PinKeypad } from "./PinKeypad";
 import { createHumanPayload } from "@/components/kene/auth/BotHoneypot";
@@ -165,22 +165,12 @@ export function Onboarding({
     }
   }
 
-  async function startExploration() {
-    setLoading(true);
-    try {
-      // — UNE requête GET: l'accès express ne dépend d'AUCUN POST (les POST
-      // de la préview de l'utilisatrice sont bloqués/pendus en amont; ses GET
-      // traversent toujours). /api/auth/express = login complet côté serveur,
-      // réponse identique à otp/verify ({ user, tenant } + cookie).
-      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express");
-      rememberAccount({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
-      setUser(v.user as SessionUser);
-      toast.success(`Bienvenue ${v.user.name.split(" ")[0]} 💛`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
-    } finally {
-      setLoading(false);
+  function startExploration() {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("kene:start-explore"));
     }
+    setUser(createLocalGuestUser());
+    toast.success("Bienvenue sur Kènè 💛");
   }
 
   async function proceedAfterAuth(v: {

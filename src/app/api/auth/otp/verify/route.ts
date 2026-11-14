@@ -23,6 +23,11 @@ import { hashPin } from "@/lib/kene/pin";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
 import { checkBotGuard } from "@/lib/kene/bot-guard";
 import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
+import {
+  findCookieVirtualGuest,
+  promoteGuestUserInPlace,
+  transferAndDeleteGuestUser,
+} from "@/lib/kene/guest";
 
 const Body = z.object({
   phone: z.string().min(5),
@@ -150,6 +155,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   await db.otpCode.update({ where: { id: otp.id }, data: { used: true } });
 
   // Le téléphone d'une propriétaire d'institut → rôle pro
+  const cookieGuest = await findCookieVirtualGuest(req);
   const pSuffix = phoneSuffix(phone);
   const allTenants = await db.tenant.findMany({ select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true } });
   const ownerTenantByPhone =
@@ -168,20 +174,33 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   if (!user) {
     const isPro = Boolean(ownerTenantByPhone);
     const defaultTenant = !isPro ? await getDefaultCabinetTenant() : null;
-    user = await db.user.create({
-      data: {
+    if (cookieGuest && !isPro) {
+      user = await promoteGuestUserInPlace(cookieGuest.id, {
         phone,
         name: name || "Nouvelle cliente",
-        role: isPro ? "pro" : "client",
-        referralCode: genRef("KENE"),
+        role: "client",
         pinHash: pin ? hashPin(pin) : null,
         selectedTenantId: defaultTenant?.id ?? null,
-      },
-    });
-    if (user.role === "client") {
-      await grantClientWelcomeTrial(user.id).catch(() => null);
-    } else if (user.role === "pro") {
-      await grantProWelcomeTrial(user.id, ownerTenantByPhone?.id).catch(() => null);
+      });
+    } else {
+      user = await db.user.create({
+        data: {
+          phone,
+          name: name || "Nouvelle cliente",
+          role: isPro ? "pro" : "client",
+          referralCode: genRef("KENE"),
+          pinHash: pin ? hashPin(pin) : null,
+          selectedTenantId: defaultTenant?.id ?? null,
+        },
+      });
+      if (user.role === "client") {
+        await grantClientWelcomeTrial(user.id).catch(() => null);
+      } else if (user.role === "pro") {
+        await grantProWelcomeTrial(user.id, ownerTenantByPhone?.id).catch(() => null);
+      }
+      if (cookieGuest && cookieGuest.id !== user.id) {
+        await transferAndDeleteGuestUser(cookieGuest.id, user.id);
+      }
     }
   }
 
@@ -276,6 +295,9 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     employeePermissions,
     employeeName,
   });
+  if (cookieGuest && cookieGuest.id !== user.id) {
+    await transferAndDeleteGuestUser(cookieGuest.id, user.id);
+  }
   setSessionCookie(response, user);
   return response;
 }

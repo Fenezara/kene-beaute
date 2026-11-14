@@ -21,14 +21,14 @@ import {
   ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Camera, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Droplets, Heart, Leaf, Loader2, LogIn, Play, ShieldCheck, Sparkles, Star, UserCheck, X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPost } from "@/lib/kene/api";
+import { apiPost } from "@/lib/kene/api";
 import { cn } from "@/lib/utils";
 import {
   firstNameOf, forgetAccount, maskPhone, readLastAccount, rememberAccount, type LastAccount,
 } from "@/lib/kene/last-account";
 import { AuroraBackdrop, Eyebrow, GlassCard, Reveal, RevealItem } from "@/components/kene/ui2026";
 import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon, KeneSunIcon, BissapFlowerIcon } from "@/components/kene/icons";
-import { useKene, type SessionUser, type ClientTab } from "@/store/kene";
+import { useKene, createLocalGuestUser, type SessionUser, type ClientTab } from "@/store/kene";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { isOnline } from "@/lib/kene/ux";
 import { DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
@@ -346,31 +346,16 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
     }
   }
 
-  async function startExploration(targetTab: ClientTab = "diagnostic") {
+  function startExploration(targetTab: ClientTab = "diagnostic") {
     if (exploring) return;
     setExploring(true);
     try {
+      // Session invitée 100 % locale : zéro compte virtuel (+22500...) créé en base
+      // tant que la visiteuse ne lance pas un véritable scan IA.
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("kene:start-explore"));
       }
-      // — UNE requête GET: l'accès express ne dépend d'AUCUN POST.
-      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express?newGuest=1");
-      setUser(v.user as SessionUser);
-      useKene.getState().setClientTab(targetTab);
-      toast.success(v.user.name && v.user.name !== "Nouvelle invitée" ? `Bienvenue ${v.user.name.split(" ")[0]} 💛` : "Bienvenue sur Kènè 💛");
-      if (onBackToApp) onBackToApp();
-    } catch {
-      // Repli invité hors-ligne immédiat
-      const fallbackGuest: SessionUser = {
-        id: `guest_${Date.now()}`,
-        name: "Nouvelle invitée",
-        phone: `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`,
-        role: "client",
-      };
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("kene:start-explore"));
-      }
-      setUser(fallbackGuest);
+      setUser(createLocalGuestUser());
       useKene.getState().setClientTab(targetTab);
       toast.success("Bienvenue sur Kènè 💛");
       if (onBackToApp) onBackToApp();

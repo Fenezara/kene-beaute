@@ -84,7 +84,7 @@ export function ProfileScreen() {
   const [userDiagnoses, setUserDiagnoses] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || user.id.startsWith("guest")) return;
     apiGet<{ diagnoses: any[] }>(`/api/diagnoses?userId=${user.id}`)
       .then((res) => {
         setUserDiagnoses(res.diagnoses ?? []);
@@ -153,7 +153,7 @@ export function ProfileScreen() {
 
   // Fils d'Or — non bloquant: la section s'efface si indisponible.
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || user.id.startsWith("guest")) return;
     let alive = true;
     apiGet<GoldThreads>(`/api/gold-threads?userId=${user.id}`)
       .then((g) => { if (alive) setGold(g); })

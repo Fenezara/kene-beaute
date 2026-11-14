@@ -41,20 +41,24 @@ export function AdminUsers() {
   }, [q]);
 
   const [role, setRole] = useState("");
-  const [accountTypeFilter, setAccountTypeFilter] = useState<"all" | "real" | "demo">("all");
+  const [accountTypeFilter, setAccountTypeFilter] = useState<"all" | "real" | "guest" | "demo" | "archived">("all");
   const list = useApi(
     () => apiGet<{ users: AdminUserRow[] }>(`/api/admin/users?q=${encodeURIComponent(dq)}&role=${role}`),
     [dq, role],
   );
 
   const allUsers = useMemo(() => list.data?.users ?? [], [list.data]);
-  const realCount = useMemo(() => allUsers.filter((u) => !u.isDemo).length, [allUsers]);
+  const realCount = useMemo(() => allUsers.filter((u) => !u.isDemo && !u.isVirtualGuest && !u.isArchived).length, [allUsers]);
+  const guestCount = useMemo(() => allUsers.filter((u) => u.isVirtualGuest).length, [allUsers]);
   const demoCount = useMemo(() => allUsers.filter((u) => u.isDemo).length, [allUsers]);
+  const archivedCount = useMemo(() => allUsers.filter((u) => u.isArchived).length, [allUsers]);
 
   const rows = useMemo(() => {
     let all = allUsers;
-    if (accountTypeFilter === "real") all = all.filter((u) => !u.isDemo);
+    if (accountTypeFilter === "real") all = all.filter((u) => !u.isDemo && !u.isVirtualGuest && !u.isArchived);
+    if (accountTypeFilter === "guest") all = all.filter((u) => u.isVirtualGuest);
     if (accountTypeFilter === "demo") all = all.filter((u) => u.isDemo);
+    if (accountTypeFilter === "archived") all = all.filter((u) => u.isArchived);
     return all;
   }, [allUsers, accountTypeFilter]);
 
@@ -149,13 +153,17 @@ export function AdminUsers() {
         </div>
       </div>
 
-      {/* Filtres Type de compte (Utilisateurs Réels vs Démos) */}
+      {/* Filtres Type de compte (Utilisateurs Réels vs Invitées vs Démos) */}
       <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrer par type de compte">
-        {([
-          ["all", `Tous les comptes (${allUsers.length})`],
-          ["real", `Utilisateurs Réels (${realCount})`],
-          ["demo", `Comptes Démo (${demoCount})`],
-        ] as const).map(([key, label]) => (
+        {(
+          [
+            ["all", `Tous les comptes (${allUsers.length})`],
+            ["real", `Utilisateurs Réels (${realCount})`],
+            ["guest", `Invitées temporaires (${guestCount})`],
+            ["demo", `Comptes Démo (${demoCount})`],
+            ...(archivedCount > 0 ? [["archived", `Archivés RGPD (${archivedCount})`]] : []),
+          ] as Array<["all" | "real" | "guest" | "demo" | "archived", string]>
+        ).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setAccountTypeFilter(key)}
@@ -215,6 +223,14 @@ export function AdminUsers() {
                           {u.isDemo ? (
                             <span className="rounded-full bg-muted/70 text-muted-foreground border border-dashed border-border px-2 py-0.5 text-[9.5px] font-medium">
                               Compte Démo
+                            </span>
+                          ) : u.isVirtualGuest ? (
+                            <span className="rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/35 px-2 py-0.5 text-[9.5px] font-semibold">
+                              Invitée temporaire
+                            </span>
+                          ) : u.isArchived ? (
+                            <span className="rounded-full bg-muted text-muted-foreground border border-border px-2 py-0.5 text-[9.5px] font-medium">
+                              Archivé RGPD
                             </span>
                           ) : (
                             <span className="rounded-full bg-success/15 text-success border border-success/30 px-2 py-0.5 text-[9.5px] font-semibold">

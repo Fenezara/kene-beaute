@@ -41,10 +41,10 @@ import { matchProduct, norm } from "@/components/kene/route/ritual";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useKene, isSavedUser } from "@/store/kene";
+import { useKene, isSavedUser, type SessionUser } from "@/store/kene";
 import { LinkAccountModal } from "./LinkAccountModal";
 import { Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
-import type { ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
+import type { ApiDiagnosis, ApiInstitute, ApiProduct, ApiUser } from "./types";
 import { diagImgSrc, diagImgSources, getZoneFallbackImage, parseDiagnosis } from "./types";
 import { EmptyBlock, ScoreChip, ScoreGauge } from "./bits";
 
@@ -88,6 +88,16 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const handleGrantConsent = async () => {
     haptic(HAPTIC.light);
     setUser({ ...user, consentHealth: true });
+    if (!user.id || user.id.startsWith("guest")) {
+      toast.success("Consentement données santé accordé");
+      setConsentModalOpen(false);
+      if (pendingScanRef.current) {
+        const proceed = pendingScanRef.current;
+        pendingScanRef.current = null;
+        proceed();
+      }
+      return;
+    }
     setConsentSaving(true);
     try {
       await apiPost("/api/auth/consent", { userId: user.id, types: ["health_data"] });
@@ -114,6 +124,10 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const handleToggleConsent = async (val: boolean) => {
     haptic(HAPTIC.light);
     setUser({ ...user, consentHealth: val });
+    if (!user.id || user.id.startsWith("guest")) {
+      toast.success(val ? "Consentement données santé accordé" : "Consentement révoqué");
+      return;
+    }
     setConsentSaving(true);
     try {
       if (val) {
@@ -299,6 +313,10 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   }, [loadProducts]);
 
   async function loadHistory() {
+    if (!user?.id || user.id.startsWith("guest")) {
+      setHistory([]);
+      return;
+    }
     setHistory(null);
     try {
       const r = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}&full=1`);
@@ -496,7 +514,9 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   // être ENREGISTRÉ avant la coupure. Done récent (< 4 min) → résultats;
   // pending → on reprend son suivi (poll du worker). Retourne true si pris
   // en charge.
-  async function tryRecover(t0: number): Promise<boolean> {
+  async function tryRecover(t0: number, userIdOverride?: string): Promise<boolean> {
+    const uid = userIdOverride ?? user.id;
+    if (!uid || uid.startsWith("guest")) return false;
     const RECENT_MS = 4 * 60 * 1000;
     const findRecent = (list: ApiDiagnosis[] | undefined): ApiDiagnosis | undefined =>
       (list ?? [])
@@ -508,7 +528,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         )
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
     try {
-      const found = findRecent((await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`)).diagnoses);
+      const found = findRecent((await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${uid}`)).diagnoses);
       if (!found) return false;
       if (found.status === "done") {
         const result = parseDiagnosis(found.resultJson);
@@ -537,6 +557,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   // la cliente qui quitte et revient ne perd rien. Les setState vivent dans
   // la continuation async (pattern loadProducts — règle set-state-in-effect).
   const resumePending = useCallback(async () => {
+    if (!user?.id || user.id.startsWith("guest")) return;
     try {
       const r = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`);
       if (launchedRef.current) return; // une analyse a démarré entre-temps
@@ -607,7 +628,16 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       });
       return;
     }
+    let activeUserId = user.id;
     try {
+      // Création paresseuse côté serveur UNIQUEMENT lorsque l'invité(e) lance un véritable scan IA
+      if (!activeUserId || activeUserId.startsWith("guest")) {
+        const guestRes = await apiGet<{ user: ApiUser }>("/api/auth/express");
+        activeUserId = guestRes.user.id;
+        setUser({ ...guestRes.user, consentHealth: true } as SessionUser);
+        void apiPost("/api/auth/consent", { userId: activeUserId, types: ["health_data"] }).catch(() => null);
+      }
+
       // POST /api/diagnoses: répond 202 en < 1 s avec la ligne "pending"
       // (pipeline asynchrone). 4 tentatives (: 3 → 4, backoff
       // jusqu'à 8 s ≈ ~13,5 s de fenêtre) quand la gateway renvoie
@@ -621,7 +651,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       for (let attempt = 0; attempt < 4; attempt += 1) {
         try {
           r = await apiPost<{ diagnosis: ApiDiagnosis }>("/api/diagnoses", {
-            userId: user.id,
+            userId: activeUserId,
             zone,
             image: primaryImage,
             images: allImages,
@@ -656,7 +686,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     } catch (e) {
       // 502/503/504 après 3 tentatives: tenter la récupération AVANT l'échec.
       const gatewayish = e instanceof ApiError && [502, 503, 504].includes(e.status);
-      if (gatewayish && (await tryRecover(t0))) return;
+      if (gatewayish && (await tryRecover(t0, activeUserId))) return;
       clearTimers();
       setAnalyzing(false);
       setNetNotice(null);

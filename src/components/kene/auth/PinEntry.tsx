@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { apiPost, apiGet, ApiError } from "@/lib/kene/api";
+import { apiPost, ApiError } from "@/lib/kene/api";
 import { readLastAccount, rememberAccount, type LastAccount } from "@/lib/kene/last-account";
 import { useKene, type SessionUser } from "@/store/kene";
 import { PinKeypad } from "@/components/kene/client/PinKeypad";
@@ -179,16 +179,9 @@ export function PinEntry() {
     return <BootSkeleton />;
   }
 
-  async function handleNewClientGuest() {
-    try {
-      const res = await apiGet<{ user: ApiUser }>("/api/auth/express");
-      setUser(res.user as SessionUser);
-      setSpace("client");
-      toast.success("Bienvenue sur Kènè 🌿 Mode découverte actif");
-      navigateToHome();
-    } catch {
-      navigateToHome();
-    }
+  function handleNewClientGuest() {
+    setSpace("client");
+    navigateToHome();
   }
 
   // Si aucun numéro n'est associé, pavé de saisie du numéro

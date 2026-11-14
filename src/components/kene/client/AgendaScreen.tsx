@@ -317,8 +317,9 @@ export function AgendaScreen() {
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      if (!user?.id) {
-        setInstitutes([]);
+      if (!user?.id || user.id.startsWith("guest")) {
+        const instRes = await apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] }));
+        setInstitutes(instRes.institutes ?? []);
         return;
       }
       const [apptRes, ordersRes, diagRes, instRes, sharesRes] = await Promise.all([

@@ -18,6 +18,13 @@ import { genRef } from "@/lib/kene/server";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
 import { sanitizePayload } from "@/lib/kene/security-sanitize";
 import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
+import {
+  DELETED_USER_PHONE_PREFIX,
+  VIRTUAL_GUEST_PHONE_PREFIX,
+  findCookieVirtualGuest,
+  promoteGuestUserInPlace,
+  transferAndDeleteGuestUser,
+} from "@/lib/kene/guest";
 
 const Body = z.object({
   phone: z.string().min(5),
@@ -45,7 +52,13 @@ async function findUserByPhoneFlexible(rawPhone: string) {
   }
   if (!user && localDigits.length >= 8) {
     user = await db.user.findFirst({
-      where: { phone: { endsWith: localDigits.slice(-8) } },
+      where: {
+        phone: { endsWith: localDigits.slice(-8) },
+        NOT: [
+          { phone: { startsWith: VIRTUAL_GUEST_PHONE_PREFIX } },
+          { phone: { startsWith: DELETED_USER_PHONE_PREFIX } },
+        ],
+      },
     });
   }
   return { user, normalizedPhone: user?.phone ?? e164Ci };
@@ -93,10 +106,11 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
   const { user: foundUser, normalizedPhone: phone } = await findUserByPhoneFlexible(data.phone);
   const { pin, context, mode } = data;
   const ip = clientIp(req);
+  const cookieGuest = await findCookieVirtualGuest(req);
 
   let user = foundUser;
 
-  // Si le compte n'existe pas encore, on le crée à la volée avec le code PIN saisi
+  // Si le compte n'existe pas encore, on promeut l'éventuel invité temporaire ou on crée le compte
   if (!user) {
     const pSuffix = phoneSuffix(phone);
     const allTenants = await db.tenant.findMany({ select: { id: true, ownerPhone: true } });
@@ -112,22 +126,38 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
 
     const initialRole = ownerTenantByPhone ? "pro" : "client";
     const defaultTenant = initialRole === "client" ? await getDefaultCabinetTenant() : null;
-    user = await db.user.create({
-      data: {
+
+    if (cookieGuest && initialRole === "client") {
+      user = await promoteGuestUserInPlace(cookieGuest.id, {
         phone,
-        name: initialRole === "pro" ? "Gérante Kènè" : "Membre Kènè",
-        role: initialRole,
-        referralCode: genRef("KENE"),
+        name: "Membre Kènè",
+        role: "client",
         pinHash: hashPin(pin),
         consentHealth: true,
         consentTs: new Date(),
         selectedTenantId: defaultTenant?.id ?? null,
-      },
-    });
-    if (user.role === "client") {
-      await grantClientWelcomeTrial(user.id).catch(() => null);
-    } else if (user.role === "pro") {
-      await grantProWelcomeTrial(user.id, ownerTenantByPhone?.id).catch(() => null);
+      });
+    } else {
+      user = await db.user.create({
+        data: {
+          phone,
+          name: initialRole === "pro" ? "Gérante Kènè" : "Membre Kènè",
+          role: initialRole,
+          referralCode: genRef("KENE"),
+          pinHash: hashPin(pin),
+          consentHealth: true,
+          consentTs: new Date(),
+          selectedTenantId: defaultTenant?.id ?? null,
+        },
+      });
+      if (user.role === "client") {
+        await grantClientWelcomeTrial(user.id).catch(() => null);
+      } else if (user.role === "pro") {
+        await grantProWelcomeTrial(user.id, ownerTenantByPhone?.id).catch(() => null);
+      }
+      if (cookieGuest && cookieGuest.id !== user.id) {
+        await transferAndDeleteGuestUser(cookieGuest.id, user.id);
+      }
     }
   } else if (!user.pinHash) {
     // Si le compte existait sans code PIN (comptes seedés ou anciens), on enregistre ce premier PIN !
@@ -346,7 +376,10 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     employeeName,
   });
 
-  // Pose du cookie de session 365 jours
+  // Pose du cookie de session 365 jours (et fusion/suppression de l'éventuel invité temporaire)
+  if (cookieGuest && cookieGuest.id !== user.id) {
+    await transferAndDeleteGuestUser(cookieGuest.id, user.id);
+  }
   setSessionCookie(response, user);
   return response;
 }

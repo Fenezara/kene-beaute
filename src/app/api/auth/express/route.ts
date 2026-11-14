@@ -26,6 +26,7 @@ import { audit, clientIp } from "@/lib/kene/audit";
 import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
 import { KENE_ADMIN_PHONE } from "@/lib/kene/config";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
+import { isDeletedUser, purgeStaleVirtualGuests } from "@/lib/kene/guest";
 
 export const runtime = "nodejs";
 
@@ -64,9 +65,13 @@ export async function GET(req: NextRequest) {
     let user: Awaited<ReturnType<typeof db.user.create>> | null = null;
 
     if (targetRole === "client") {
+      void purgeStaleVirtualGuests({ maxAgeDays: 7 }).catch(() => null);
       // Si une session cliente existait déjà et qu'on ne force pas un nouveau compte invité, on la recharge
       if (currentSession?.userId && !newGuest) {
-        user = await db.user.findUnique({ where: { id: currentSession.userId } });
+        const candidate = await db.user.findUnique({ where: { id: currentSession.userId } });
+        if (candidate && !isDeletedUser(candidate)) {
+          user = candidate;
+        }
       }
       // Sinon on génère un compte invité unique et dédié à cet appareil
       if (!user) {

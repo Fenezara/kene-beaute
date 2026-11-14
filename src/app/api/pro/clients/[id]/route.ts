@@ -11,6 +11,7 @@ import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { getScanVisibility } from "@/lib/kene/share-consent";
 import { canonicalPhone, arePhonesMatching } from "@/lib/kene/phone-normalize";
+import { generateArchivedProfilePhone } from "@/lib/kene/guest";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -295,7 +296,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         where: { id },
         data: {
           name: "Cliente archivée",
-          phone: `+22500${Date.now().toString().slice(-8)}`,
+          phone: generateArchivedProfilePhone(id),
           email: null,
           notes: null,
           cosmeticsUsed: null,

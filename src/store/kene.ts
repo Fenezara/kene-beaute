@@ -110,6 +110,16 @@ export function isSavedUser(user: { phone?: string | null; id?: string | null; n
   return true;
 }
 
+/** Crée une session invitée 100 % locale (navigateur uniquement) sans écrire en base. */
+export function createLocalGuestUser(): SessionUser {
+  return {
+    id: `guest_local_${Date.now().toString(36)}`,
+    name: "Nouvelle invitée",
+    phone: "",
+    role: "client",
+  };
+}
+
 /** Ligne de panier saine: identifiants string, qty/price finis et cohérents. */
 function isSaneCartLine(l: unknown): l is CartLine {
   if (!l || typeof l !== "object") return false;

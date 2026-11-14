@@ -69,7 +69,7 @@ export function HomeScreen({
     let alive = true;
     (async () => {
       try {
-        if (!user?.id) {
+        if (!user?.id || user.id.startsWith("guest")) {
           const [p, insts] = await Promise.all([
             apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
             apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] })),

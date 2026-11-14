@@ -775,6 +775,8 @@ export interface AdminUserRow {
   diagnoses: number;
   tenantName: string | null; // institut des comptes pro
   isDemo?: boolean;
+  isVirtualGuest?: boolean;
+  isArchived?: boolean;
 }
 
 // PATCH /api/admin/users/[id] — réponse (verrouillage , accès Console ).

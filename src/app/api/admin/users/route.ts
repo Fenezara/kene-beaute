@@ -14,6 +14,7 @@ import { sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { requireAdmin } from "../tenants/route";
 import { isDemoAccount } from "@/lib/kene/demo";
+import { isDeletedUser, isVirtualGuestUser, purgeStaleVirtualGuests } from "@/lib/kene/guest";
 
 export const runtime = "nodejs";
 
@@ -23,9 +24,10 @@ export async function GET(req: NextRequest) {
   const guard = requireAdmin(req);
   if (guard) return guard;
   try {
+    void purgeStaleVirtualGuests({ maxAgeDays: 7 }).catch(() => null);
     const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
     const role = req.nextUrl.searchParams.get("role")?.trim() ?? "";
-    const type = req.nextUrl.searchParams.get("type")?.trim() || req.nextUrl.searchParams.get("scope")?.trim() || ""; // "real" | "demo" | ""
+    const type = req.nextUrl.searchParams.get("type")?.trim() || req.nextUrl.searchParams.get("scope")?.trim() || ""; // "real" | "guest" | "demo" | "archived" | ""
 
     const users = await db.user.findMany({
       // Hygiène: la console liste TOUT, mais l'avatar binaire ne part jamais.
@@ -53,24 +55,33 @@ export async function GET(req: NextRequest) {
     const tenantByOwner = new Map(tenants.map((t) => [t.ownerPhone, t.name]));
     const tenantByEmployee = new Map(employees.map((e) => [e.userId, e.tenant.name]));
 
-    let rows = users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      phone: u.phone,
-      role: u.role,
-      city: u.city,
-      createdAt: u.createdAt.toISOString(),
-      lockedAt: u.lockedAt?.toISOString() ?? null,
-      lockedReason: u.lockedReason,
-      orders: u._count.orders,
-      diagnoses: u._count.diagnoses,
-      tenantName:
-        u.role === "pro" ? (tenantByOwner.get(u.phone) ?? tenantByEmployee.get(u.id) ?? null) : null,
-      isDemo: isDemoAccount(u.phone),
-    }));
+    let rows = users.map((u) => {
+      const isDemo = isDemoAccount(u.phone);
+      const isArchived = isDeletedUser(u);
+      const isVirtualGuest = !isDemo && !isArchived && isVirtualGuestUser(u);
+      return {
+        id: u.id,
+        name: u.name,
+        phone: u.phone,
+        role: u.role,
+        city: u.city,
+        createdAt: u.createdAt.toISOString(),
+        lockedAt: u.lockedAt?.toISOString() ?? null,
+        lockedReason: u.lockedReason,
+        orders: u._count.orders,
+        diagnoses: u._count.diagnoses,
+        tenantName:
+          u.role === "pro" ? (tenantByOwner.get(u.phone) ?? tenantByEmployee.get(u.id) ?? null) : null,
+        isDemo,
+        isVirtualGuest,
+        isArchived,
+      };
+    });
 
-    if (type === "real") rows = rows.filter((u) => !u.isDemo);
+    if (type === "real") rows = rows.filter((u) => !u.isDemo && !u.isVirtualGuest && !u.isArchived);
+    if (type === "guest") rows = rows.filter((u) => u.isVirtualGuest);
     if (type === "demo") rows = rows.filter((u) => u.isDemo);
+    if (type === "archived") rows = rows.filter((u) => u.isArchived);
     if (role) rows = rows.filter((u) => u.role === role);
     if (q) {
       rows = rows.filter((u) =>

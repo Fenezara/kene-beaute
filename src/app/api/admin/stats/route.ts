@@ -12,6 +12,7 @@ import { guardAdminRole, sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { DEMO_PHONES, DEMO_TENANT_IDS } from "@/lib/kene/demo";
+import { realRegisteredUsersWhere } from "@/lib/kene/guest";
 
 const CACHE_TTL_MS = 30_000;
 
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
 
     const demoTenantsArr = Array.from(DEMO_TENANT_IDS);
     const demoPhonesArr = Array.from(DEMO_PHONES);
+    const realUsersWhere = realRegisteredUsersWhere(demoPhonesArr);
 
     const [
       users,
@@ -85,7 +87,7 @@ export async function GET(req: NextRequest) {
       appointmentsDepositAgg,
     ] = await Promise.all([
       db.user.count({
-        where: excludeDemo ? { phone: { notIn: demoPhonesArr } } : undefined,
+        where: excludeDemo ? realUsersWhere : undefined,
       }),
       db.tenant.count({
         where: excludeDemo ? { active: true, id: { notIn: demoTenantsArr } } : undefined,

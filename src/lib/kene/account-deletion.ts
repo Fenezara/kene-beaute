@@ -3,6 +3,7 @@
 // et respect des obligations comptables et fiscales SYSCOHADA (conservation 10 ans).
 import { db } from "@/lib/db";
 import { audit } from "@/lib/kene/audit";
+import { generateDeletedPhone } from "@/lib/kene/guest";
 
 export interface PurgeResult {
   ok: boolean;
@@ -86,9 +87,9 @@ export async function anonymizeAndPurgeUser(
   });
 
   // 4. Anonymisation de l'utilisateur
-  // Le numéro de téléphone est randomisé pour libérer le vrai numéro
-  // (permet à l'utilisatrice de se réinscrire proprement plus tard si elle le souhaite)
-  const anonymizedPhone = `+22500${Date.now().toString().slice(-8)}`;
+  // Le numéro est remplacé par un marqueur explicite deleted:... pour libérer le vrai numéro
+  // (et ne pas le confondre avec les comptes invités temporaires +22500...)
+  const anonymizedPhone = generateDeletedPhone(userId);
   await db.user.update({
     where: { id: userId },
     data: {

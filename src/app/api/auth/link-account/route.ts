@@ -9,12 +9,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { genRef, jsonError, serverError } from "@/lib/kene/server";
 import { setSessionCookie, sanitizeUser, sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { hashPin } from "@/lib/kene/pin";
 import { checkBotGuard } from "@/lib/kene/bot-guard";
+import { grantClientWelcomeTrial } from "@/lib/kene/plans";
+import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
+import { isVirtualGuestUser } from "@/lib/kene/guest";
 
 const Body = z.object({
   phone: z.string().min(8).max(20),
@@ -35,11 +38,6 @@ export async function POST(req: NextRequest) {
     const botCheck = await checkBotGuard(req, raw);
     if (!botCheck.ok && botCheck.response) return botCheck.response;
 
-    const session = sessionFromRequest(req);
-    if (!session) {
-      return jsonError("Session requise pour lier un compte", 401);
-    }
-
     const parsed = Body.safeParse(raw);
     if (!parsed.success) {
       return jsonError("Numéro de téléphone invalide (10 chiffres)", 400);
@@ -52,22 +50,21 @@ export async function POST(req: NextRequest) {
       cleanPhone = digits.startsWith("225") ? `+${digits}` : `+225${digits}`;
     }
 
-    const currentUserId = session.userId;
-    const currentUser = await db.user.findUnique({ where: { id: currentUserId } });
-    if (!currentUser) {
-      return jsonError("Utilisatrice introuvable", 404);
-    }
+    const session = sessionFromRequest(req);
+    const currentUser = session?.userId
+      ? await db.user.findUnique({ where: { id: session.userId } })
+      : null;
 
     // Vérifier si ce numéro appartient déjà à un autre compte
     const existingWithPhone = await db.user.findUnique({ where: { phone: cleanPhone } });
 
-    if (existingWithPhone && existingWithPhone.id !== currentUserId) {
+    if (existingWithPhone && existingWithPhone.id !== currentUser?.id) {
       // Sécurité anti-prise de contrôle (Account Takeover) :
       // On n'émet JAMAIS un cookie de session pour un compte existant sans preuve d'identité (PIN ou OTP SMS).
       void audit({
         kind: "account_link_blocked",
         phone: cleanPhone,
-        userId: currentUserId,
+        userId: currentUser?.id,
         ip: clientIp(req),
         detail: "existing_phone_requires_auth",
       });
@@ -82,26 +79,56 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Nouveau numéro : mise à jour directe du compte en cours
-    const updateData: {
-      phone: string;
-      name?: string;
-      pinHash?: string;
-    } = {
-      phone: cleanPhone,
-    };
+    let updatedUser;
+    if (!currentUser) {
+      // Invitée purement locale (zéro ligne créée lors de la simple exploration) → création directe du vrai compte
+      const defaultTenant = await getDefaultCabinetTenant();
+      updatedUser = await db.user.create({
+        data: {
+          phone: cleanPhone,
+          name: parsed.data.name || "Membre Kènè",
+          role: "client",
+          referralCode: genRef("KENE"),
+          pinHash: parsed.data.pin ? hashPin(parsed.data.pin) : null,
+          consentHealth: true,
+          consentTs: new Date(),
+          selectedTenantId: defaultTenant?.id ?? null,
+        },
+      });
+      await grantClientWelcomeTrial(updatedUser.id).catch(() => null);
+    } else {
+      const wasGuest = isVirtualGuestUser(currentUser);
+      const updateData: {
+        phone: string;
+        name?: string;
+        pinHash?: string;
+        consentHealth?: boolean;
+        consentTs?: Date;
+      } = {
+        phone: cleanPhone,
+      };
 
-    if (parsed.data.name) {
-      updateData.name = parsed.data.name;
-    }
-    if (parsed.data.pin) {
-      updateData.pinHash = hashPin(parsed.data.pin);
-    }
+      if (parsed.data.name) {
+        updateData.name = parsed.data.name;
+      } else if (wasGuest) {
+        updateData.name = "Membre Kènè";
+      }
+      if (parsed.data.pin) {
+        updateData.pinHash = hashPin(parsed.data.pin);
+      }
+      if (!currentUser.consentHealth) {
+        updateData.consentHealth = true;
+        updateData.consentTs = new Date();
+      }
 
-    const updatedUser = await db.user.update({
-      where: { id: currentUserId },
-      data: updateData,
-    });
+      updatedUser = await db.user.update({
+        where: { id: currentUser.id },
+        data: updateData,
+      });
+      if (wasGuest) {
+        await grantClientWelcomeTrial(updatedUser.id).catch(() => null);
+      }
+    }
 
     void audit({
       kind: "account_linked",

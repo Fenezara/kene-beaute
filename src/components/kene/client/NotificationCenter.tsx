@@ -204,6 +204,11 @@ export function NotificationCenter({
 
   const load = useCallback(
     async (showSpinner: boolean) => {
+      if (!userId || userId.startsWith("guest")) {
+        setFeed({ unread: 0, created: 0, sent: [], scheduled: [] });
+        setErr(null);
+        return;
+      }
       if (showSpinner) setLoading(true);
       try {
         const f = await apiGet<Partial<ApiReminderFeed>>(`/api/notifications?userId=${userId}`);
@@ -247,6 +252,7 @@ export function NotificationCenter({
    * io('/?XTransformPort=3004'): la gateway route vers le mini-service.
    * Une seule socket par onglet, partagée badge + Sheet + carte accueil. */
   useEffect(() => {
+    if (!userId || userId.startsWith("guest")) return;
     // Never use PORT in the URL, always use XTransformPort
     // DO NOT change the path, it is used by Caddy to forward the request to the correct port
     const socket = io(`/?XTransformPort=${NOTIFY_PORT}`, {
