@@ -243,19 +243,34 @@ export function EmployeeDashboardSection({
 
       {/* ── 1B. CONSIGNE DU JOUR DE LA GÉRANTE & CAGNOTTE D'ÉQUIPE (ZÉRO WHATSAPP) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-        <div className="lg:col-span-2 rounded-2xl border border-gold/40 !bg-[#16100B] bg-gradient-to-r from-[#1A130D] via-[#231911] to-[#1A130D] text-[#FFF9EC] shadow-md p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div
+          className="lg:col-span-2 k-obsidian-luxury rounded-2xl border border-gold/40 !bg-[#16100B] text-[#FFF9EC] shadow-md p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          style={{
+            background: "linear-gradient(135deg, #1A130D 0%, #241911 52%, #140E09 100%)",
+            color: "#FFF9EC",
+          }}
+        >
           <div className="space-y-1.5 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/20 text-[#E5A93C] border border-gold/30">
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-gold/25 text-[#F5D37E] border border-gold/40"
+                style={{ color: "#F5D37E" }}
+              >
                 <Pin className="size-3" /> Consigne du Jour ({teamHubApi.data?.directive?.updatedBy || "Direction"})
               </span>
               {teamHubApi.data?.directive?.focusProduct && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/40"
+                  style={{ color: "#6EE7B7" }}
+                >
                   🎯 Focus : {teamHubApi.data.directive.focusProduct}
                 </span>
               )}
             </div>
-            <p className="text-xs sm:text-sm font-medium text-[#FFF9EC] leading-relaxed">
+            <p
+              className="text-xs sm:text-sm font-medium text-[#FFF9EC] leading-relaxed"
+              style={{ color: "#FFF9EC" }}
+            >
               {teamHubApi.data?.directive?.text ||
                 "Excellence accueil & diagnostic systématique avant chaque soin. Utilise « Sortie Cabine → Caisse » pour que ta commission te soit créditée automatiquement par Irène."}
             </p>
@@ -265,7 +280,8 @@ export function EmployeeDashboardSection({
               <Button
                 size="sm"
                 onClick={() => onOpenTeamHub(false)}
-                className="k-btn-gold text-black font-bold text-xs h-9 rounded-xl gap-1.5 shadow-sm"
+                className="k-btn-gold text-[#18120C] font-bold text-xs h-9 rounded-xl gap-1.5 shadow-sm"
+                style={{ color: "#18120C" }}
               >
                 <MessageSquare className="size-3.5" />
                 <span>Kènè Team Live</span>
@@ -281,7 +297,8 @@ export function EmployeeDashboardSection({
                 size="sm"
                 variant="outline"
                 onClick={() => onOpenTeamHub(true)}
-                className="h-9 rounded-xl text-xs font-bold border-emerald-500/50 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 gap-1.5"
+                className="h-9 rounded-xl text-xs font-bold border-emerald-500/50 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 gap-1.5"
+                style={{ color: "#6EE7B7", backgroundColor: "rgba(16, 185, 129, 0.2)" }}
               >
                 <CreditCard className="size-3.5" />
                 <span>Sortie Cabine → Caisse</span>

@@ -1144,18 +1144,18 @@ export function ProEnterpriseShell() {
 
       {/* ───────── 1. BANDEAU SUPÉRIEUR PLEINE LARGEUR (TOP BAR) ───────── */}
       <header className="shrink-0 z-40 w-full k-chrome border-b border-border/60 [padding-top:env(safe-area-inset-top,0px)]">
-        <div className="flex h-14 sm:h-16 items-center justify-between gap-1.5 sm:gap-3 px-2 sm:px-5 lg:px-6">
-          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 shrink-0">
+        <div className="flex min-h-14 sm:min-h-16 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-2.5 sm:px-4 lg:px-5 py-1.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink-0">
             <KeneEmblemLockup
-              size={34}
-              labelSize={17}
+              size={32}
+              labelSize={16}
               label={<>Kènè <span className="text-gold-text">Pro</span></>}
               sublabel="Beauté mélanoderme"
               hideSublabelOnMobile={true}
             />
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-1.5 lg:gap-2 min-w-0">
             <div className="hidden sm:block">
               <Select
                 value={tid || undefined}
@@ -1163,7 +1163,7 @@ export function ProEnterpriseShell() {
                 disabled={tenantOptions.length <= 1 && !proOwner && !isAdmin}
               >
                 <SelectTrigger
-                  className="k-chip h-8 sm:h-9 rounded-xl px-2 sm:px-3 text-[11px] sm:text-xs font-medium text-foreground max-w-[130px] sm:max-w-[210px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                  className="k-chip h-8 sm:h-8.5 rounded-xl px-2 sm:px-2.5 text-[11px] sm:text-xs font-medium text-foreground max-w-[125px] sm:max-w-[175px] xl:max-w-[210px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
                   aria-label="Institut actif"
                 >
                   <div className="flex items-center gap-1 sm:gap-1.5 truncate">
@@ -1196,7 +1196,7 @@ export function ProEnterpriseShell() {
             </div>
 
             {tenant && (
-              <Badge variant="outline" className={cn("hidden lg:inline-flex text-[10px] font-semibold", PLAN_STYLES[tenant.plan] ?? PLAN_STYLES.trial)}>
+              <Badge variant="outline" className={cn("hidden xl:inline-flex text-[10px] font-semibold px-2 py-0.5", PLAN_STYLES[tenant.plan] ?? PLAN_STYLES.trial)}>
                 {tenant.plan === "business" ? "Complexe" : tenant.plan === "pro" ? "Essentiel" : "Pass Découverte 30j"}
               </Badge>
             )}
@@ -1204,7 +1204,7 @@ export function ProEnterpriseShell() {
             {liveConnected && (
               <span
                 title="Connecté en temps réel — RDV, commandes et ventes arrivent sans recharger"
-                className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2.5 py-1 text-xs font-medium text-success"
+                className="hidden xl:inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success"
               >
                 <span className="relative flex size-2" aria-hidden="true">
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
@@ -1217,11 +1217,10 @@ export function ProEnterpriseShell() {
             {!online && (
               <span
                 title="Mode Hors-ligne — Caisse POS, Catalogue & Clientes locaux opérationnels"
-                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-semibold text-amber-500 shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[11px] font-semibold text-amber-500 shadow-xs"
               >
                 <WifiOff className="size-3 text-amber-500" />
-                <span className="hidden sm:inline">Hors-ligne (Caisse active)</span>
-                <span className="sm:hidden">Hors-ligne</span>
+                <span className="hidden sm:inline">Hors-ligne</span>
               </span>
             )}
 
@@ -1232,32 +1231,33 @@ export function ProEnterpriseShell() {
                     type="button"
                     onClick={() => handleSelfPointage("in")}
                     disabled={attendanceBusy}
-                    className="h-8 px-2 sm:px-3 rounded-full text-xs font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
                     title="Enregistrer mon heure d'arrivée au salon"
                   >
                     <LogIn size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span className="hidden xl:inline">Pointer mon arrivée</span>
+                    <span className="hidden 2xl:inline">Pointer mon arrivée</span>
+                    <span className="2xl:hidden">Pointer arrivée</span>
                   </button>
                 ) : !staffAttendance?.checkOut ? (
                   <button
                     type="button"
                     onClick={() => handleSelfPointage("out")}
                     disabled={attendanceBusy}
-                    className="h-8 px-2 sm:px-3 rounded-full text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
                     title="Enregistrer mon départ du salon"
                   >
                     <LogOut size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span className="hidden xl:inline">Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
-                    <span className="xl:hidden">Sortie</span>
+                    <span className="hidden 2xl:inline">Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
+                    <span className="2xl:hidden">{staffAttendance.checkIn} · Sortie</span>
                   </button>
                 ) : (
                   <span
-                    className="h-8 px-2 sm:px-2.5 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
+                    className="h-8 px-2.5 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
                     title={`Pointage effectué aujourd'hui : ${staffAttendance.checkIn} → ${staffAttendance.checkOut} (${staffAttendance.hours || 0}h)`}
                   >
                     <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
-                    <span className="hidden xl:inline">Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
-                    <span className="xl:hidden">Pointé</span>
+                    <span className="hidden 2xl:inline">Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
+                    <span className="2xl:hidden">Pointé</span>
                   </span>
                 )}
               </div>
@@ -1266,11 +1266,12 @@ export function ProEnterpriseShell() {
             <button
               type="button"
               onClick={goToClientSpace}
-              className="hidden md:inline-flex items-center gap-1.5 h-8 px-2 sm:px-3 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 via-primary/15 to-gold/10 hover:from-primary/20 hover:to-gold/20 text-primary border border-primary/30 transition-all shadow-xs active:scale-95 shrink-0"
+              className="hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[11px] font-semibold bg-gradient-to-r from-primary/10 via-primary/15 to-gold/10 hover:from-primary/20 hover:to-gold/20 text-primary border border-primary/30 transition-all shadow-xs active:scale-95 shrink-0"
               title="Accéder à Mon Espace Beauté personnel (Soins, Diagnostic & Rituels)"
             >
               <CauriIcon className="size-3.5 text-primary shrink-0" />
-              <span className="hidden xl:inline">Mon Espace Beauté 🌸</span>
+              <span className="hidden 2xl:inline">Mon Espace Beauté 🌸</span>
+              <span className="2xl:hidden">Beauté 🌸</span>
             </button>
 
             <SpaceSwitcher variant="compact" />
@@ -1288,14 +1289,15 @@ export function ProEnterpriseShell() {
                 aria-label="Ouvrir Kènè Team Live (Messagerie & Bips Cabine)"
                 title="Kènè Team Live — Messagerie d'équipe, Bips Cabine & Sorties de Caisse"
                 className={cn(
-                  "relative inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full text-[11px] sm:text-xs font-bold transition-all active:scale-95 shrink-0 border cursor-pointer shadow-xs",
+                  "relative inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[11px] font-bold transition-all active:scale-95 shrink-0 border cursor-pointer shadow-xs",
                   teamUnreadCount > 0 || teamPendingHandoffs > 0
                     ? "k-btn-gold text-[#18120C] border-transparent animate-pulse"
                     : "bg-gold/15 border-gold/40 text-gold-text hover:bg-gold/25"
                 )}
               >
-                <MessageSquare className="size-3.5 sm:size-4 shrink-0" />
-                <span className="hidden lg:inline">Kènè Team</span>
+                <MessageSquare className="size-3.5 shrink-0" />
+                <span className="hidden xl:inline">Kènè Team</span>
+                <span className="hidden md:inline xl:hidden">Team</span>
                 {(teamUnreadCount > 0 || teamPendingHandoffs > 0) && (
                   <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9.5px] font-black text-white">
                     {teamUnreadCount + teamPendingHandoffs}
@@ -1323,7 +1325,7 @@ export function ProEnterpriseShell() {
               aria-label="Ouvrir les paramètres"
               title={isOwner ? "Paramètres de l'établissement & Direction" : "Mon espace collaboratrice & réglages"}
               className={cn(
-                "grid place-items-center size-8 sm:size-9 rounded-full transition-all active:scale-95 shrink-0 border cursor-pointer",
+                "grid place-items-center size-8 rounded-full transition-all active:scale-95 shrink-0 border cursor-pointer",
                 activeSection === "parametres"
                   ? "bg-primary text-primary-foreground border-primary shadow-xs"
                   : "bg-muted/40 border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -1340,7 +1342,7 @@ export function ProEnterpriseShell() {
                 openSection("parametres");
               }}
               title={`Connecté : ${chipName}${sessionUser?.phone ? ` (${sessionUser.phone})` : ""} · Cliquez pour ouvrir vos réglages`}
-              className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-border/60 shrink-0 text-left cursor-pointer hover:opacity-85 transition-opacity"
+              className="flex items-center gap-1.5 pl-1.5 border-l border-border/60 shrink-0 text-left cursor-pointer hover:opacity-85 transition-opacity"
             >
               <span
                 aria-hidden="true"
@@ -1359,10 +1361,10 @@ export function ProEnterpriseShell() {
                 <span>{chipInitials}</span>
               </span>
               <div className="flex flex-col text-left leading-tight min-w-0">
-                <p className="text-[11px] sm:text-xs font-bold text-foreground truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[150px]">
+                <p className="text-[11px] sm:text-xs font-bold text-foreground truncate max-w-[85px] sm:max-w-[120px] xl:max-w-[150px]">
                   {chipName}
                 </p>
-                <Eyebrow className="mt-0.5 text-[8px] sm:text-[9px] truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[150px]">
+                <Eyebrow className="mt-0.5 text-[8px] sm:text-[9px] truncate max-w-[85px] sm:max-w-[120px] xl:max-w-[150px]">
                   {chipRole}
                 </Eyebrow>
               </div>
@@ -1579,8 +1581,14 @@ export function ProEnterpriseShell() {
           </div>
         </div>
 
-        {/* Barre Principale d'Organisation par 5 Pôles Métiers intégrée au Header (Tablette md uniquement — sur écran large lg+, le menu latéral gauche suffit) */}
-        <div className="hidden md:flex lg:hidden items-center justify-between gap-2 border-t border-[#D49A24]/25 bg-gradient-to-r from-[#1A130D] via-[#221810] to-[#1A130D] text-[#FFF9EC] px-3 sm:px-5 py-2 shadow-md">
+        {/* Barre Principale d'Organisation par 5 Pôles Métiers intégrée au Header (Tablette md/lg/xl — masquée uniquement sur très grand écran 2xl si la barre latérale est dépliée) */}
+        <div
+          className={cn(
+            "hidden md:flex flex-wrap items-center justify-between gap-2 border-t border-[#D49A24]/25 bg-gradient-to-r from-[#1A130D] via-[#221810] to-[#1A130D] text-[#FFF9EC] px-3 sm:px-5 py-2 shadow-md",
+            sidebarExpanded && "2xl:hidden"
+          )}
+          style={{ background: "linear-gradient(90deg, #1A130D 0%, #221810 50%, #1A130D 100%)", color: "#FFF9EC" }}
+        >
           <nav aria-label="Pôles Métiers Entreprise" className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
             {availableCategories.map((cat) => {
               const isCatActive = activeCategory === cat.id;
@@ -1605,7 +1613,7 @@ export function ProEnterpriseShell() {
                   <span>{cat.shortLabel}</span>
                   <span
                     className={cn(
-                      "hidden xl:inline-flex text-[10px] px-1.5 py-0.2 rounded-full tabular-nums font-bold",
+                      "hidden lg:inline-flex text-[10px] px-1.5 py-0.2 rounded-full tabular-nums font-bold",
                       isCatActive ? "bg-black/20 text-[#18120C]" : "bg-white/10 text-[#F5ECDD]/75"
                     )}
                   >
@@ -1629,8 +1637,8 @@ export function ProEnterpriseShell() {
                 title="Lancer un diagnostic de peau multi-vues en cabine"
               >
                 <ScanFace size={13} className="shrink-0" />
-                <span className="hidden xl:inline">Scan Cabine</span>
-                <span className="xl:hidden">Scan</span>
+                <span className="hidden lg:inline">Scan Cabine</span>
+                <span className="lg:hidden">Scan</span>
               </button>
             )}
 
@@ -1645,8 +1653,8 @@ export function ProEnterpriseShell() {
                 title="Ouvrir la caisse et enregistrer un encaissement"
               >
                 <AbanIcon size={13} className="shrink-0" />
-                <span className="hidden xl:inline">Encaisser POS</span>
-                <span className="xl:hidden">POS</span>
+                <span className="hidden lg:inline">Encaisser POS</span>
+                <span className="lg:hidden">POS</span>
               </button>
             )}
 
@@ -1661,8 +1669,8 @@ export function ProEnterpriseShell() {
               title="Ouvrir Kènè Team Live (Messagerie & Sorties de Cabine)"
             >
               <MessageSquare size={13} className="text-[#E5A93C] shrink-0" />
-              <span className="hidden xl:inline">Équipe Live</span>
-              <span className="xl:hidden">Team</span>
+              <span className="hidden lg:inline">Équipe Live</span>
+              <span className="lg:hidden">Team</span>
               {(teamUnreadCount > 0 || teamPendingHandoffs > 0) && (
                 <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9.5px] font-bold text-white">
                   {teamUnreadCount + teamPendingHandoffs}
@@ -1680,8 +1688,8 @@ export function ProEnterpriseShell() {
               title="Scanner un cosmétique (Liste Rouge Kènè & Analyse INCI)"
             >
               <ShieldAlert size={13} className="shrink-0" />
-              <span className="hidden xl:inline">Scanner INCI</span>
-              <span className="xl:hidden">INCI</span>
+              <span className="hidden lg:inline">Scanner INCI</span>
+              <span className="lg:hidden">INCI</span>
             </button>
 
             {(!allowedIds || allowedIds.includes("diagnostic")) && (
@@ -1695,8 +1703,8 @@ export function ProEnterpriseShell() {
                 title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
               >
                 <ScanFace size={13} className="text-[#E5A93C] shrink-0" />
-                <span className="hidden 2xl:inline">Kiosque Mirror</span>
-                <span className="2xl:hidden">Mirror</span>
+                <span className="hidden xl:inline">Kiosque Mirror</span>
+                <span className="xl:hidden">Mirror</span>
               </button>
             )}
           </div>
@@ -1793,7 +1801,7 @@ export function ProEnterpriseShell() {
                   >
                     <span className="text-base">{cat.emoji}</span>
                     <span className="text-[8.5px] font-bold text-[#F5ECDD]/80 truncate mt-0.5 max-w-[56px] text-center">
-                      {cat.shortLabel.split(" ")[0]}
+                      {cat.id === "reglages" ? "Profil" : cat.shortLabel.split(" ")[0]}
                     </span>
                     {catBadgeCount > 0 && (
                       <span className="absolute top-1 right-1 grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9px] font-bold text-white shadow-xs">

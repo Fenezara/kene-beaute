@@ -213,7 +213,7 @@ function isExternalOrigin(req: NextRequest, reqUrl: URL): boolean {
 }
 
 // Rate limiter global en mémoire Edge pour le trafic /api/* (défense en profondeur anti-DDoS)
-const GLOBAL_API_LIMIT = 200; // 200 requêtes / minute par IP
+const GLOBAL_API_LIMIT = 1200; // 1200 requêtes / minute par IP (salon multi-postes sur même Wi-Fi)
 const GLOBAL_API_WINDOW_MS = 60_000;
 const globalRateLimitStore = new Map<string, number[]>();
 let lastGlobalPurgeMs = 0;
@@ -427,9 +427,17 @@ export function middleware(req: NextRequest) {
   }
 
   // 1-quinquies) GARDE-FOU GLOBAL ANTI-DDoS API (Périmètre Middleware)
-  // Coupe les rafales excessives (> 200 req/min) avant d'atteindre le runtime Node ou la base.
-  // Exemptions : surveillance /api/health et webhooks bancaires entrants.
-  if (isApi && !path.startsWith("/api/health") && !path.includes("/webhook")) {
+  // Coupe les rafales excessives (> 1200 req/min) avant d'atteindre le runtime Node ou la base.
+  // Exemptions : surveillance /api/health, webhooks bancaires, lectures médias et polling salon.
+  if (
+    isApi &&
+    !path.startsWith("/api/health") &&
+    !path.includes("/webhook") &&
+    !path.startsWith("/api/media/") &&
+    !path.startsWith("/api/pro/team-hub") &&
+    !path.startsWith("/api/notifications") &&
+    !path.startsWith("/api/pro/overview")
+  ) {
     const rl = checkGlobalApiRateLimit(ip);
     if (!rl.ok) {
       return applySecurityHeaders(

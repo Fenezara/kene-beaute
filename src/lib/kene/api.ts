@@ -36,7 +36,7 @@ function retryAfterSec(body: { error?: string; retryAfterSec?: number } | null, 
 
 let last429ToastTs = 0;
 
-async function handle<T>(res: Response): Promise<T> {
+async function handle<T>(res: Response, opts?: { silent429?: boolean }): Promise<T> {
   // Réponse réseau réussie : notification d'activité réseau pour les écouteurs de statut
   if (typeof window !== "undefined" && res.ok && res.headers.get("x-kene-offline") !== "1") {
     try {
@@ -53,13 +53,14 @@ async function handle<T>(res: Response): Promise<T> {
   }
   if (!res.ok) {
     const body = data as { error?: string; retryAfterSec?: number; code?: string } | null;
-    if (res.status === 429) {
+    if (res.status === 429 && !opts?.silent429) {
+      const sec = retryAfterSec(body, res);
       const now = Date.now();
-      if (now - last429ToastTs > 4_000) {
+      // N'afficher un toast que pour les blocages prolongés (> 5 s), jamais pour une micro-régulation d'1 s
+      if (sec > 5 && now - last429ToastTs > 8_000) {
         last429ToastTs = now;
-        const sec = retryAfterSec(body, res);
         toast.error(body?.error || "Trop de tentatives", {
-          description: sec > 0 ? `Réessaie dans ${formatDelay(sec)}` : "Patiente un instant avant de réessayer",
+          description: `Réessaie dans ${formatDelay(sec)}`,
         });
       }
     }
@@ -76,8 +77,13 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function apiGet<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: "no-cache" });
-  return handle<T>(res);
+  let res = await fetch(url, { cache: "no-cache" });
+  if (res.status === 429) {
+    const waitSec = Math.min(3, Math.max(1, Number(res.headers.get("Retry-After")) || 1));
+    await new Promise((r) => setTimeout(r, waitSec * 1000));
+    res = await fetch(url, { cache: "no-cache" });
+  }
+  return handle<T>(res, { silent429: true });
 }
 
 /* ─────────────── Téléchargement de fichier (CSV/PDF — ) ───────────────
@@ -348,6 +354,17 @@ async function apiWrite<T>(
   // passe (l'environnement bloque les écritures mais laisse les GET).
   if (looksProxyBlocked(res) && canBridge) {
     return bridgedRetry<T>(url, json!);
+  }
+
+  // Si micro-limite de débit (429 avec Retry-After <= 3s), patienter et relancer automatiquement 1 fois
+  if (res.status === 429) {
+    const waitSec = Number(res.headers.get("Retry-After")) || 1;
+    if (waitSec <= 3) {
+      await new Promise((r) => setTimeout(r, waitSec * 1000));
+      try {
+        res = await raceMethod(url, method, json, timeoutMs);
+      } catch {}
+    }
   }
 
   // Réponse normale (succès OU erreur applicative JSON de nos routes): le

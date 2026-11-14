@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 export const OTP_REQUEST = { limit: 10, windowMs: 15 * 60_000 } as const;
 export const OTP_VERIFY = { limit: 12, windowMs: 15 * 60_000 } as const;
 export const LOGIN_PIN = { limit: 15, windowMs: 15 * 60_000 } as const; // connexion rapide par code PIN
-export const DERMATO = { limit: 30, windowMs: 60_000 } as const;
+export const DERMATO = { limit: 60, windowMs: 60_000 } as const;
 export const PAYMENTS = { limit: 12, windowMs: 60_000 } as const;
 export const PAYMENTS_CONFIRM = { limit: 20, windowMs: 60_000 } as const; // confirm MoMo 
 export const ORDERS_CREATE = { limit: 12, windowMs: 60_000 } as const; // commande boutique 
@@ -28,11 +28,11 @@ export const PROFILE_EXPORT = { limit: 6, windowMs: 15 * 60_000 } as const; // e
 export const ACCOUNT_DELETE = { limit: 5, windowMs: 15 * 60_000 } as const; // suppression de compte & PIN
 
 // ── Routes coûteuses ──
-// VLM client: un scan = une photo analysée par le moteur vision → 6/min
-// couvre largement un parcours humain et protège le coût IA.
-export const DIAGNOSES_CREATE = { limit: 6, windowMs: 60_000 } as const;
-// Diagnostic en institut: praticienne en cabine, rythme humain → 10/min.
-export const PRO_DIAGNOSES = { limit: 10, windowMs: 60_000 } as const;
+// VLM client: un scan = une photo analysée par le moteur vision → 20/min
+// couvre largement un parcours humain multi-zones et protège le coût IA.
+export const DIAGNOSES_CREATE = { limit: 20, windowMs: 60_000 } as const;
+// Diagnostic en institut: praticienne en cabine (sélection vues spectrales, notes, scans) → 60/min.
+export const PRO_DIAGNOSES = { limit: 60, windowMs: 60_000 } as const;
 // Stats admin: scan complet de la base (cachées TTL 60 s côté route) → 30/min.
 export const ADMIN_STATS = { limit: 30, windowMs: 60_000 } as const;
 // Passkey console (): routes PRÉ-AUTH login/options + login/verify —
