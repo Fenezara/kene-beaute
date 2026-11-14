@@ -46,6 +46,7 @@ import { proToastError } from "./ProApp";
 import { DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
 import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
 import { matchesSearch } from "@/lib/kene/search";
+import { ConsultationSheetButton } from "./diagnostic/ConsultationSheetButton";
 import {
   parseStructuredPrescription,
   serializeStructuredPrescription,
@@ -971,14 +972,16 @@ function ClientSkinDossierDetail({
                   <ScanFace className="size-3.5" /> Lancer un diagnostic
                 </Button>
               )}
-              <Button
-                variant="outline"
+              <ConsultationSheetButton
+                tenantId={tenantId}
+                clientId={c.id}
+                clientName={c.name}
+                hasPriorDiagnosis={(d?.proDiagnoses.length ?? 0) + (d?.diagnoses.length ?? 0) > 0}
+                label="Fiche clinique (PDF)"
                 size="sm"
-                onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&clientId=${c.id}&_t=${Date.now()}`, "_blank")}
-                className="text-xs gap-1.5"
-              >
-                <FileDown className="size-3.5" /> Fiche clinique (PDF)
-              </Button>
+                icon="download"
+                className="text-xs"
+              />
               <button
                 type="button"
                 onClick={() => {

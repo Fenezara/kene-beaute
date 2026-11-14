@@ -4,7 +4,8 @@
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { Crown, FileDown, MessageCircle, Phone, Search, Users, Wallet, Save, Star, Pencil, Plus, ShoppingBag, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, FolderHeart, ChevronRight, Lock } from "lucide-react";
+import { Crown, MessageCircle, Phone, Search, Users, Wallet, Save, Star, Pencil, Plus, ShoppingBag, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, FolderHeart, ChevronRight, Lock } from "lucide-react";
+import { ConsultationSheetButton } from "./diagnostic/ConsultationSheetButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -1200,15 +1201,15 @@ function ClientSheet({
               {/* Actions rapides: fiche papier + WhatsApp direct */}
               <div className="grid grid-cols-[1fr_auto] gap-2">
                 {/* Fiche de consultation papier — pré-remplie pour cette cliente */}
-                <Button
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&clientId=${clientId}&_t=${Date.now()}`, "_blank")}
-                  aria-label={`Imprimer la fiche de consultation pré-remplie de ${c.name}`}
-                >
-                  <FileDown className="size-4" aria-hidden="true" />
-                  Fiche de consultation (PDF)
-                </Button>
+                <ConsultationSheetButton
+                  tenantId={tenantId}
+                  clientId={clientId}
+                  clientName={c.name}
+                  hasPriorDiagnosis={d.proDiagnoses.length + d.diagnoses.length > 0}
+                  label="Fiche de consultation (PDF)"
+                  icon="download"
+                  className="w-full"
+                />
                 {/* — WhatsApp: message pré-rempli au prénom de la cliente */}
                 <a
                   href={waLink(c.phone, `Bonjour ${(c.name.split(/\s+/)[0] ?? c.name).trim()} 👋 Ici l'équipe de votre institut. Nous pensons à vous et à votre peau — une question, un conseil, un créneau ? Répondez ici, notre esthéticienne est là pour vous.`)}

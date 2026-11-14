@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v101";
-const PRECACHE = "kene-precache-v76";
-const DATA_CACHE = "kene-data-v76";
-const IMG_CACHE = "kene-img-v76";
-const STATIC_CACHE = "kene-static-v76";
+const VERSION = "kene-sw-v102";
+const PRECACHE = "kene-precache-v77";
+const DATA_CACHE = "kene-data-v77";
+const IMG_CACHE = "kene-img-v77";
+const STATIC_CACHE = "kene-static-v77";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 

@@ -66,15 +66,9 @@ export async function GET(req: NextRequest) {
           })
         : null;
 
-      // Résolution praticienne et zone
+      // Résolution praticienne
       if (!practitioner && latestProDiag?.practitioner) {
         practitioner = latestProDiag.practitioner;
-      }
-      if (!zone && zones.length === 0 && !universal) {
-        const dZone = latestProDiag?.zone || latestUserDiag?.zone;
-        if (isValidZone(dZone)) {
-          zone = dZone;
-        }
       }
 
       // Réponses réelles du questionnaire
@@ -92,6 +86,27 @@ export async function GET(req: NextRequest) {
         try {
           parsedResult = JSON.parse(rawResultJson);
         } catch {}
+      }
+
+      // Auto-résolution de la portée pour une cliente CRM sans paramètre explicite
+      if (!zone && zones.length === 0 && !universal) {
+        const multiZonesRaw: unknown[] = Array.isArray(parsedResult?.multiZoneSession?.zones)
+          ? parsedResult.multiZoneSession.zones
+          : [];
+        const resolvedMulti = Array.from(
+          new Set(multiZonesRaw.map((z) => String(z)).filter(isValidZone))
+        );
+        if (resolvedMulti.length > 1) {
+          zones = resolvedMulti;
+        } else {
+          const dZone = resolvedMulti[0] || latestProDiag?.zone || latestUserDiag?.zone;
+          if (isValidZone(dZone)) {
+            zone = dZone;
+          } else {
+            // Cliente CRM sans diagnostic antérieur -> fiche universelle pré-remplie
+            universal = true;
+          }
+        }
       }
 
       // Décoder la prescription active

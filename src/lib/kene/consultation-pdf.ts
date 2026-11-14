@@ -325,7 +325,7 @@ function isCriteriaMatched(
   score?: number | null
 ): boolean {
   if (!answers) return false;
-  const rawSkin = String(answers.peau ?? "").toLowerCase();
+  const rawSkin = String(answers.skin_type ?? answers.peau ?? "").toLowerCase();
   const rawConcerns = Array.isArray(answers.concerns)
     ? answers.concerns.map(String)
     : [String(answers.concerns ?? "")];
@@ -501,11 +501,12 @@ function renderCriterionBlock(
     yObs = boxY + 25;
   }
 
+  const isFacialBlock = criteria === ZONE_CLINICAL_CRITERIA.visage;
   for (const crit of criteria) {
     doc.text(crit.title, M_X + 8, yObs, { font: "bold", size: 7.1, color: GOLD_DARK, maxW: 96 });
     let xCrit = M_X + 106;
     for (const item of crit.items) {
-      const isChecked = isCriteriaMatched(crit.title, item, answers, score);
+      const isChecked = isFacialBlock && isCriteriaMatched(crit.title, item, answers, score);
       checkboxItem(doc, xCrit, yObs, item, isChecked, { size: 7.0, boxSize: 7.2, maxW: 85 });
       xCrit += 99;
     }
@@ -2354,7 +2355,12 @@ export function clientDiagReportPdf(input: {
 // ─────────────── Noms de fichiers ───────────────
 
 export function consultationSheetFilename(clientName?: string | null, scopeLabel?: string | null): string {
-  const base = clientName ? slug(clientName) : scopeLabel ? slug(scopeLabel) : "vierge";
+  const cleanScope = scopeLabel && scopeLabel !== "vierge" && scopeLabel !== "auto" ? slug(scopeLabel) : "";
+  const base = clientName
+    ? cleanScope
+      ? `${slug(clientName)}-${cleanScope}`
+      : slug(clientName)
+    : cleanScope || "vierge";
   return `kene-fiche-consultation-${base}-${stamp()}.pdf`;
 }
 
