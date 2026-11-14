@@ -477,6 +477,7 @@ export function derivePersonalizedRecommendations(
   indicateurs: Indicator[],
   scoreGlobal: number,
   exposome?: ExposomeContext | null,
+  fitzpatrick?: string,
 ): RecommendationSet {
   const byPct = [...indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
   const worst = byPct[0];
@@ -629,6 +630,36 @@ export function derivePersonalizedRecommendations(
     hygiene = [exposome.hygieneTip, ...hygiene].slice(0, 3);
   }
 
+  // Adaptations dermo-biologiques spécifiques selon la nuance issue ou dérivée de la peau noire
+  if (fitzpatrick === "albinos") {
+    matin = [
+      "Nettoyage ultra-doux sans savon ni parfum",
+      "Sérum apaisant & réparateur barrière (panthénol, aloka)",
+      "Écran solaire minéral SPF 50+ UVA/UVB très haute couvrance (réapplication toutes les 2h)",
+    ];
+    soir = [
+      "Nettoyant lait ou huile lactée sans frottement",
+      "Baume relipidant réparateur au karité purifié & céramides",
+    ];
+    hygiene = [
+      "Photoprotection vestimentaire stricte (chapeau à larges bords, lunettes UV400, vêtements couvrants)",
+      "Bannir tout acide exfoliant fort (AHA/BHA) ou gommage abrasif et faire contrôler toute croûte ou kératose actinique par un dermatologue",
+    ];
+  } else if (fitzpatrick === "rouquine") {
+    if (!matin.some((m) => m.toLowerCase().includes("antioxydant"))) {
+      matin = [matin[0] ?? "Nettoyage doux physiologique", "Sérum antioxydant bouclier anti-stress phéomélanique (Vitamine C stabilisée & Moringa)", "Fluide solaire SPF 50+ anti-UVA quotidien"];
+    }
+    hygiene = [
+      "Protéger la phéomélanine du stress oxydatif UV par un SPF 50+ quotidien et des antioxydants",
+      "Respecter les éphélides (taches de rousseur) naturelles : ne jamais appliquer de soin dépigmentant agressif dessus",
+    ];
+  } else if (fitzpatrick === "III" || fitzpatrick === "IV") {
+    hygiene = [
+      "Sur peau chabine ou métissée caramel, toute rougeur (EPI) vire rapidement en tache brune (HPI) sous les UV : écran SPF 50+ indispensable chaque matin",
+      ...hygiene,
+    ].slice(0, 3);
+  }
+
   const focusTxt = worst ? `« ${worst.nom} » (${worst.pourcentage} %)` : "l'harmonie générale de votre peau";
 
   return {
@@ -654,6 +685,7 @@ function ruleRecommendations(
     analysis.indicateurs,
     analysis.score_global,
     exposome,
+    analysis.fitzpatrick_estime,
   );
 }
 
@@ -735,8 +767,8 @@ export function fallbackResult(
     ].slice(0, zone === "visage" ? 4 : 2);
   }
 
-  const customRec = derivePersonalizedRecommendations(zone, indicateurs, score, exposome);
   const fitzEstimated = opticalMetrics?.itaPhototypeHint ?? "V";
+  const customRec = derivePersonalizedRecommendations(zone, indicateurs, score, exposome, fitzEstimated);
 
   return {
     score_global: score,

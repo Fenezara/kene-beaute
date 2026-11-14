@@ -1740,7 +1740,7 @@ function ClientSheet({
 
                       <div className="space-y-1.5">
                         <label htmlFor="edit-client-fitzpatrick" className="text-xs font-semibold block text-foreground">
-                          Phototype
+                          Phototype &amp; Nuance
                         </label>
                         <select
                           id="edit-client-fitzpatrick"
@@ -1748,9 +1748,12 @@ function ClientSheet({
                           onChange={(e) => setEditFitzpatrick(e.target.value)}
                           className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus-visible:outline-2 focus-visible:outline-ring font-mono"
                         >
-                          <option value="IV">Phototype IV (Métisse)</option>
-                          <option value="V">Phototype V (Noire mate)</option>
-                          <option value="VI">Phototype VI (Noire foncée)</option>
+                          <option value="albinos">Albinos (OCA — I africain)</option>
+                          <option value="rouquine">Afro-rousse / Rouquine (Phéomélanine)</option>
+                          <option value="III">Phototype III (Chabine / Teint très clair)</option>
+                          <option value="IV">Phototype IV (Métissée / Caramel)</option>
+                          <option value="V">Phototype V (Brune cuivrée à chocolat)</option>
+                          <option value="VI">Phototype VI (Ébène / Cacao intense)</option>
                         </select>
                       </div>
                     </div>

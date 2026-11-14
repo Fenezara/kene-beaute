@@ -35,8 +35,8 @@ export interface OpticalSkinMetrics {
   bStar: number;
   /** Angle Typologique Individuel ITA° = atan((L* - 50) / b*) * 180 / PI */
   itaDegrees: number;
-  /** Phototype / nuance estimée par l'angle ITA° (corrigé balance des blancs) */
-  itaPhototypeHint: "albinos" | "III" | "IV" | "V" | "VI";
+  /** Phototype / nuance estimée par l'angle ITA° et la signature phéomélanique (corrigé balance des blancs) */
+  itaPhototypeHint: "albinos" | "rouquine" | "III" | "IV" | "V" | "VI";
   /** Indice d'hétérogénéité pigmentaire (dispersion spatiale Delta-E locale, 0..100) */
   pigmentHeterogeneity: number;
   /** Indice d'érythème sous-jacent (canal a* normalisé pour peaux foncées, 0..100) */
@@ -87,11 +87,34 @@ export function rgbToLab(r8: number, g8: number, b8: number): [number, number, n
   return [l, a, bVal];
 }
 
-/** Déduit la nuance Kènè / Fitzpatrick à partir de l'angle ITA° (classification Chardon / Del Bino adaptée). */
-export function phototypeFromIta(ita: number): "albinos" | "III" | "IV" | "V" | "VI" {
-  if (ita > 41) return "albinos";
-  if (ita > 19) return "III"; // Chabine / intermédiaire clair
-  if (ita > -5) return "IV"; // Métissée / caramel
+/**
+ * Déduit la nuance Kènè / Fitzpatrick à partir de l'angle ITA° et des coordonnées chromatiques CIE a* / b*
+ * (classification Chardon / Del Bino étendue à tout le spectre d'origine ou de dérivation mélanoderme :
+ * Albinos OCA, Afro-rousse / Rouquine phéomélanique OCA3/MC1R, Chabine / Teint clair III, Métissée / Caramel IV,
+ * Brune cuivrée V, Ébène intense VI).
+ */
+export function phototypeFromIta(
+  ita: number,
+  aStar?: number,
+  bStar?: number,
+): "albinos" | "rouquine" | "III" | "IV" | "V" | "VI" {
+  // 1) Albinisme oculo-cutané (OCA1 / OCA2) : très forte luminance L* et très faible mélanine (ITA° > 42°)
+  if (ita > 42) return "albinos";
+  // 2) Peau afro-rousse / rouquine phéomélanique (OCA3 / variants MC1R sur ascendance africaine) :
+  // teint clair à fauve-cuivré (ITA° entre 8° et 40°) avec forte saturation cuivrée-dorée (a* >= 12.5 et b* >= 21.5)
+  if (
+    ita > 8 &&
+    ita <= 40 &&
+    typeof aStar === "number" &&
+    typeof bStar === "number" &&
+    aStar >= 12.5 &&
+    bStar >= 21.5 &&
+    aStar + bStar >= 36
+  ) {
+    return "rouquine";
+  }
+  if (ita > 19) return "III"; // Chabine / Teint très clair doré
+  if (ita > -5) return "IV"; // Métissée / Teint clair caramel
   if (ita > -32) return "V"; // Brune cuivrée / acajou
   return "VI"; // Ébène intense
 }
@@ -239,7 +262,7 @@ export function computeOpticalMetricsFromRgba(
   // Angle Typologique Individuel ITA°
   const safeB = Math.abs(bStar) < 1.5 ? (bStar >= 0 ? 1.5 : -1.5) : bStar;
   const itaDegrees = Math.round(Math.atan((lStar - 50) / safeB) * (180 / Math.PI) * 10) / 10;
-  const itaPhototypeHint = phototypeFromIta(itaDegrees);
+  const itaPhototypeHint = phototypeFromIta(itaDegrees, aStar, bStar);
 
   // Séparation biophysique des chromophores (Loi de Lambert-Beer adaptée aux phototypes IV–VI)
   // 1) Indice Mélanique pur : M = 100 * log10(255 / R) normalisé sur 0..100
@@ -608,7 +631,7 @@ export function formatOpticalTelemetryForPrompt(metricsList: (OpticalSkinMetrics
   const sharp = Math.round(avg((m) => m.sharpnessScore));
   const glare = avg((m) => m.specularGlarePct);
   const makeupDetected = valid.some((m) => m.makeupOrFilterLikely === true);
-  const hint = phototypeFromIta(ita);
+  const hint = phototypeFromIta(ita, aStar, bStar);
 
   const hetDesc =
     het >= 45 ? "forte dispersion pigmentaire (taches PIH/mélasma probable)" : het >= 24 ? "dispersion pigmentaire modérée" : "teint homogène";
