@@ -179,7 +179,13 @@ export async function purgeStaleVirtualGuests(opts: { maxAgeDays?: number; force
           { diagnoses: { none: {} } },
           { orders: { none: {} } },
           { appointments: { none: {} } },
-          { subscriptions: { none: {} } },
+          {
+            subscriptions: {
+              none: {
+                OR: [{ priceFcfa: { gt: 0 } }, { source: { not: "welcome_trial" } }],
+              },
+            },
+          },
           { reviews: { none: {} } },
         ],
       },
@@ -196,6 +202,10 @@ export async function purgeStaleVirtualGuests(opts: { maxAgeDays?: number; force
       db.skinPassport.deleteMany({ where: { userId: { in: ids } } }),
       db.passkeyCredential.deleteMany({ where: { userId: { in: ids } } }),
       db.couponRedemption.deleteMany({ where: { userId: { in: ids } } }),
+      db.pushSubscription.deleteMany({ where: { userId: { in: ids } } }),
+      db.subscription.deleteMany({
+        where: { userId: { in: ids }, priceFcfa: { lte: 0 }, source: "welcome_trial" },
+      }),
       db.wallet.deleteMany({ where: { userId: { in: ids }, balance: 0 } }),
       db.clientProfile.updateMany({ where: { userId: { in: ids } }, data: { userId: null } }),
     ]);
