@@ -42,10 +42,14 @@ import {
   QUESTIONS,
   getQuestionsForZone,
   getSectionsForZone,
+  getQuestionsForZones,
+  getSectionsForZones,
   type QAnswers,
   type Question,
+  type QSection,
   type ProDiagnosisResult,
 } from "@/lib/kene/questionnaire";
+import { CABIN_SAFETY_CHECKLIST } from "@/lib/kene/cosmetovigilance";
 import { BODY_ZONES, type BodyZone, type DiagnosisResult } from "@/lib/kene/types";
 import type { SpectralAcneResult, MultiSpectralSuiteResult } from "@/lib/kene/spectral-imaging";
 
@@ -371,6 +375,164 @@ function isCriteriaMatched(
   return false;
 }
 
+interface ClinicalCriterion {
+  title: string;
+  items: string[];
+}
+
+const UNIVERSAL_ZONE_ORDER: BodyZone[] = ["visage", "cuir_chevelu", "dos", "barbe", "mains", "naevi"];
+
+const ZONE_SHORT_LABELS: Record<BodyZone, string> = {
+  visage: "Visage & Cou",
+  cuir_chevelu: "Cuir chevelu & Cheveux",
+  dos: "Dos & Décolleté",
+  barbe: "Barbe & Rasage",
+  mains: "Mains, Pieds & Ongles",
+  naevi: "Corps & Lésions (ABCDE)",
+};
+
+const COMPLEMENTARY_BODY_SECTION: QSection = {
+  id: "corps_plis",
+  label: "Corps entier, Aisselles, Plis & Vergetures",
+  description: "Zones de frottement, aisselles, entrejambe, coudes/genoux, vergetures & chéloïdes",
+};
+
+const COMPLEMENTARY_BODY_QUESTIONS: Question[] = [
+  {
+    id: "corps_localisation",
+    section: "corps_plis",
+    label: "Zones du corps concernées (hors visage/mains)",
+    type: "multi",
+    options: [
+      { value: "aisselles", label: "Aisselles / plis sous-mammaires" },
+      { value: "entrejambe", label: "Entrejambe / maillot / cuisses" },
+      { value: "articulations", label: "Coudes / genoux / phalanges" },
+      { value: "ventre_hanches", label: "Ventre / hanches / fessiers" },
+      { value: "bras_jambes", label: "Bras / jambes (peau sèche)" },
+    ],
+  },
+  {
+    id: "corps_problemes",
+    section: "corps_plis",
+    label: "Problématiques corporelles constatées ou déclarées",
+    type: "multi",
+    options: [
+      { value: "plis_noirs", label: "Hyperpigmentation de frottement / plis" },
+      { value: "vergetures", label: "Vergetures (récentes violettes ou blanches)" },
+      { value: "keratose_corps", label: "Poils incarnés / kératose pilaire" },
+      { value: "croco", label: "Sécheresse sévère / aspect crocodile" },
+      { value: "cheloides_corps", label: "Cicatrices anciennes ou chéloïdes" },
+    ],
+  },
+];
+
+const FACIAL_CLINICAL_CRITERIA: ClinicalCriterion[] = [
+  { title: "Éclat & Teint :", items: ["Lumineux", "Terne / Asphyxié", "Taches / HPI", "Irrégulier"] },
+  { title: "Pores & Relief :", items: ["Resserrés", "Dilatés zone T", "Dilatés diffus", "Comédons / Kystes"] },
+  { title: "Sébum & Brillance :", items: ["Équilibré", "Brillance zone T", "Hyperséborrhée", "Alipidique (sec)"] },
+  { title: "Hydratation :", items: ["Souple", "Déshydratée", "Desquamation", "Tiraillements"] },
+  { title: "Sensibilité :", items: ["Résistante", "Réactive", "Rougeurs / Érythème", "Échauffements"] },
+  { title: "Fermeté :", items: ["Tonique", "Perte élasticité", "Ridules fines", "Relâchement"] },
+];
+
+const CORPS_PLIS_CRITERIA: ClinicalCriterion[] = [
+  { title: "Aisselles & Plis :", items: ["Uniformes", "HPI frottement", "Macération / Odeur", "Folliculite plis"] },
+  { title: "Vergetures / Cic. :", items: ["Aucune", "Vergetures rouges", "Vergetures blanches", "Chéloïdes"] },
+  { title: "Peau du corps :", items: ["Hydratée", "Sèche / Crocodile", "Kératose pilaire", "Dépigmentation"] },
+];
+
+const ZONE_CLINICAL_CRITERIA: Record<BodyZone, ClinicalCriterion[]> = {
+  visage: FACIAL_CLINICAL_CRITERIA,
+  cuir_chevelu: [
+    { title: "Cuir chevelu :", items: ["Sain / Souple", "Sec / Tiraille", "Gras / Séborrhée", "Irrité / Érythème"] },
+    { title: "Desquamation :", items: ["Aucune", "Pellicules sèches", "Squames grasses", "Croûtes / Dermite"] },
+    { title: "Tempes / Lisière :", items: ["Ligne intacte", "Duvet affiné", "Recul traction", "Zone glabre"] },
+    { title: "Densité & Plaques :", items: ["Homogène", "Baisse diffuse", "Plaques nues", "Cicatricielle"] },
+    { title: "Fibre & Follicule :", items: ["Fibre souple", "Casse / Sécheresse", "Folliculite", "Occlusion minérale"] },
+  ],
+  dos: [
+    { title: "Acné dorsale :", items: ["Peau nette", "Comédons ouverts", "Papules / Pustules", "Nodules / Kystes"] },
+    { title: "Pigmentation PIH :", items: ["Teint uniforme", "Taches récentes", "HPI étendue", "Cicatrices en creux"] },
+    { title: "Sébum & Sudation :", items: ["Équilibré", "Zone T dorsale", "Hyperséborrhée", "Frottement textile"] },
+    { title: "Grain & Décolleté :", items: ["Lisse", "Kératose rugueuse", "Déshydraté", "Chéloïdes épaules"] },
+  ],
+  barbe: [
+    { title: "Poils incarnés :", items: ["Aucun", "Quelques-uns", "Pseudofolliculite", "Papules chroniques"] },
+    { title: "Folliculite :", items: ["Absente", "Pustules isolées", "Pustules diffuses", "Zone surinfectée"] },
+    { title: "Taches & Cou :", items: ["Uniforme", "HPI menton", "HPI cou / mâchoire", "Irritation alcool"] },
+    { title: "Nuque & Barbe :", items: ["Peau souple", "Poil dru / sec", "Chéloïdes nuque", "Coupures rasage"] },
+  ],
+  mains: [
+    { title: "Peau des mains :", items: ["Souple", "Sèche / Rêche", "Crevasses", "Eczéma / Plis"] },
+    { title: "Phalanges / Dos :", items: ["Uniforme", "HPI articulaire", "Taches solaires", "Dépigmentation"] },
+    { title: "Paumes / Pieds :", items: ["Douces", "Hyperkératose", "Callosités", "Fissures talons"] },
+    { title: "Ongles / Cuticules :", items: ["Sains / Forts", "Striés / Cassants", "Onycholyse", "Suspicion mycose"] },
+  ],
+  naevi: [
+    { title: "A-B Asym./Bords :", items: ["Régulier (RAS)", "Asymétrie (A)", "Bords flous (B)", "A + B associés"] },
+    { title: "C-D Coul./Diam. :", items: ["Homogène <6mm", "Polychrome (C)", "Diamètre >6mm (D)", "C + D associés"] },
+    { title: "E Évolution :", items: ["Stable", "Changement taille", "Changement coul.", "Prurit / Douleur"] },
+    { title: "Urgence / Corps :", items: ["Surveillance simple", "Saignement / Suint.", "Avis dermato urgent", "Lésions multiples"] },
+  ],
+};
+
+function renderCriterionBlock(
+  doc: PdfDoc,
+  title: string | null,
+  criteria: ClinicalCriterion[],
+  answers?: QAnswers,
+  score?: number | null,
+  extraLines = 0,
+  extraValues?: string | null
+): void {
+  const headerH = title ? 15 : 0;
+  const rowsH = criteria.length * 13;
+  const linesH = extraLines > 0 ? 15 + extraLines * 11 : 0;
+  const boxH = 10 + headerH + rowsH + linesH;
+
+  doc.ensure(boxH + 4);
+  const boxY = doc.cursorY;
+  drawBox(doc, M_X, boxY, CONTENT_W, boxH, CARD, LINE, 0.7);
+
+  let yObs = boxY + 11;
+  if (title) {
+    doc.rect(M_X + 0.5, boxY + 0.5, CONTENT_W - 1, 14, CREAM);
+    doc.text(title, M_X + 8, boxY + 10, { font: "bold", size: 7.4, color: BISSAP_DARK, letterSpace: 0.3 });
+    yObs = boxY + 25;
+  }
+
+  for (const crit of criteria) {
+    doc.text(crit.title, M_X + 8, yObs, { font: "bold", size: 7.1, color: GOLD_DARK, maxW: 96 });
+    let xCrit = M_X + 106;
+    for (const item of crit.items) {
+      const isChecked = isCriteriaMatched(crit.title, item, answers, score);
+      checkboxItem(doc, xCrit, yObs, item, isChecked, { size: 7.0, boxSize: 7.2, maxW: 85 });
+      xCrit += 99;
+    }
+    yObs += 13;
+  }
+
+  if (extraLines > 0) {
+    yObs += 2;
+    doc.text("Observations cliniques complémentaires & Orientation dermatologique :", M_X + 8, yObs, {
+      font: "bold",
+      size: 7,
+      color: SOFT,
+    });
+    yObs += 10;
+    const obsText = (extraValues || "").trim().slice(0, 180);
+    for (let li = 0; li < extraLines; li++) {
+      if (li === 0 && obsText) {
+        doc.text(obsText, M_X + 8, yObs, { font: "oblique", size: 7.5, color: INK, maxW: CONTENT_W - 16 });
+      }
+      writeLine(doc, yObs + 1, M_X + 8, M_RIGHT - 8);
+      yObs += 11;
+    }
+  }
+
+  doc.advance(boxH + 7);
+}
+
 export function consultationSheetPdf(input: {
   tenantName: string;
   tenantCity: string;
@@ -378,23 +540,42 @@ export function consultationSheetPdf(input: {
   tenantLogo?: TenantLogoInput | null;
   practitioner?: string | null;
   zone?: BodyZone;
+  zones?: BodyZone[];
+  universal?: boolean;
   client?: ConsultationClientPrefill | null;
   date?: Date;
 }): ConsultPdfResult {
-  const doc = new PdfDoc(`Kènè Pro — Fiche de consultation · ${input.tenantName}`);
+  const c = input.client ?? null;
+  const isUniversal = Boolean(input.universal);
+  const selectedZones: BodyZone[] = isUniversal
+    ? UNIVERSAL_ZONE_ORDER
+    : input.zones && input.zones.length > 0
+    ? Array.from(new Set(input.zones))
+    : [input.zone ?? "visage"];
+
+  const zoneTitleTag = isUniversal
+    ? "UNIVERSELLE (TOUTES ZONES & TOUS CAS)"
+    : selectedZones.length > 1
+    ? `MULTI-ZONES (${selectedZones.map((z) => ZONE_SHORT_LABELS[z]).join(" · ")})`
+    : ZONE_SHORT_LABELS[selectedZones[0]].toUpperCase();
+
+  const doc = new PdfDoc(`Kènè Pro — Fiche de consultation ${zoneTitleTag} · ${input.tenantName}`);
   doc.setFooter(
-    `Kènè Pro — Fiche de consultation & diagnostic de peau · dossier cabine · ${fmtDate(input.date ?? new Date())}`
+    `Kènè Pro — Fiche ${isUniversal ? "universelle " : ""}de consultation · ${zoneTitleTag} · ${fmtDate(input.date ?? new Date())}`
   );
 
-  const c = input.client ?? null;
   const subTitle = c?.latestDiagnosisDate
-    ? `Dossier clinique cabine · Diagnostic du ${fmtDate(c.latestDiagnosisDate)} · Score santé : ${c.latestDiagnosisScore ?? "—"}/100`
-    : "Dossier confidentiel de suivi cabine — à renseigner lors de l'entretien et de l'examen";
+    ? `Dossier clinique cabine (${zoneTitleTag}) · Diagnostic du ${fmtDate(c.latestDiagnosisDate)} · Score santé : ${c.latestDiagnosisScore ?? "—"}/100`
+    : isUniversal
+    ? "Support papier universel (Femme, Homme, Mineur · Peaux noires, métissées, albinos & afro-rousses · Toutes zones)"
+    : `Support papier ciblé (${zoneTitleTag}) — entretien, vigilance dermato-esthétique & examen clinique`;
 
   // En-tête officiel
   headerBanner(
     doc,
-    "FICHE CLINIQUE DE CONSULTATION & DIAGNOSTIC DE PEAU",
+    isUniversal
+      ? "FICHE CLINIQUE UNIVERSELLE DE CONSULTATION"
+      : `FICHE CLINIQUE — ${zoneTitleTag}`,
     subTitle,
     {
       name: input.tenantName,
@@ -405,18 +586,16 @@ export function consultationSheetPdf(input: {
     }
   );
 
-  // ── 1. IDENTITÉ & FICHE CLIENTE ──
-  sectionBand(doc, "1", "IDENTITÉ & COORDONNÉES DE LA CLIENTE");
-  doc.ensure(64);
+  // ── 1. IDENTITÉ, PROFIL & MOTIF DE CONSULTATION ──
+  sectionBand(doc, "1", "IDENTITÉ, PROFIL & MOTIF DE CONSULTATION");
+  doc.ensure(106);
   const idBoxY = doc.cursorY;
-  const idBoxH = 58;
+  const idBoxH = 100;
 
-  // Cadre global bicolore
   drawBox(doc, M_X, idBoxY, CONTENT_W, idBoxH, CARD, LINE, 0.7);
-
-  // Séparateur vertical central
   const colMid = M_X + 265;
-  doc.line(colMid, idBoxY, colMid, idBoxY + idBoxH, LINE_LIGHT, 0.7);
+  doc.line(colMid, idBoxY, colMid, idBoxY + 52, LINE_LIGHT, 0.7);
+  doc.hline(M_X, M_RIGHT, idBoxY + 52, LINE_LIGHT, 0.7);
 
   // Colonne Gauche : Identité
   let yL = idBoxY + 12;
@@ -437,7 +616,7 @@ export function consultationSheetPdf(input: {
 
   // Colonne Droite : Suivi & Cabine
   let yR = idBoxY + 12;
-  doc.text("PRATICIENNE EN CHARGE", colMid + 10, yR, { font: "bold", size: 6.8, color: SOFT, letterSpace: 0.3 });
+  doc.text("PRATICIEN(NE) EN CHARGE", colMid + 10, yR, { font: "bold", size: 6.8, color: SOFT, letterSpace: 0.3 });
   if (input.practitioner) {
     doc.text(input.practitioner, colMid + 10, yR + 11, { font: "bold", size: 9, color: INK, maxW: 220 });
   } else {
@@ -457,26 +636,54 @@ export function consultationSheetPdf(input: {
     : "Dossier Papier Cabine";
   doc.text(statusText, colMid + 10, yR + 10, { font: "bold", size: 8.5, color: c?.latestDiagnosisDate || c?.appAccount ? GREEN : GOLD_DARK });
 
+  // Bas encadré 1 : Profil H/F/Mineur + Âge + Motif
+  const yProfRow = idBoxY + 65;
+  doc.text("PROFIL :", M_X + 10, yProfRow, { font: "bold", size: 6.8, color: GOLD_DARK });
+  checkboxItem(doc, M_X + 46, yProfRow, "Femme", false, { size: 7.2, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 95, yProfRow, "Homme", selectedZones.length === 1 && selectedZones[0] === "barbe", { size: 7.2, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 146, yProfRow, "Mineur(e) (<18)", false, { size: 7.2, boxSize: 7.2 });
+
+  const ansAge = String(c?.answers?.age ?? "");
+  doc.text("ÂGE :", M_X + 236, yProfRow, { font: "bold", size: 6.8, color: GOLD_DARK });
+  checkboxItem(doc, M_X + 264, yProfRow, "<18", ansAge === "<18", { size: 7.1, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 302, yProfRow, "18-25", ansAge === "18-25", { size: 7.1, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 346, yProfRow, "26-35", ansAge === "26-35", { size: 7.1, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 390, yProfRow, "36-45", ansAge === "36-45", { size: 7.1, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 434, yProfRow, "46+", ansAge === "46+", { size: 7.1, boxSize: 7.2 });
+
+  const yMotifRow = idBoxY + 80;
+  doc.text("MOTIF PRINCIPAL :", M_X + 10, yMotifRow, { font: "bold", size: 6.8, color: GOLD_DARK });
+  writeLine(doc, yMotifRow + 1, M_X + 86, M_RIGHT - 10);
+
+  const yQuickObj = idBoxY + 93;
+  checkboxItem(doc, M_X + 10, yQuickObj, "Taches/Éclat", false, { size: 6.9, boxSize: 7 });
+  checkboxItem(doc, M_X + 78, yQuickObj, "Acné/Pores", false, { size: 6.9, boxSize: 7 });
+  checkboxItem(doc, M_X + 142, yQuickObj, "Sécheresse", false, { size: 6.9, boxSize: 7 });
+  checkboxItem(doc, M_X + 204, yQuickObj, "Cheveux/Chute", false, { size: 6.9, boxSize: 7 });
+  checkboxItem(doc, M_X + 278, yQuickObj, "Barbe", false, { size: 6.9, boxSize: 7 });
+  checkboxItem(doc, M_X + 320, yQuickObj, "Corps/Plis", false, { size: 6.9, boxSize: 7 });
+  checkboxItem(doc, M_X + 382, yQuickObj, "Mains/Ongles", false, { size: 6.9, boxSize: 7 });
+  checkboxItem(doc, M_X + 452, yQuickObj, "Naevus", false, { size: 6.9, boxSize: 7 });
+
   doc.advance(idBoxH + 10);
 
-  // ── 2. CADRE RÉGLEMENTAIRE & CONSENTEMENTS ÉCLAIRÉS ──
+  // ── 2. CADRE RÉGLEMENTAIRE, CONSENTEMENTS & ACCORD PARENTAL ──
   sectionBand(
     doc,
     "2",
-    "CADRE RÉGLEMENTAIRE & CONSENTEMENTS ÉCLAIRÉS",
+    "CADRE RÉGLEMENTAIRE, CONSENTEMENTS & ACCORD PARENTAL",
     "Conformité données de santé & photos (Loi n°2013-450 / RGPD) — explications orales préalables"
   );
-  doc.ensure(88);
+  doc.ensure(106);
   const csBoxY = doc.cursorY;
-  const csBoxH = 80;
+  const csBoxH = 100;
 
-  // Cartouche de sécurité avec fond crème et bordure or
   drawBox(doc, M_X, csBoxY, CONTENT_W, csBoxH, CREAM, LINE, 0.7);
-  doc.rect(M_X, csBoxY, 3, csBoxH, GOLD); // filet gauche or
+  doc.rect(M_X, csBoxY, 3, csBoxH, GOLD);
 
   let yCs = csBoxY + 11;
   doc.text(
-    "Les consentements suivants sont expliqués à la cliente avant toute prise de vue ou acte de soin :",
+    "Les consentements suivants sont expliqués à la personne consultée avant toute prise de vue ou acte de soin :",
     M_X + 12,
     yCs,
     { size: 7.2, color: SOFT, font: "oblique" }
@@ -485,80 +692,91 @@ export function consultationSheetPdf(input: {
   const photoChecked = Boolean(c?.consentPhoto);
   const dataChecked = Boolean(c?.consentData);
 
-  yCs += 15;
+  yCs += 14;
   checkbox(doc, M_X + 12, yCs - 6.5, 8, photoChecked);
-  doc.text("PRISE DE CLICHÉS & IMAGERIE CABINE :", M_X + 25, yCs, { font: "bold", size: 7.8, color: GOLD_DARK });
+  doc.text("PRISE DE CLICHÉS & IMAGERIE CABINE :", M_X + 25, yCs, { font: "bold", size: 7.6, color: GOLD_DARK });
   doc.text(
-    "J'autorise la prise de photographies cutanées pour mon suivi exclusif au sein de l'institut (aucune diffusion publique).",
+    "J'autorise la prise de photographies cutanées/capillaires pour mon suivi exclusif au sein de l'institut (zéro diffusion publique).",
     M_X + 25,
-    yCs + 9,
-    { size: 7.2, color: INK, maxW: CONTENT_W - 35 }
+    yCs + 8.5,
+    { size: 7.1, color: INK, maxW: CONTENT_W - 35 }
+  );
+
+  yCs += 19;
+  checkbox(doc, M_X + 12, yCs - 6.5, 8, dataChecked);
+  doc.text("TRAITEMENT & CONSERVATION DES DONNÉES :", M_X + 25, yCs, { font: "bold", size: 7.6, color: GOLD_DARK });
+  doc.text(
+    "J'accepte la conservation de mes données dermatologiques (scores, routines, historique) pour personnaliser mes protocoles.",
+    M_X + 25,
+    yCs + 8.5,
+    { size: 7.1, color: INK, maxW: CONTENT_W - 35 }
+  );
+
+  yCs += 19;
+  checkbox(doc, M_X + 12, yCs - 6.5, 8, false);
+  doc.text("SI MINEUR(E) (< 18 ANS) — AUTORISATION PARENTALE :", M_X + 25, yCs, { font: "bold", size: 7.6, color: BISSAP_DARK });
+  doc.text(
+    "Représentant légal : .......................................................  J'autorise le bilan et les soins non invasifs adaptés.",
+    M_X + 25,
+    yCs + 8.5,
+    { size: 7.1, color: INK, maxW: CONTENT_W - 35 }
   );
 
   yCs += 20;
-  checkbox(doc, M_X + 12, yCs - 6.5, 8, dataChecked);
-  doc.text("TRAITEMENT & CONSERVATION DES DONNÉES :", M_X + 25, yCs, { font: "bold", size: 7.8, color: GOLD_DARK });
-  doc.text(
-    "J'accepte la conservation de mes données cutanées (scores, routines, historique) pour la personnalisation de mes soins.",
-    M_X + 25,
-    yCs + 9,
-    { size: 7.2, color: INK, maxW: CONTENT_W - 35 }
-  );
-
-  // Ligne de signature consentements
-  yCs += 19;
   doc.hline(M_X + 12, M_RIGHT - 12, yCs - 3, LINE_LIGHT, 0.5);
-  const consentDateStr = c?.consentDate ? fmtDate(c.consentDate) : "...............................";
-  const tenantCityStr = input.tenantCity || "...............................";
+  const consentDateStr = c?.consentDate ? fmtDate(c.consentDate) : ".........................";
+  const tenantCityStr = input.tenantCity || ".........................";
   doc.text(`Fait le : ${consentDateStr}   Lieu : ${tenantCityStr}`, M_X + 12, yCs + 8, {
-    size: 7.2,
+    size: 7.1,
     color: SOFT,
   });
   doc.text(
-    "Signature cliente (« Lu et approuvé ») :",
-    M_RIGHT - 215,
+    "Signature client(e) / représentant (« Lu et approuvé ») :",
+    M_RIGHT - 245,
     yCs + 8,
-    { size: 7.2, color: SOFT }
+    { size: 7.1, color: SOFT }
   );
   if (photoChecked && dataChecked) {
-    doc.text("Validé & Horodaté en cabine", M_RIGHT - 82, yCs + 7, { font: "bold", size: 6.5, color: GREEN });
+    doc.text("Validé en cabine", M_RIGHT - 78, yCs + 7, { font: "bold", size: 6.5, color: GREEN });
   }
-  doc.rectStroke(M_RIGHT - 85, yCs - 1, 75, 14, LINE, 0.6);
+  doc.rectStroke(M_RIGHT - 82, yCs - 1, 72, 13, LINE, 0.6);
 
-  doc.advance(csBoxH + 11);
+  doc.advance(csBoxH + 10);
 
-  // ── 3. PROFIL DERMATOLOGIQUE DE BASE & ANTÉCÉDENTS ──
-  sectionBand(doc, "3", "PROFIL DERMATOLOGIQUE & ANTÉCÉDENTS");
-  doc.ensure(115);
+  // ── 3. PROFIL DERMATOLOGIQUE, ZONES & CONTRE-INDICATIONS ──
+  sectionBand(
+    doc,
+    "3",
+    "PROFIL DERMATOLOGIQUE, ZONES & CONTRE-INDICATIONS CABINE",
+    "Adaptation phototypes IV-VI, Albinos (OCA), Afro-rousses & dépistage des contre-indications avant tout protocole"
+  );
+  doc.ensure(118);
   const profBoxY = doc.cursorY;
-  const profBoxH = 110;
+  const profBoxH = 112;
 
   drawBox(doc, M_X, profBoxY, CONTENT_W, profBoxH, CARD, LINE, 0.7);
 
   let yP = profBoxY + 12;
-
-  // Ligne 1 : Type de peau (profil cliente ou questionnaire)
   doc.text("TYPE DE PEAU OBSERVÉ / DÉCLARÉ :", M_X + 10, yP, { font: "bold", size: 7.2, color: GOLD_DARK });
-  const rawSkin = `${c?.skinType ?? ""} ${c?.answers?.peau ?? ""}`.toLowerCase();
+  const rawSkin = `${c?.skinType ?? ""} ${c?.answers?.peau ?? ""} ${c?.answers?.skin_type ?? ""}`.toLowerCase();
   const skinTypes = [
-    { id: "normale", label: "Normale", match: rawSkin.includes("norm") },
-    { id: "seche", label: "Sèche", match: rawSkin.includes("sech") || rawSkin.includes("sèch") },
-    { id: "mixte", label: "Mixte (Zone T)", match: rawSkin.includes("mixt") },
-    { id: "grasse", label: "Grasse", match: rawSkin.includes("grass") },
-    { id: "sensible", label: "Sensible", match: rawSkin.includes("sens") },
-    { id: "deshydratee", label: "Déshydratée", match: rawSkin.includes("deshydr") || rawSkin.includes("déshydr") },
+    { label: "Normale", match: rawSkin.includes("norm") },
+    { label: "Sèche", match: rawSkin.includes("sech") || rawSkin.includes("sèch") },
+    { label: "Mixte (Zone T)", match: rawSkin.includes("mixt") },
+    { label: "Grasse", match: rawSkin.includes("grass") },
+    { label: "Sensible", match: rawSkin.includes("sens") },
+    { label: "Déshydratée", match: rawSkin.includes("deshydr") || rawSkin.includes("déshydr") },
   ];
 
   let xP = M_X + 10;
-  yP += 12;
+  yP += 11.5;
   for (const st of skinTypes) {
-    checkboxItem(doc, xP, yP, st.label, st.match, { size: 7.5 });
+    checkboxItem(doc, xP, yP, st.label, st.match, { size: 7.4 });
     xP += 82;
   }
 
-  // Ligne 2 : Phototype Fitzpatrick (profil cliente ou questionnaire)
-  yP += 16;
-  doc.text("PHOTOTYPE DE FITZPATRICK :", M_X + 10, yP, { font: "bold", size: 7.2, color: GOLD_DARK });
+  yP += 15;
+  doc.text("NUANCE & PHOTOTYPE DE FITZPATRICK :", M_X + 10, yP, { font: "bold", size: 7.2, color: GOLD_DARK });
   const rawFitz = `${c?.fitzpatrick ?? ""} ${c?.answers?.fitz ?? ""}`.toUpperCase();
   const fitzTypes = [
     { label: "Albinos (OCA)", match: rawFitz.toLowerCase().includes("albin") || (rawFitz.includes("I") && !rawFitz.includes("II") && !rawFitz.includes("IV") && !rawFitz.includes("V") && !rawFitz.includes("VI")) },
@@ -570,40 +788,121 @@ export function consultationSheetPdf(input: {
   ];
 
   xP = M_X + 10;
-  yP += 12;
+  yP += 11.5;
   for (const ft of fitzTypes) {
     checkboxItem(doc, xP, yP, ft.label, ft.match, { size: 7.2 });
     xP += 82;
   }
 
-  // Ligne 3 : Allergies & Vigilances médicales
-  yP += 16;
-  doc.text("ALLERGIES CONNUES & CONTRE-INDICATIONS :", M_X + 10, yP, { font: "bold", size: 7.2, color: RED });
-  if (c?.notes) {
-    doc.text(c.notes, M_X + 10, yP + 10, { font: "bold", size: 8, color: INK, maxW: CONTENT_W - 20 });
-  } else {
-    writeLine(doc, yP + 10, M_X + 10, M_RIGHT - 10);
+  yP += 15.5;
+  doc.text("ZONES CONCERNÉES PAR CETTE CONSULTATION :", M_X + 10, yP, { font: "bold", size: 7.2, color: BISSAP_DARK });
+  const zoneCheck = (z: BodyZone) => !isUniversal && selectedZones.includes(z);
+  yP += 11.5;
+  checkboxItem(doc, M_X + 10, yP, "Visage & Cou", zoneCheck("visage"), { size: 7.3 });
+  checkboxItem(doc, M_X + 125, yP, "Cuir chevelu & Cheveux", zoneCheck("cuir_chevelu"), { size: 7.3 });
+  checkboxItem(doc, M_X + 265, yP, "Dos & Décolleté", zoneCheck("dos"), { size: 7.3 });
+  checkboxItem(doc, M_X + 385, yP, "Corps, Aisselles & Plis", false, { size: 7.3 });
+  yP += 12.5;
+  checkboxItem(doc, M_X + 10, yP, "Barbe & Rasage (Homme)", zoneCheck("barbe"), { size: 7.3 });
+  checkboxItem(doc, M_X + 150, yP, "Mains, Pieds & Ongles", zoneCheck("mains"), { size: 7.3 });
+  checkboxItem(doc, M_X + 295, yP, "Grains de beauté & Lésions (ABCDE)", zoneCheck("naevi"), { size: 7.3 });
+
+  doc.advance(profBoxH + 8);
+
+  // Encart 3B : Contre-indications esthétiques & antécédents médicaux
+  doc.ensure(132);
+  const ciBoxY = doc.cursorY;
+  const ciBoxH = 126;
+  drawBox(doc, M_X, ciBoxY, CONTENT_W, ciBoxH, CREAM, LINE, 0.7);
+  doc.rect(M_X, ciBoxY, 3, ciBoxH, RED);
+
+  let yCi = ciBoxY + 11;
+  doc.text(
+    "CONTRE-INDICATIONS & VIGILANCES DERMATO-ESTHÉTIQUES (COCHER SI OUI) :",
+    M_X + 10,
+    yCi,
+    { font: "bold", size: 7.2, color: RED }
+  );
+
+  const hasSafetyId = (id: string) => CABIN_SAFETY_CHECKLIST.some((s) => s.id === id);
+  const ciItems: Array<{ label: string; checked: boolean }> = [
+    {
+      label: hasSafetyId("pregnancy") ? "Grossesse en cours / allaitement" : "Grossesse / allaitement",
+      checked: c?.answers?.pregnancy === "oui",
+    },
+    {
+      label: "Isotrétinoïne / Roaccutane (< 6 mois)",
+      checked: Boolean(c?.cosmeticsUsed?.toLowerCase().includes("roaccutane") || c?.cosmeticsUsed?.toLowerCase().includes("isotret")),
+    },
+    {
+      label: "Tendance chéloïdes / HPI marquée",
+      checked: false,
+    },
+    {
+      label: "Dépigmentation / éclaircissants (passé/cours)",
+      checked: c?.answers?.lightening === "cours" || c?.answers?.lightening === "passe",
+    },
+    {
+      label: "Herpès actif / infection / plaie ouverte",
+      checked: false,
+    },
+    {
+      label: "UV intense (< 48h), épilation ou peeling (< 15j)",
+      checked: false,
+    },
+    {
+      label: "Eczéma / Psoriasis / Vitiligo / Mycose",
+      checked: false,
+    },
+    {
+      label: "Diabète / Troubles de la coagulation",
+      checked: false,
+    },
+  ];
+
+  yCi += 12;
+  for (let idx = 0; idx < ciItems.length; idx += 2) {
+    const left = ciItems[idx];
+    const right = ciItems[idx + 1];
+    checkboxItem(doc, M_X + 10, yCi, left.label, left.checked, { size: 7.3, boxSize: 7.5, maxW: 230 });
+    if (right) {
+      checkboxItem(doc, M_X + 260, yCi, right.label, right.checked, { size: 7.3, boxSize: 7.5, maxW: 230 });
+    }
+    yCi += 13;
   }
 
-  // Ligne 4 : Cosmétiques & Traitements actuels
-  yP += 20;
-  doc.text("COSMÉTIQUES & TRAITEMENTS EN COURS (SAVONS, ACIDES, RÉTINOÏDES, SOLAIRE) :", M_X + 10, yP, {
+  yCi += 3;
+  doc.text("ALLERGIES CONNUES (COSMÉTIQUES, PLANTES, PARFUMS, LATEX, MÉDICAMENTS) :", M_X + 10, yCi, {
     font: "bold",
-    size: 7.2,
+    size: 7.0,
+    color: RED,
+  });
+  yCi += 10;
+  if (c?.notes) {
+    doc.text(c.notes, M_X + 10, yCi, { font: "bold", size: 7.8, color: INK, maxW: CONTENT_W - 20 });
+  } else {
+    writeLine(doc, yCi, M_X + 10, M_RIGHT - 10);
+  }
+
+  yCi += 14;
+  doc.text("COSMÉTIQUES, TRAITEMENTS MÉDICAUX & SOINS CABINE ANTÉRIEURS (PEELING, LASER, NEEDLING...) :", M_X + 10, yCi, {
+    font: "bold",
+    size: 7.0,
     color: GOLD_DARK,
   });
+  yCi += 10;
   if (c?.cosmeticsUsed) {
-    doc.text(c.cosmeticsUsed, M_X + 10, yP + 10, { size: 8, color: INK, maxW: CONTENT_W - 20 });
+    doc.text(c.cosmeticsUsed, M_X + 10, yCi, { size: 7.8, color: INK, maxW: CONTENT_W - 20 });
   } else {
-    writeLine(doc, yP + 10, M_X + 10, M_RIGHT - 10);
+    writeLine(doc, yCi, M_X + 10, M_RIGHT - 10);
   }
 
-  doc.advance(profBoxH + 11);
+  doc.advance(ciBoxH + 10);
 
   // Self-scans si disponibles
   if (c?.scans && c.scans.length > 0) {
     doc.ensure(24 + c.scans.length * 14);
-    doc.text("HISTORIQUE DES SCANS KÈNÈ DE LA CLIENTE :", M_X, doc.cursorY + 2, {
+    doc.text("HISTORIQUE DES SCANS KÈNÈ PARTAGÉS :", M_X, doc.cursorY + 2, {
       font: "bold",
       size: 7.8,
       color: GOLD_DARK,
@@ -624,27 +923,50 @@ export function consultationSheetPdf(input: {
   sectionBand(
     doc,
     "4",
-    "QUESTIONNAIRE CLINIQUE CABINE (ENTRETIEN GUIDÉ)",
+    isUniversal ? "QUESTIONNAIRE CLINIQUE UNIVERSEL (MULTI-ZONES & TRONC COMMUN)" : "QUESTIONNAIRE CLINIQUE CABINE (ENTRETIEN GUIDÉ)",
     c?.latestDiagnosisDate
       ? `Réponses recueillies lors du diagnostic du ${fmtDate(c.latestDiagnosisDate)} · alimente le score d'équilibre`
-      : "Renseigné avec la cliente — les réponses alimentent le score d'équilibre et les recommandations"
+      : isUniversal
+      ? "Remplir uniquement les modules correspondant aux zones cochées en section 3 + le tronc commun Mode de vie & Santé"
+      : "Renseigné avec la personne consultée — les réponses alimentent le score d'équilibre et les recommandations"
   );
 
-  const sheetZone = input.zone ?? "visage";
-  const sheetSections = getSectionsForZone(sheetZone);
-  const sheetQuestions = getQuestionsForZone(sheetZone);
+  const includeBodyModule = isUniversal || selectedZones.includes("dos") || selectedZones.includes("naevi");
+  let rawSections = isUniversal || selectedZones.length > 1
+    ? getSectionsForZones(selectedZones)
+    : getSectionsForZone(selectedZones[0]);
+
+  let rawQuestions = isUniversal || selectedZones.length > 1
+    ? getQuestionsForZones(selectedZones)
+    : getQuestionsForZone(selectedZones[0]);
+
+  // En mode universel, type de peau / phototype / âge sont déjà saisis dans les encarts visuels 1 et 3
+  if (isUniversal) {
+    rawQuestions = rawQuestions.filter((q) => !["skin_type", "fitz", "age"].includes(q.id));
+  }
+
+  if (includeBodyModule) {
+    const insertIdx = rawSections.findIndex((s) => s.id === "vie");
+    const targetIdx = insertIdx >= 0 ? insertIdx : rawSections.length;
+    rawSections = [
+      ...rawSections.slice(0, targetIdx),
+      COMPLEMENTARY_BODY_SECTION,
+      ...rawSections.slice(targetIdx),
+    ];
+    rawQuestions = [...rawQuestions, ...COMPLEMENTARY_BODY_QUESTIONS];
+  }
 
   let qSectionIndex = 1;
-  for (const section of sheetSections) {
-    const qs = sheetQuestions.filter((q) => q.section === section.id);
-    doc.ensure(26);
-    // Petit bandeau de sous-section du questionnaire
+  for (const section of rawSections) {
+    const qs = rawQuestions.filter((q) => q.section === section.id);
+    if (qs.length === 0) continue;
+    doc.ensure(28);
     doc.rect(M_X, doc.cursorY, CONTENT_W, 15, CREAM);
     doc.text(
       `4.${qSectionIndex} · ${section.label.toUpperCase()} — ${section.description}`,
       M_X + 8,
       doc.cursorY + 10.5,
-      { font: "bold", size: 7.5, color: GOLD_DARK, letterSpace: 0.3 }
+      { font: "bold", size: 7.3, color: GOLD_DARK, letterSpace: 0.2, maxW: CONTENT_W - 16 }
     );
     doc.advance(19);
 
@@ -659,84 +981,71 @@ export function consultationSheetPdf(input: {
   sectionBand(
     doc,
     "5",
-    "EXAMEN CLINIQUE & OBSERVATIONS PRATICIENNE",
+    "EXAMEN CLINIQUE & OBSERVATIONS PRATICIEN(NE)",
     c?.latestDiagnosisScore !== undefined && c?.latestDiagnosisScore !== null
       ? `Constats cliniques cabine · Score santé évalué : ${c.latestDiagnosisScore}/100`
-      : "Constats visuels sous lampe loupe / lumière de Wood avant protocole"
+      : "Constats visuels sous lampe loupe / lumière de Wood / dermatoscope avant protocole"
   );
-  doc.ensure(118);
-  const obsBoxY = doc.cursorY;
-  const obsBoxH = 112;
 
-  drawBox(doc, M_X, obsBoxY, CONTENT_W, obsBoxH, CARD, LINE, 0.7);
-
-  // Grille d'évaluation clinique en 6 critères
-  let yObs = obsBoxY + 11;
-  const criteria = [
-    {
-      title: "Éclat & Teint :",
-      items: ["Lumineux", "Terne / Asphyxié", "Taches / HPI", "Irrégulier"],
-    },
-    {
-      title: "Pores & Relief :",
-      items: ["Resserrés", "Dilatés zone T", "Dilatés diffus", "Comédons / Microkystes"],
-    },
-    {
-      title: "Sébum & Brillance :",
-      items: ["Équilibré", "Brillance zone T", "Hyperséborrhée", "Alipidique (sec)"],
-    },
-    {
-      title: "Hydratation & Barrière :",
-      items: ["Souple", "Déshydratée (stries)", "Desquamation", "Tiraillements"],
-    },
-    {
-      title: "Sensibilité :",
-      items: ["Résistante", "Réactive au frottement", "Rougeurs / Érythème", "Échauffements"],
-    },
-    {
-      title: "Fermeté :",
-      items: ["Tonique", "Légère perte d'élasticité", "Ridules superficielles", "Relâchement"],
-    },
-  ];
-
-  for (const crit of criteria) {
-    doc.text(crit.title, M_X + 10, yObs, { font: "bold", size: 7.2, color: GOLD_DARK });
-    let xCrit = M_X + 110;
-    for (const item of crit.items) {
-      const isChecked = isCriteriaMatched(crit.title, item, c?.answers, c?.latestDiagnosisScore);
-      checkboxItem(doc, xCrit, yObs, item, isChecked, { size: 7.2 });
-      xCrit += 98;
+  if (isUniversal) {
+    renderCriterionBlock(doc, "5.A · VISAGE & BARRIÈRE CUTANÉE", ZONE_CLINICAL_CRITERIA.visage, c?.answers, c?.latestDiagnosisScore);
+    renderCriterionBlock(doc, "5.B · CORPS, AISSELLES, PLIS & VERGETURES", CORPS_PLIS_CRITERIA, c?.answers, c?.latestDiagnosisScore);
+    renderCriterionBlock(doc, "5.C · CUIR CHEVELU & CHEVEUX", ZONE_CLINICAL_CRITERIA.cuir_chevelu, c?.answers, c?.latestDiagnosisScore);
+    renderCriterionBlock(doc, "5.D · DOS & DÉCOLLETÉ", ZONE_CLINICAL_CRITERIA.dos, c?.answers, c?.latestDiagnosisScore);
+    renderCriterionBlock(doc, "5.E · BARBE, COU & RASAGE", ZONE_CLINICAL_CRITERIA.barbe, c?.answers, c?.latestDiagnosisScore);
+    renderCriterionBlock(doc, "5.F · MAINS, PIEDS & ONGLES", ZONE_CLINICAL_CRITERIA.mains, c?.answers, c?.latestDiagnosisScore);
+    renderCriterionBlock(
+      doc,
+      "5.G · GRAINS DE BEAUTÉ & LÉSIONS PIGMENTÉES (ABCDE)",
+      ZONE_CLINICAL_CRITERIA.naevi,
+      c?.answers,
+      c?.latestDiagnosisScore,
+      3,
+      c?.clinicalObservations || c?.productObservations
+    );
+  } else if (selectedZones.length > 1) {
+    selectedZones.forEach((z, idx) => {
+      const isLast = idx === selectedZones.length - 1 && !includeBodyModule;
+      renderCriterionBlock(
+        doc,
+        `${ZONE_SHORT_LABELS[z].toUpperCase()}`,
+        ZONE_CLINICAL_CRITERIA[z],
+        c?.answers,
+        c?.latestDiagnosisScore,
+        isLast ? 2 : 0,
+        isLast ? c?.clinicalObservations || c?.productObservations : null
+      );
+    });
+    if (includeBodyModule) {
+      renderCriterionBlock(
+        doc,
+        "CORPS, AISSELLES, PLIS & VERGETURES",
+        CORPS_PLIS_CRITERIA,
+        c?.answers,
+        c?.latestDiagnosisScore,
+        2,
+        c?.clinicalObservations || c?.productObservations
+      );
     }
-    yObs += 12.5;
-  }
-
-  // Lignes d'observations manuscrites libres
-  yObs += 3;
-  doc.text("Observations cliniques complémentaires & Particularités anatomiques :", M_X + 10, yObs, {
-    font: "bold",
-    size: 7,
-    color: SOFT,
-  });
-  yObs += 9;
-  if (c?.clinicalObservations || c?.productObservations) {
-    const obsText = (c.clinicalObservations || c.productObservations || "").slice(0, 160);
-    doc.text(obsText, M_X + 10, yObs, { font: "oblique", size: 7.5, color: INK, maxW: CONTENT_W - 20 });
-    yObs += 10;
-    writeLine(doc, yObs, M_X + 10, M_RIGHT - 10);
   } else {
-    writeLine(doc, yObs, M_X + 10, M_RIGHT - 10);
-    yObs += 10;
-    writeLine(doc, yObs, M_X + 10, M_RIGHT - 10);
+    const z = selectedZones[0];
+    renderCriterionBlock(
+      doc,
+      z === "visage" ? null : `GRILLE CLINIQUE — ${ZONE_SHORT_LABELS[z].toUpperCase()}`,
+      ZONE_CLINICAL_CRITERIA[z],
+      c?.answers,
+      c?.latestDiagnosisScore,
+      2,
+      c?.clinicalObservations || c?.productObservations
+    );
   }
-
-  doc.advance(obsBoxH + 11);
 
   // ── 6. PROTOCOLE CABINE & RECOMMANDATION BOTANIQUE ──
   sectionBand(
     doc,
     "6",
-    "PROTOCOLE DE SOIN & RECOMMANDATION BOTANIQUE",
-    "Protocole cabine personnalisé et routine quotidienne recommandée"
+    "PROTOCOLE DE SOIN, RECOMMANDATION BOTANIQUE & ORIENTATION",
+    "Protocole cabine personnalisé, routine quotidienne et orientation dermatologique si alerte"
   );
   doc.ensure(96);
   const protBoxY = doc.cursorY;
@@ -787,20 +1096,20 @@ export function consultationSheetPdf(input: {
   }
 
   yPr += 16;
-  doc.text("PROCHAIN CONTRÔLE CONSEILLÉ :", M_X + 10, yPr, { font: "bold", size: 7.2, color: SOFT });
-  const is15d = false;
+  doc.text("SUIVI & ORIENTATION :", M_X + 10, yPr, { font: "bold", size: 7.1, color: SOFT });
   const is1m = Boolean(c?.latestDiagnosisDate);
-  checkboxItem(doc, M_X + 160, yPr, "15 jours", is15d, { size: 7.2 });
-  checkboxItem(doc, M_X + 220, yPr, "1 mois", is1m, { size: 7.2 });
-  checkboxItem(doc, M_X + 275, yPr, "2 mois", false, { size: 7.2 });
-  checkboxItem(doc, M_X + 330, yPr, "Trimestriel", false, { size: 7.2 });
-  doc.text("Date fixée :", M_X + 395, yPr, { size: 7.2, color: SOFT });
+  checkboxItem(doc, M_X + 108, yPr, "15 j", false, { size: 7.1, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 146, yPr, "1 mois", is1m, { size: 7.1, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 194, yPr, "2 mois", false, { size: 7.1, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 242, yPr, "3 mois", false, { size: 7.1, boxSize: 7.2 });
+  checkboxItem(doc, M_X + 290, yPr, "Avis dermato requis", false, { size: 7.1, boxSize: 7.2, color: RED });
+  doc.text("Date :", M_X + 392, yPr, { size: 7.1, color: SOFT });
   if (c?.latestDiagnosisDate) {
     const nextDate = new Date(c.latestDiagnosisDate);
     nextDate.setDate(nextDate.getDate() + 28);
-    doc.text(fmtDate(nextDate), M_X + 440, yPr, { font: "bold", size: 7.2, color: GOLD_DARK });
+    doc.text(fmtDate(nextDate), M_X + 418, yPr, { font: "bold", size: 7.1, color: GOLD_DARK });
   } else {
-    writeLine(doc, yPr + 1, M_X + 440, M_RIGHT - 10);
+    writeLine(doc, yPr + 1, M_X + 418, M_RIGHT - 10);
   }
 
   doc.advance(protBoxH + 11);
@@ -812,9 +1121,9 @@ export function consultationSheetPdf(input: {
   const signW = (CONTENT_W - 14) / 2;
   const signH = 58;
 
-  // Cartouche Cliente
+  // Cartouche Client(e) / Représentant
   drawBox(doc, M_X, signY, signW, signH, CARD, LINE, 0.7);
-  doc.text("ACCORD & VISA CLIENTE", M_X + 10, signY + 11, { font: "bold", size: 7.8, color: GOLD_DARK });
+  doc.text("ACCORD & VISA CLIENT(E) / REPRÉSENTANT", M_X + 10, signY + 11, { font: "bold", size: 7.6, color: GOLD_DARK });
   doc.text(
     "Je certifie l'exactitude des renseignements et valide le protocole proposé.",
     M_X + 10,
@@ -824,11 +1133,11 @@ export function consultationSheetPdf(input: {
   doc.text("Signature ou empreinte :", M_X + 10, signY + 34, { size: 7, color: SOFT });
   doc.rectStroke(M_X + 10, signY + 37, signW - 20, 16, LINE_LIGHT, 0.6);
 
-  // Cartouche Praticienne / Institut
+  // Cartouche Praticien(ne) / Institut
   const pX = M_X + signW + 14;
   drawBox(doc, pX, signY, signW, signH, CARD, LINE, 0.7);
-  doc.text("VISA INSTITUT & PRATICIENNE", pX + 10, signY + 11, { font: "bold", size: 7.8, color: GOLD_DARK });
-  const pLabel = input.practitioner ? `Praticienne : ${input.practitioner}` : "Praticienne en charge :";
+  doc.text("VISA INSTITUT & PRATICIEN(NE)", pX + 10, signY + 11, { font: "bold", size: 7.6, color: GOLD_DARK });
+  const pLabel = input.practitioner ? `Praticien(ne) : ${input.practitioner}` : "Praticien(ne) en charge :";
   doc.text(pLabel, pX + 10, signY + 21, { size: 7, color: INK, maxW: signW - 20 });
   doc.text("Signature & cachet de l'institut :", pX + 10, signY + 34, { size: 7, color: SOFT });
   if (input.practitioner && c?.latestDiagnosisDate) {
@@ -877,8 +1186,8 @@ function renderQuestionCard(doc: PdfDoc, q: Question, answers?: QAnswers): void 
     return { label: o.label, checked };
   });
 
-  const twoPerLine = boxes.every((b) => textWidth(b.label, 7.5) < (CONTENT_W - 40) / 2 - 20);
   const colW = (CONTENT_W - 20) / 2;
+  const twoPerLine = boxes.every((b) => textWidth(b.label, 7.5) < colW - 22);
 
   let i = 0;
   while (i < boxes.length) {
@@ -886,7 +1195,10 @@ function renderQuestionCard(doc: PdfDoc, q: Question, answers?: QAnswers): void 
     doc.ensure(13);
     let x = M_X + 10;
     for (const b of row) {
-      checkboxItem(doc, x, doc.cursorY + 1, b.label, b.checked, { size: 7.5, maxW: colW - 14 });
+      checkboxItem(doc, x, doc.cursorY + 1, b.label, b.checked, {
+        size: 7.5,
+        maxW: twoPerLine ? colW - 14 : CONTENT_W - 28,
+      });
       x += colW + 10;
     }
     doc.advance(12.5);
@@ -2041,8 +2353,9 @@ export function clientDiagReportPdf(input: {
 
 // ─────────────── Noms de fichiers ───────────────
 
-export function consultationSheetFilename(clientName?: string | null): string {
-  return `kene-fiche-consultation-${clientName ? slug(clientName) : "vierge"}-${stamp()}.pdf`;
+export function consultationSheetFilename(clientName?: string | null, scopeLabel?: string | null): string {
+  const base = clientName ? slug(clientName) : scopeLabel ? slug(scopeLabel) : "vierge";
+  return `kene-fiche-consultation-${base}-${stamp()}.pdf`;
 }
 
 export function proDiagReportFilename(clientName: string, date: Date | string): string {

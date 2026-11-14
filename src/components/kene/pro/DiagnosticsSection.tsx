@@ -8,8 +8,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, FileDown, Filter, ImagePlus, Info,
-  Loader2, OctagonAlert, PenLine, Pill, Plus, Printer, RotateCcw, Search, Share2, ShieldAlert, ShieldCheck,
+  AlertTriangle, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, FileDown, Filter, ImagePlus, Info,
+  Layers, Loader2, OctagonAlert, PenLine, Pill, Plus, Printer, RotateCcw, Search, Share2, ShieldAlert, ShieldCheck,
   ShoppingBag, Sparkles, SlidersHorizontal, ScanFace, Trash2, UserPlus, Users, Video, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +20,16 @@ import { extractVideoKeyframes, isVideoFile } from "@/lib/kene/video-frames";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -119,6 +128,12 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
   const [wizardOpen, setWizardOpen] = useState(false);
   const [inciModalOpen, setInciModalOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [blankMultiOpen, setBlankMultiOpen] = useState(false);
+  const [blankMultiZones, setBlankMultiZones] = useState<BodyZone[]>(["visage", "cuir_chevelu"]);
+
+  const openBlankSheet = (params: string) => {
+    window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&${params}&_t=${Date.now()}`, "_blank");
+  };
 
   // Cosmétovigilance & Sécurité cabine
   const [vigilanceOpen, setVigilanceOpen] = useState(false);
@@ -242,15 +257,58 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
               <ScanFace className="size-4" aria-hidden="true" />
               Nouveau diagnostic
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&_t=${Date.now()}`, "_blank")}
-              className="gap-2 shrink-0 order-2 text-xs"
-              aria-label="Imprimer une fiche de consultation vierge (support papier de l'entretien)"
-            >
-              <Printer className="size-4" aria-hidden="true" />
-              Fiche vierge
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="gap-1.5 shrink-0 order-2 text-xs"
+                  aria-label="Télécharger une fiche de consultation vierge (Universelle ou ciblée par zone)"
+                >
+                  <Printer className="size-4" aria-hidden="true" />
+                  Fiche vierge
+                  <ChevronDown className="size-3.5 opacity-70" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Support papier de consultation
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => openBlankSheet("mode=universelle")}
+                  className="flex flex-col items-start gap-0.5 py-2 cursor-pointer bg-gold/10 focus:bg-gold/20"
+                >
+                  <span className="flex items-center gap-1.5 font-bold text-xs text-foreground">
+                    <ClipboardList className="size-3.5 text-gold-text" />
+                    Fiche Universelle Complète
+                  </span>
+                  <span className="text-[11px] text-muted-foreground leading-tight">
+                    Toutes zones, tous profils (H/F/Mineur) &amp; contre-indications
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Fiches ciblées par zone (1 zone)
+                </DropdownMenuLabel>
+                {BODY_ZONES.map((z) => (
+                  <DropdownMenuItem
+                    key={z.id}
+                    onClick={() => openBlankSheet(`zone=${z.id}`)}
+                    className="flex flex-col items-start gap-0.5 py-1.5 cursor-pointer"
+                  >
+                    <span className="text-xs font-semibold text-foreground">{z.label}</span>
+                    <span className="text-[10px] text-muted-foreground leading-tight">{z.hint}</span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setBlankMultiOpen(true)}
+                  className="gap-2 py-2 cursor-pointer font-semibold text-xs text-bissap"
+                >
+                  <Layers className="size-3.5" />
+                  Composer une fiche Multi-Zones...
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="outline"
               onClick={() => setInciModalOpen(true)}
@@ -686,6 +744,79 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
         onOpenChange={setInciModalOpen}
         tenantId={tenantId}
       />
+
+      {/* Modal Composeur de Fiche Vierge Multi-Zones */}
+      <Dialog open={blankMultiOpen} onOpenChange={setBlankMultiOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-base flex items-center gap-2">
+              <Layers className="size-4 text-bissap" /> Composer une fiche vierge sur mesure
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Sélectionnez les zones à inclure dans ce PDF (tronc commun + contre-indications inclus automatiquement).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {BODY_ZONES.map((z) => {
+              const checked = blankMultiZones.includes(z.id);
+              return (
+                <label
+                  key={z.id}
+                  className={cn(
+                    "flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors",
+                    checked ? "border-gold/60 bg-gold/10" : "border-border hover:bg-muted/40"
+                  )}
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) => {
+                      setBlankMultiZones((prev) =>
+                        v ? [...prev, z.id] : prev.filter((item) => item !== z.id)
+                      );
+                    }}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-foreground">{z.label}</div>
+                    <div className="text-[11px] text-muted-foreground">{z.hint}</div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setBlankMultiOpen(false);
+                openBlankSheet("mode=universelle");
+              }}
+              className="text-xs"
+            >
+              Tout inclure (Universelle)
+            </Button>
+            <Button
+              size="sm"
+              disabled={blankMultiZones.length === 0}
+              onClick={() => {
+                const param =
+                  blankMultiZones.length === BODY_ZONES.length
+                    ? "mode=universelle"
+                    : blankMultiZones.length === 1
+                    ? `zone=${blankMultiZones[0]}`
+                    : `zones=${blankMultiZones.join(",")}`;
+                setBlankMultiOpen(false);
+                openBlankSheet(param);
+              }}
+              className="k-btn-gold text-primary-foreground text-xs font-bold gap-1.5"
+            >
+              <Printer className="size-3.5" />
+              Générer le PDF ({blankMultiZones.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -12,6 +12,11 @@ import { getScanVisibility } from "@/lib/kene/share-consent";
 import { consultationSheetPdf, consultationSheetFilename, type ConsultationClientPrefill } from "@/lib/kene/consultation-pdf";
 import { parseStructuredPrescription } from "@/lib/kene/prescription-schema";
 import type { QAnswers } from "@/lib/kene/questionnaire";
+import type { BodyZone } from "@/lib/kene/types";
+
+const VALID_ZONES: BodyZone[] = ["visage", "dos", "cuir_chevelu", "mains", "barbe", "naevi"];
+const isValidZone = (z: string | null | undefined): z is BodyZone =>
+  Boolean(z && VALID_ZONES.includes(z as BodyZone));
 
 export const runtime = "nodejs";
 
@@ -25,10 +30,20 @@ export async function GET(req: NextRequest) {
 
     const clientId = req.nextUrl.searchParams.get("clientId")?.trim() || req.nextUrl.searchParams.get("id")?.trim() || null;
     let practitioner = req.nextUrl.searchParams.get("practitioner")?.trim() || null;
-    const rawZone = req.nextUrl.searchParams.get("zone");
-    let zone = rawZone && ["visage", "dos", "cuir_chevelu", "mains", "barbe", "naevi"].includes(rawZone)
-      ? (rawZone as any)
-      : undefined;
+    const rawMode = req.nextUrl.searchParams.get("mode")?.trim().toLowerCase() || "";
+    const rawZone = req.nextUrl.searchParams.get("zone")?.trim() || null;
+    const rawZones = req.nextUrl.searchParams.get("zones")?.trim() || null;
+
+    let zones: BodyZone[] = rawZones
+      ? Array.from(new Set(rawZones.split(",").map((s) => s.trim()).filter(isValidZone)))
+      : [];
+    let zone: BodyZone | undefined = isValidZone(rawZone) ? rawZone : undefined;
+    let universal =
+      rawMode === "universelle" ||
+      rawMode === "universal" ||
+      rawZone === "universelle" ||
+      rawZone === "toutes" ||
+      (!clientId && !zone && zones.length === 0 && rawMode !== "zone");
 
     let prefill: ConsultationClientPrefill | null = null;
     if (clientId) {
@@ -55,10 +70,10 @@ export async function GET(req: NextRequest) {
       if (!practitioner && latestProDiag?.practitioner) {
         practitioner = latestProDiag.practitioner;
       }
-      if (!zone) {
+      if (!zone && zones.length === 0 && !universal) {
         const dZone = latestProDiag?.zone || latestUserDiag?.zone;
-        if (dZone && ["visage", "dos", "cuir_chevelu", "mains", "barbe", "naevi"].includes(dZone)) {
-          zone = dZone as any;
+        if (isValidZone(dZone)) {
+          zone = dZone;
         }
       }
 
@@ -165,12 +180,20 @@ export async function GET(req: NextRequest) {
       };
     }
 
+    const scopeLabel = universal
+      ? "universelle"
+      : zones.length > 1
+      ? `multi-zones-${zones.join("-")}`
+      : zone || (zones.length === 1 ? zones[0] : "vierge");
+
     const pdf = consultationSheetPdf({
       tenantName: tenant.name,
       tenantCity: tenant.city,
       tenantPhone: tenant.phone,
       practitioner,
       zone,
+      zones: zones.length > 0 ? zones : undefined,
+      universal,
       client: prefill,
       date: new Date(),
     });
@@ -179,7 +202,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${consultationSheetFilename(prefill?.name)}"`,
+        "Content-Disposition": `inline; filename="${consultationSheetFilename(prefill?.name, scopeLabel)}"`,
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0",
