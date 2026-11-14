@@ -1411,8 +1411,78 @@ export function scoreQuestionnaire(answers: QAnswers, zone: BodyZone): Questionn
 
 // ─────────────────────────── Fusion questionnaire ± VLM ───────────────────────────
 
-const PHOTO_WEIGHT = 0.62; // l'observation (photo) pèse plus que le déclaratif
-const Q_WEIGHT = 0.38;
+/**
+ * Synthétise en une ligne compacte (≤ 260 caractères) les réponses cliniques saillantes
+ * du questionnaire pour orienter le VLM dès la Phase 1 (cosmétovigilance, habitudes, drapeaux).
+ */
+export function summarizeQuestionnaireContextForVlm(
+  answers: QAnswers,
+  qr: QuestionnaireResult,
+  zone: BodyZone,
+): string {
+  const parts: string[] = [];
+  const qList = [...SYSTEMIC_PROFILE_QUESTIONS, ...getQuestionsForZone(zone)];
+  const seen = new Set<string>();
+
+  for (const q of qList) {
+    if (seen.has(q.id)) continue;
+    seen.add(q.id);
+    const v = answers[q.id];
+    if (typeof v === "string" && v.length > 0) {
+      const opt = q.options.find((o) => o.value === v);
+      if (opt && (opt.flag || Object.keys(opt.effects ?? {}).length > 0)) {
+        parts.push(`${q.label.slice(0, 28)}: ${opt.label.slice(0, 36)}`);
+      }
+    }
+    if (parts.length >= 4) break;
+  }
+
+  for (const f of qr.flags.slice(0, 2)) {
+    parts.push(`[Alerte: ${f.label}]`);
+  }
+
+  return parts.join(" | ").slice(0, 280);
+}
+
+/**
+ * Pondération dynamique VLM vs Questionnaire selon la nature clinique de l'indicateur :
+ * - Indicateurs purement morphologiques/visuels (taches PIH, mélasma, ABCDE, comédons, DPN) : 78% VLM / 22% Questionnaire
+ * - Indicateurs mixtes (acné, pores, éclat, sébum, cernes, folliculite) : 65% VLM / 35% Questionnaire
+ * - Indicateurs fonctionnels/ressentis (hydratation, barrière, élasticité, sécheresse, irritation) : 48% VLM / 52% Questionnaire
+ */
+function visualWeightForIndicator(nom: string): number {
+  const k = norm(nom);
+  if (
+    k.includes("asymetrie") ||
+    k.includes("bords") ||
+    k.includes("couleurs") ||
+    k.includes("diametre") ||
+    k.includes("points noirs") ||
+    k.includes("microkystes") ||
+    k.includes("dpn") ||
+    k.includes("keratose") ||
+    k.includes("pih") ||
+    k.includes("melasma") ||
+    k.includes("hyperpigmentation") ||
+    k.includes("taches") ||
+    k.includes("poils incarnes") ||
+    k.includes("ongles")
+  ) {
+    return 0.78;
+  }
+  if (
+    k.includes("hydratation") ||
+    k.includes("barriere") ||
+    k.includes("elasticite") ||
+    k.includes("fermete") ||
+    k.includes("secheresse") ||
+    k.includes("irritation") ||
+    k.includes("evolution")
+  ) {
+    return 0.48;
+  }
+  return 0.65;
+}
 
 /** Fusionne le résultat questionnaire avec l'analyse VLM de la photo (si fournie). */
 export function mergeResults(qr: QuestionnaireResult, vlm: DiagnosisResult | null, zone: BodyZone, photoUsed: boolean): ProDiagnosisResult {
@@ -1432,13 +1502,17 @@ export function mergeResults(qr: QuestionnaireResult, vlm: DiagnosisResult | nul
     };
   }
 
-  // Fusion par indicateur de la zone VLM (les noms font autorité côté photo)
+  // Fusion par indicateur avec pondération adaptée à l'observabilité optique vs ressenti clinique
   const merged: Indicator[] = vlm.indicateurs.map((ind) => {
     const q = qr.indicateurs.find((qi) => norm(qi.nom).slice(0, 8) === norm(ind.nom).slice(0, 8));
-    const pct = q ? Math.round(ind.pourcentage * PHOTO_WEIGHT + q.pourcentage * Q_WEIGHT) : ind.pourcentage;
+    const wPhoto = visualWeightForIndicator(ind.nom);
+    const wQuest = 1 - wPhoto;
+    const pct = q ? Math.round(ind.pourcentage * wPhoto + q.pourcentage * wQuest) : ind.pourcentage;
     return { ...ind, pourcentage: pct, severite: severityFromPercent(pct) };
   });
-  const scoreGlobal = Math.round(vlm.score_global * PHOTO_WEIGHT + qr.scoreGlobal * Q_WEIGHT);
+  const scoreGlobal = Math.round(
+    merged.reduce((s, i) => s + i.pourcentage, 0) / Math.max(1, merged.length),
+  );
 
   // Recommandations: fusion équilibrée observation VLM + déclaratif questionnaire
   const rec: RecommendationSet = {
@@ -1459,15 +1533,18 @@ export function mergeResults(qr: QuestionnaireResult, vlm: DiagnosisResult | nul
     ).slice(0, 6),
   };
 
+  const dangerFlag = qr.flags.find((f) => f.level === "danger");
+
   return {
     score_global: scoreGlobal,
     fitzpatrick_estime: vlm.fitzpatrick_estime,
     zone,
     indicateurs: merged,
     zones_marquages: vlm.zones_marquages ?? [],
+    hypotheses: vlm.hypotheses,
     recommandations: rec,
-    orientation_dermato: vlm.orientation_dermato,
-    raison_orientation: vlm.raison_orientation,
+    orientation_dermato: Boolean(vlm.orientation_dermato || dangerFlag),
+    raison_orientation: vlm.raison_orientation || dangerFlag?.label,
     abcde: vlm.abcde,
     avertissement:
       "Diagnostic réalisé en institut (entretien + analyse IA photo) — estimation éducative, ne constitue pas un diagnostic médical. En cas de lésion évolutive, consultez un dermatologue.",

@@ -38,12 +38,31 @@ export async function processDiagnosisJob(diagnosisId: string): Promise<void> {
     const user = await db.user.findUnique({ where: { id: diagnosis.userId } });
     if (!user) return;
 
+    // ── Référence longitudinale (Fil du Temps) pour stabilité inter-scans ──
+    const prevDiag = await db.diagnosis
+      .findFirst({
+        where: {
+          userId: user.id,
+          zone: diagnosis.zone,
+          status: "done",
+          id: { not: diagnosis.id },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { scoreGlobal: true, createdAt: true },
+      })
+      .catch(() => null);
+    const previousSummary =
+      prevDiag && typeof prevDiag.scoreGlobal === "number"
+        ? `Dernier bilan ${prevDiag.scoreGlobal}/100 (${new Date(prevDiag.createdAt).toLocaleDateString("fr-FR")})`
+        : undefined;
+
     // ── Analyse VLM (10-45 s, fallback déterministe intégré à runDiagnosis) ──
     const result = await runDiagnosis({
       imageBase64: diagnosis.imageData,
       zone: diagnosis.zone as BodyZone,
       fitzpatrick: user.fitzpatrick ?? undefined,
       allergies: user.allergies ?? undefined,
+      previousSummary,
     });
 
     // Champ confiance: stocké DANS resultJson (la pastille front

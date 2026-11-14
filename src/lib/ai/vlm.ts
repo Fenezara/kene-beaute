@@ -20,6 +20,11 @@ import { hypothesesFromVlm, vlmCatalogForZone } from "@/lib/kene/conditions";
 import { severityFromPercent } from "@/lib/kene/format";
 import { zaiCall } from "@/lib/ai/zai-retry";
 import { analyzeInciText, type InciAnalysisResult } from "@/lib/kene/inci-analyzer";
+import {
+  extractOpticalTelemetryFromDataUrl,
+  formatOpticalTelemetryForPrompt,
+  type OpticalSkinMetrics,
+} from "@/lib/kene/optical-biometrics";
 
 /** Gardes par phase: 40 s vision (variance de service mesurée
  * 18-77 s — au-delà, le fallback déterministe est plus utile qu'une
@@ -34,12 +39,33 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** Étiquette anatomique d'un angle selon son indice et la zone étudiée. */
+function angleLabelFor(zone: BodyZone, idx: number, total: number): string {
+  if (total <= 1) return `Vue principale (${zone})`;
+  if (zone === "visage" || zone === "barbe") {
+    if (idx === 0) return "Vue 1 : Face centrale (Zone T, front, nez, menton)";
+    if (idx === 1) return "Vue 2 : Profil / Joue et tempe gauches";
+    if (idx === 2) return "Vue 3 : Profil / Joue et tempe droites";
+  }
+  return `Vue ${idx + 1}/${total} (${zone})`;
+}
+
 /** Phase 1 — prompt vision au FORMAT COMPACT: indicateurs en map
  * {nom: score} (zéro note par défaut), notes uniquement pour les 3 plus
  * faibles (champ focus), marquages en tableaux courts. Sortie ~500-600
  * caractères même pour le visage (14 indicateurs) — contre ~1 800 en
  * tableau détaillé: c'est la génération qui dominait (18-77 s mesurés). */
-function buildAnalysisPrompt(zone: BodyZone, knownFitz?: string, allergies?: string, numImages = 1): string {
+function buildAnalysisPrompt(
+  zone: BodyZone,
+  knownFitz?: string,
+  allergies?: string,
+  numImages = 1,
+  extra?: {
+    opticalPrompt?: string;
+    clinicalContext?: string;
+    previousSummary?: string;
+  },
+): string {
   const indicateurs = ZONE_INDICATORS[zone];
   const abcdePart =
     zone === "naevi"
@@ -47,15 +73,20 @@ function buildAnalysisPrompt(zone: BodyZone, knownFitz?: string, allergies?: str
       : "";
   const multiAnglePart =
     numImages > 1
-      ? ` ${numImages} angles de vue de la zone sont fournis : réalise une synthèse clinique 360° en combinant tous les angles.`
+      ? ` ${numImages} angles de vue de la zone sont fournis : réalise une synthèse clinique 360° en croisant tous les angles.`
       : "";
   const zoneLabel = zone === "mains" ? "mains & pieds (extrémités acrales : paumes, plantes, talons, ongles)" : zone;
-  return `Analyse cutanée de toute la diversité des peaux noires et afro-descendantes (Albinos OCA, Afro-rousse / Rouquine phéomélanique, Chabine III, Métissée / Teint clair caramel IV, Brune cuivrée V, Ébène intense VI), zone « ${zoneLabel} ».${knownFitz ? ` Phototype/Nuance déclaré(e) : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}${multiAnglePart}
+  const clinicalLine = extra?.clinicalContext ? `\nContexte clinique / anamnèse déclaré(e) : ${extra.clinicalContext}` : "";
+  const prevLine = extra?.previousSummary ? `\nRéférence longitudinale (dernier bilan de cette zone) : ${extra.previousSummary}` : "";
+  const opticalLine = extra?.opticalPrompt ?? "";
+
+  return `Analyse cutanée de haute précision sur peaux noires et afro-descendantes (Albinos OCA, Afro-rousse / Rouquine phéomélanique, Chabine III, Métissée / Caramel IV, Brune cuivrée V, Ébène intense VI), zone « ${zoneLabel} ».${knownFitz ? ` Phototype/Nuance déclaré(e) : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}${multiAnglePart}${opticalLine}${clinicalLine}${prevLine}
 Catalogue des affections africaines plausibles sur cette zone (id=signature visuelle sur peau noire) : ${vlmCatalogForZone(zone)}.
-Ne pas confondre pigmentation naturelle (ou éphélides naturelles sur peau afro-rousse/chabine) et pathologie. Sur peau albinos, surveiller l'érythème solaire et les kératoses actiniques ; sur peau foncée, l'érythème est masqué (teinte violacée-brune).
+Ne pas confondre pigmentation constitutive (ou éphélides naturelles sur peau afro-rousse/chabine) et pathologie. Sur peau albinos, surveiller l'érythème solaire et les kératoses actiniques ; sur peau foncée (IV-VI), l'érythème est masqué par l'eumélanine (teinte violacée, ardoisée ou brune chaude).
+CONVENTION STRICTE DES SCORES "ind" : chaque score (0-100) exprime l'indice de SANTÉ CUTANÉE de l'indicateur : 100 = peau parfaitement saine / AUCUNE anomalie (0 acné, 0 tache PIH, 0 mélasma, 0 excès de sébum, hydratation optimale) et 0 = atteinte sévère. Ne note JAMAIS la gravité d'un défaut vers 100.
 Réponds STRICTEMENT en JSON ultra-compact (≤ 650 caractères, sans markdown, sans texte autour) :
 {"score":<0-100>,"fitz":"albinos"|"rouquine"|"III"|"IV"|"V"|"VI","ind":{${indicateurs.map((i) => `"${i}":<0-100>`).join(",")}},"marks":[["<zone>",<x 0-100>,<y 0-100>,<w 10-28>,<h 10-28>,<sev 0-3>],...],"focus":[["<indicateur le plus faible>","<note ≤ 40 caractères>"],...2-3 entrées],"conds":[["<id du catalogue>",<confiance 0-100>],...0-2],"derm":<bool>,"why":"<si derm, ≤ 80 caractères>"${abcdePart}}
-Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks ; sev 0=sain 1=léger 2=modéré 3=marqué ; conds = UNIQUEMENT des ids du catalogue ci-dessus (la/les plus probables, 0-2, confiance ≥ 40 seulement) ; si la photo ne montre pas de peau : score 0, derm false, conds vide.`;
+Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks précis sur la peau ; sev 0=sain 1=léger 2=modéré 3=marqué ; conds = UNIQUEMENT des ids exacts du catalogue ci-dessus (0-2, confiance ≥ 40 seulement) ; si la photo ne montre pas de peau : score 0, derm false, conds vide.`;
 }
 
 /** Phase 2 — prompt texte (glm-4.6): recommandations personnalisées à partir
@@ -179,9 +210,18 @@ function coerceArray<T>(v: unknown): T[] {
  *  rétrocompatibilité si le modèle répond à l'ancien format.
  *  Champ `conds` → hypothèses de l'atlas africain, validées par
  *  hypothesesFromVlm (ids exacts + zone cohérente + confiance ≥ 25). */
+function normIndKey(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function normalizeAnalysis(
   raw: unknown,
   zone: BodyZone,
+  opticalHint?: OpticalSkinMetrics | null,
 ): Omit<DiagnosisResult, "recommandations" | "source" | "confidence" | "avertissement"> | null {
   if (!isRecord(raw)) return null;
   const o: Record<string, unknown> = raw;
@@ -189,25 +229,57 @@ function normalizeAnalysis(
 
   // Notes de réalisme : champ focus [[nom, note]] du format compact.
   const focusNotes = new Map<string, string>();
+  const focusNormKeys = new Set<string>();
   const focusIn = coerceArray<unknown>(o.focus);
   for (const f of focusIn) {
     if (Array.isArray(f) && typeof f[0] === "string") {
-      focusNotes.set(String(f[0]).toLowerCase().slice(0, 12), String(f[1] ?? "").slice(0, 160));
+      const k = normIndKey(String(f[0])).slice(0, 12);
+      focusNotes.set(k, String(f[1] ?? "").slice(0, 160));
+      focusNormKeys.add(k);
     }
   }
   // + notes éventuelles de l'ancien format (indicateurs[].note).
   const oldInd = coerceArray<Record<string, unknown>>(o.indicateurs);
   for (const i of oldInd) {
     if (i && typeof i.nom === "string" && typeof i.note === "string") {
-      focusNotes.set(String(i.nom).toLowerCase().slice(0, 12), String(i.note).slice(0, 160));
+      const k = normIndKey(String(i.nom)).slice(0, 12);
+      focusNotes.set(k, String(i.note).slice(0, 160));
     }
   }
 
   // Scores: map compacte "ind" {nom: nombre} ou ancien tableau indicateurs[].
   const indMap = isRecord(o.ind) ? o.ind : null;
+  const normIndEntries = indMap
+    ? Object.entries(indMap).map(([k, v]) => [normIndKey(k), v] as const)
+    : [];
+  const defaultBaseline = clamp(o.score ?? o.score_global, 38, 92, 72);
+
   const indicateurs: Indicator[] = indicateursList.map((nom) => {
-    const pct = clamp(indMap?.[nom] ?? oldInd.find((i) => i && String(i.nom).toLowerCase().includes(nom.toLowerCase().slice(0, 10)))?.pourcentage, 0, 100, 70);
-    const note = focusNotes.get(nom.toLowerCase().slice(0, 12)) || undefined;
+    const targetNorm = normIndKey(nom);
+    const prefix = targetNorm.slice(0, 10);
+    const exactOrFuzzy =
+      indMap?.[nom] ??
+      normIndEntries.find(([k]) => k === targetNorm || k.startsWith(prefix) || prefix.startsWith(k.slice(0, 8)))?.[1] ??
+      oldInd.find((i) => i && normIndKey(String(i.nom)).includes(prefix))?.pourcentage;
+
+    let pct = clamp(exactOrFuzzy, 0, 100, defaultBaseline);
+    const focusKey = targetNorm.slice(0, 12);
+    const isFocusWeakness =
+      focusNormKeys.has(focusKey) ||
+      Array.from(focusNormKeys).some((fk) => fk.length >= 5 && (focusKey.startsWith(fk.slice(0, 7)) || fk.startsWith(focusKey.slice(0, 7))));
+
+    // Garde-fou d'inversion de polarité : si un indicateur est explicitement cité dans "focus"
+    // (les 2-3 indicateurs les plus faibles) mais que le modèle a émis un score > 74 (gravité au lieu de santé),
+    // on rétablit la polarité santé (100 - pct).
+    if (isFocusWeakness && pct >= 74 && defaultBaseline < 82) {
+      pct = clamp(100 - pct, 22, 64, 48);
+    }
+
+    const note =
+      focusNotes.get(focusKey) ||
+      Array.from(focusNotes.entries()).find(([fk]) => fk.length >= 5 && (focusKey.startsWith(fk.slice(0, 7)) || fk.startsWith(focusKey.slice(0, 7))))?.[1] ||
+      undefined;
+
     return {
       nom,
       pourcentage: pct,
@@ -273,10 +345,19 @@ function normalizeAnalysis(
   const abcde = [...abcdePairs, ...abcdeOld];
 
   const validScore = indicateurs.reduce((s, i) => s + i.pourcentage, 0) / indicateurs.length;
-  const scoreGlobal = clamp(o.score ?? o.score_global, 0, 100, Math.round(validScore));
+  const rawScoreGlobal = clamp(o.score ?? o.score_global, 0, 100, Math.round(validScore));
+  // Si le score global brut s'écarte de plus de 18 points de la moyenne réelle des indicateurs,
+  // on l'ancre sur la moyenne pondérée pour garantir la cohérence mathématique du bilan
+  const scoreGlobal =
+    Math.abs(rawScoreGlobal - validScore) > 18
+      ? Math.round(validScore * 0.65 + rawScoreGlobal * 0.35)
+      : rawScoreGlobal;
   const derm = o.derm ?? o.orientation_dermato;
   const why = o.why ?? o.raison_orientation;
   const fitzRaw = o.fitz ?? o.fitzpatrick_estime;
+  const validFitz = ["albinos", "rouquine", "I", "II", "III", "IV", "V", "VI"].includes(String(fitzRaw))
+    ? String(fitzRaw)
+    : opticalHint?.itaPhototypeHint;
 
   // — hypothèses de l'atlas africain: validation ANTI-HALLUCINATION
   // (ids exacts du catalogue zone-filtré, confiance plancher, cap 2). Le
@@ -292,7 +373,7 @@ function normalizeAnalysis(
 
   return {
     score_global: scoreGlobal,
-    fitzpatrick_estime: ["albinos", "rouquine", "I", "II", "III", "IV", "V", "VI"].includes(String(fitzRaw)) ? String(fitzRaw) : undefined,
+    fitzpatrick_estime: validFitz,
     zone,
     indicateurs,
     zones_marquages: marquages,
@@ -313,7 +394,7 @@ function normalizeRecommendations(raw: unknown): RecommendationSet | null {
     resume: o.resume.slice(0, 400),
     routine_matin: coerceArray<string>(o.routine_matin).slice(0, 6).map(String),
     routine_soir: coerceArray<string>(o.routine_soir).slice(0, 6).map(String),
-    botaniques_conseillees: coerceArray<string>(o.botaniques_conseilles).slice(0, 6).map(String),
+    botaniques_conseillees: coerceArray<string>(o.botaniques_conseillees ?? o.botaniques_conseilles).slice(0, 6).map(String),
     produits: coerceArray<string>(o.produits).slice(0, 8).map(String),
     soins_conseilles: coerceArray<string>(o.soins_conseilles).slice(0, 6).map(String),
     conseils_hygiene_vie: coerceArray<string>(o.conseils_hygiene_vie).slice(0, 6).map(String),
@@ -544,66 +625,111 @@ export function fallbackResult(zone: BodyZone, seed: number): DiagnosisResult {
 
 /**
  * Appel Google Gemini Flash Vision REST (si GEMINI_API_KEY est défini en production)
- * Prend en charge une ou plusieurs photos sous différents angles.
+ * Prend en charge une ou plusieurs photos sous différents angles avec étiquetage anatomique,
+ * télémétrie optique CIE L*a*b* et cascade multi-modèles résiliente.
  */
 async function callGeminiVision(opts: {
   images: string[];
   zone: BodyZone;
   fitzpatrick?: string;
   allergies?: string;
+  opticalPrompt?: string;
+  clinicalContext?: string;
+  previousSummary?: string;
 }): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || opts.images.length === 0) return null;
 
   try {
-    const inlineParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
+    const labeledParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+    const validPairs: Array<{ mimeType: string; data: string }> = [];
+
     for (const img of opts.images) {
       const match = img.match(/^data:([^;]+);base64,(.+)$/);
       if (match) {
-        inlineParts.push({
-          inlineData: {
-            mimeType: match[1],
-            data: match[2],
-          },
-        });
+        validPairs.push({ mimeType: match[1], data: match[2] });
       }
     }
-    if (inlineParts.length === 0) return null;
+    if (validPairs.length === 0) return null;
 
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-    const prompt = buildAnalysisPrompt(opts.zone, opts.fitzpatrick, opts.allergies, inlineParts.length);
-    const isThinkingModel = model.includes("2.5") || model.includes("3.");
+    const prompt = buildAnalysisPrompt(
+      opts.zone,
+      opts.fitzpatrick,
+      opts.allergies,
+      validPairs.length,
+      {
+        opticalPrompt: opts.opticalPrompt,
+        clinicalContext: opts.clinicalContext,
+        previousSummary: opts.previousSummary,
+      },
+    );
+    labeledParts.push({ text: prompt });
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: prompt },
-              ...inlineParts,
-            ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-          ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+    validPairs.forEach((pair, idx) => {
+      if (validPairs.length > 1) {
+        labeledParts.push({ text: `[${angleLabelFor(opts.zone, idx, validPairs.length)}]` });
+      }
+      labeledParts.push({
+        inlineData: {
+          mimeType: pair.mimeType,
+          data: pair.data,
         },
-      }),
-      signal: AbortSignal.timeout(VLM_TIMEOUT_MS),
+      });
     });
 
-    if (!res.ok) {
-      console.error(`[kene:gemini] HTTP ${res.status}: ${await res.text().catch(() => "")}`);
-      return null;
-    }
+    const preferred = process.env.GEMINI_MODEL?.trim();
+    const models = Array.from(
+      new Set([
+        preferred && preferred.startsWith("gemini-") ? preferred : "gemini-2.5-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+      ]),
+    );
 
-    const dataJson = await res.json();
-    const candidateText = dataJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return candidateText || null;
+    for (const model of models) {
+      const isThinkingModel = model.includes("2.5") || model.includes("3.");
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: labeledParts,
+              },
+            ],
+            generationConfig: {
+              responseMimeType: "application/json",
+              temperature: 0.15,
+              ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 512 } } : {}),
+            },
+          }),
+          signal: AbortSignal.timeout(VLM_TIMEOUT_MS),
+        });
+
+        if (!res.ok) {
+          console.warn(`[kene:gemini] HTTP ${res.status} on ${model}: ${(await res.text().catch(() => "")).slice(0, 240)}`);
+          continue;
+        }
+
+        const dataJson = await res.json();
+        const partsOut = dataJson?.candidates?.[0]?.content?.parts;
+        if (Array.isArray(partsOut)) {
+          // Avec thinkingBudget > 0, la réponse JSON se trouve dans la dernière part non-thought
+          for (let i = partsOut.length - 1; i >= 0; i--) {
+            if (typeof partsOut[i]?.text === "string" && !partsOut[i]?.thought && partsOut[i].text.trim()) {
+              return partsOut[i].text;
+            }
+          }
+        }
+        const candidateText = dataJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidateText) return candidateText;
+      } catch (innerErr) {
+        console.warn(`[kene:gemini] Model ${model} failed:`, (innerErr as Error).message);
+      }
+    }
+    return null;
   } catch (err) {
     console.error("[kene:gemini] Error calling Gemini API:", (err as Error).message);
     return null;
@@ -615,32 +741,47 @@ async function callGeminiRecommendations(analysisJson: string, zone: BodyZone): 
   if (!apiKey) return null;
 
   try {
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const preferred = process.env.GEMINI_MODEL?.trim();
+    const models = Array.from(
+      new Set([
+        preferred && preferred.startsWith("gemini-") ? preferred : "gemini-2.5-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+      ]),
+    );
     const prompt = buildRecommendationsPrompt(analysisJson, zone);
-    const isThinkingModel = model.includes("2.5") || model.includes("3.");
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.3,
-          ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-        },
-      }),
-      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
-    });
+    for (const model of models) {
+      const isThinkingModel = model.includes("2.5") || model.includes("3.");
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: prompt }],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: "application/json",
+              temperature: 0.25,
+              ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+            },
+          }),
+          signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+        });
 
-    if (!res.ok) return null;
-    const dataJson = await res.json();
-    return dataJson?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+        if (!res.ok) continue;
+        const dataJson = await res.json();
+        const text = dataJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text;
+      } catch {
+        continue;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -815,8 +956,10 @@ export async function runDiagnosis(opts: {
   zone: BodyZone;
   fitzpatrick?: string;
   allergies?: string;
+  clinicalContext?: string;
+  previousSummary?: string;
 }): Promise<DiagnosisResult> {
-  const { zone, fitzpatrick, allergies } = opts;
+  const { zone, fitzpatrick, allergies, clinicalContext, previousSummary } = opts;
   const seed = Date.now() % 1000;
 
   // Normalisation des images (tolère string, string[], ou string JSON sérialisé)
@@ -845,12 +988,25 @@ export async function runDiagnosis(opts: {
     return fallbackResult(zone, seed);
   }
 
+  // Extraction rapide (< 0.1 ms, zéro dépendance native) des biomarqueurs CIE L*a*b* / ITA° embarqués
+  const opticalMetricsList = validImages.map((img) => extractOpticalTelemetryFromDataUrl(img));
+  const primaryOptical = opticalMetricsList.find((m) => m !== null) ?? null;
+  const opticalPrompt = formatOpticalTelemetryForPrompt(opticalMetricsList);
+
   // 1. Essai primaire Gemini VLM si configuré
   if (process.env.GEMINI_API_KEY) {
     try {
-      const geminiRaw = await callGeminiVision({ images: validImages, zone, fitzpatrick, allergies });
+      const geminiRaw = await callGeminiVision({
+        images: validImages,
+        zone,
+        fitzpatrick,
+        allergies,
+        opticalPrompt,
+        clinicalContext,
+        previousSummary,
+      });
       if (geminiRaw) {
-        const analysis = normalizeAnalysis(extractJson(geminiRaw), zone);
+        const analysis = normalizeAnalysis(extractJson(geminiRaw), zone, primaryOptical);
         if (analysis) {
           let rec: RecommendationSet | null = null;
           const recRaw = await callGeminiRecommendations(
@@ -891,11 +1047,18 @@ export async function runDiagnosis(opts: {
     // fois; la 2e réponse est souvent propre). ──────────────────────────
     let analysis: ReturnType<typeof normalizeAnalysis> = null;
     let lastRaw = "";
-    const prompt = buildAnalysisPrompt(zone, fitzpatrick, allergies, validImages.length);
-    const content: VisionMessage["content"] = [
-      { type: "text", text: prompt },
-      ...validImages.map((img) => ({ type: "image_url" as const, image_url: { url: img } })),
-    ];
+    const prompt = buildAnalysisPrompt(zone, fitzpatrick, allergies, validImages.length, {
+      opticalPrompt,
+      clinicalContext,
+      previousSummary,
+    });
+    const content: VisionMessage["content"] = [{ type: "text", text: prompt }];
+    validImages.forEach((img, idx) => {
+      if (validImages.length > 1) {
+        content.push({ type: "text", text: `[${angleLabelFor(zone, idx, validImages.length)}]` });
+      }
+      content.push({ type: "image_url" as const, image_url: { url: img } });
+    });
 
     for (let attempt = 0; attempt < 2 && !analysis; attempt += 1) {
       const messages: VisionMessage[] = [
@@ -917,7 +1080,7 @@ export async function runDiagnosis(opts: {
         { label: "vlm:vision", timeoutMs: attempt === 0 ? VLM_TIMEOUT_MS : VLM_RETRY_TIMEOUT_MS, busyRetries: 2 },
       );
       lastRaw = response.choices[0]?.message?.content ?? "";
-      analysis = normalizeAnalysis(extractJson(lastRaw), zone);
+      analysis = normalizeAnalysis(extractJson(lastRaw), zone, primaryOptical);
       if (!analysis) {
         console.error(
           `[kene:vlm] phase 1 réponse illisible (tentative ${attempt + 1}/2) — complet :`,

@@ -1,6 +1,10 @@
 // Kènè — helpers fetch côté client (importé uniquement par des composants
 // clients → sonner est sûr ici; le <Toaster> est monté dans page.tsx).
 import { toast } from "sonner";
+import {
+  computeOpticalMetricsFromRgba,
+  injectOpticalTelemetryIntoJpegDataUrl,
+} from "@/lib/kene/optical-biometrics";
 
 export class ApiError extends Error {
   status: number;
@@ -378,11 +382,33 @@ export async function apiDelete<T>(url: string, opts: { timeoutMs?: number } = {
   return handle<T>(res);
 }
 
-/** Redimensionne et compresse une photo côté client (max 820px, JPEG q0.82) → dataURL.
+/** Encode un canvas en JPEG haute fidélité (q0.88) enrichi des biomarqueurs optiques CIE L*a*b* / ITA°. */
+function encodeCanvasWithOpticalTelemetry(
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+  quality = 0.88,
+): string {
+  const rawDataUrl = canvas.toDataURL("image/jpeg", quality);
+  try {
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const metrics = computeOpticalMetricsFromRgba(imgData.data, canvas.width, canvas.height);
+    if (metrics.qualityGrade === "floue" && metrics.sharpnessScore < 28) {
+      toast.info("Photo un peu floue détectée", {
+        description: "Stabilise ton téléphone pour une précision maximale sur les pores et micro-reliefs.",
+        duration: 3200,
+      });
+    }
+    return injectOpticalTelemetryIntoJpegDataUrl(rawDataUrl, metrics);
+  } catch {
+    return rawDataUrl;
+  }
+}
+
+/** Redimensionne et compresse une photo côté client (max 1024px, JPEG q0.88) → dataURL enrichie CIE L*a*b*.
  * Utilise createImageBitmap (décodage matériel haute performance, gestion automatique
  * de l'orientation EXIF sur smartphone) avec repli transparent sur ObjectURL / Image / FileReader.
  * Prévient les plantages mémoire (OOM) sur les photos haute résolution 12MP-50MP. */
-export async function resizeImage(file: File, maxSide = 820): Promise<string> {
+export async function resizeImage(file: File, maxSide = 1024): Promise<string> {
   if (typeof window === "undefined") {
     throw new Error("Environnement client requis");
   }
@@ -398,11 +424,11 @@ export async function resizeImage(file: File, maxSide = 820): Promise<string> {
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(w * scale));
         canvas.height = Math.max(1, Math.round(h * scale));
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (ctx) {
           ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
           bitmap.close();
-          return canvas.toDataURL("image/jpeg", 0.82);
+          return encodeCanvasWithOpticalTelemetry(canvas, ctx, 0.88);
         }
       }
     } catch {
@@ -432,14 +458,14 @@ export async function resizeImage(file: File, maxSide = 820): Promise<string> {
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(w * scale));
         canvas.height = Math.max(1, Math.round(h * scale));
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (!ctx) {
           cleanup();
           return reject(new Error("Canvas graphique non disponible"));
         }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         cleanup();
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        resolve(encodeCanvasWithOpticalTelemetry(canvas, ctx, 0.88));
       } catch (err) {
         cleanup();
         reject(err instanceof Error ? err : new Error("Traitement de la photo impossible"));
@@ -459,10 +485,10 @@ export async function resizeImage(file: File, maxSide = 820): Promise<string> {
           const canvas = document.createElement("canvas");
           canvas.width = Math.max(1, Math.round(w * scale));
           canvas.height = Math.max(1, Math.round(h * scale));
-          const ctx = canvas.getContext("2d");
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
           if (!ctx) return reject(new Error("Canvas indisponible"));
           ctx.drawImage(fbImg, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.82));
+          resolve(encodeCanvasWithOpticalTelemetry(canvas, ctx, 0.88));
         };
         fbImg.onerror = () => reject(new Error("Format de photo non supporté (veuillez choisir un fichier JPG, PNG ou WebP)"));
         fbImg.src = String(reader.result);

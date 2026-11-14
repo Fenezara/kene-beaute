@@ -14,6 +14,10 @@ import {
 } from "@/lib/kene/hardware-perm";
 import { resizeImage } from "@/lib/kene/api";
 import { extractVideoKeyframes, isVideoFile } from "@/lib/kene/video-frames";
+import {
+  computeOpticalMetricsFromRgba,
+  injectOpticalTelemetryIntoJpegDataUrl,
+} from "@/lib/kene/optical-biometrics";
 import type { ZonePhotoSlot } from "@/lib/kene/types";
 
 interface LiveCameraModalProps {
@@ -238,20 +242,22 @@ export function LiveCameraModal({
         const avgCenter = centerCount > 0 ? centerSum / centerCount : 128;
         const avgBg = bgCount > 0 ? bgSum / bgCount : 128;
 
-        let calculatedScore = 100 - Math.min(60, Math.abs(avgCenter - 130) * 0.7);
+        // Étalonnage adapté aux peaux mélanodermes (Phototypes IV à VI) :
+        // Une peau ébène bien éclairée a naturellement une luminance entre 40 et 115.
+        let calculatedScore = 100 - Math.min(48, Math.max(0, Math.abs(avgCenter - 96) - 24) * 0.65);
 
-        if (avgBg - avgCenter > 50 && avgCenter < 110) {
+        if (avgBg - avgCenter > 68 && avgCenter < 75) {
           setLighting("contre_jour");
           calculatedScore = Math.max(30, calculatedScore - 35);
-        } else if (avgCenter < 65) {
+        } else if (avgCenter < 36) {
           setLighting("faible");
-          calculatedScore = Math.max(25, Math.round((avgCenter / 65) * 55));
-        } else if (avgCenter > 220) {
+          calculatedScore = Math.max(25, Math.round((avgCenter / 36) * 58));
+        } else if (avgCenter > 224) {
           setLighting("forte");
-          calculatedScore = Math.max(35, Math.round(100 - (avgCenter - 220) * 1.5));
+          calculatedScore = Math.max(35, Math.round(100 - (avgCenter - 224) * 1.6));
         } else {
           setLighting("optimal");
-          calculatedScore = Math.min(100, Math.max(80, Math.round(calculatedScore)));
+          calculatedScore = Math.min(100, Math.max(82, Math.round(calculatedScore)));
         }
 
         setLightScore(Math.round(calculatedScore));
@@ -330,20 +336,20 @@ export function LiveCameraModal({
     }
   }
 
-  /** Capture instantanée d'une frame carrée 820px depuis le flux vidéo actif */
-  function grabVideoFrame(): string | null {
+  /** Capture instantanée d'une frame carrée haute définition (1024px) enrichie des biomarqueurs CIE L*a*b* */
+  function grabVideoFrameWithMetrics(): { dataUrl: string; sharpness: number } | null {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) return null;
 
     const canvas = document.createElement("canvas");
-    const targetSize = 820;
+    const minDim = Math.min(video.videoWidth, video.videoHeight);
+    const targetSize = Math.max(512, Math.min(1024, minDim));
     canvas.width = targetSize;
     canvas.height = targetSize;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return null;
 
-    const minDim = Math.min(video.videoWidth, video.videoHeight);
     const startX = (video.videoWidth - minDim) / 2;
     const startY = (video.videoHeight - minDim) / 2;
 
@@ -353,7 +359,21 @@ export function LiveCameraModal({
     }
 
     ctx.drawImage(video, startX, startY, minDim, minDim, 0, 0, targetSize, targetSize);
-    return canvas.toDataURL("image/jpeg", 0.88);
+    const rawDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+    try {
+      const imgData = ctx.getImageData(0, 0, targetSize, targetSize);
+      const metrics = computeOpticalMetricsFromRgba(imgData.data, targetSize, targetSize);
+      return {
+        dataUrl: injectOpticalTelemetryIntoJpegDataUrl(rawDataUrl, metrics),
+        sharpness: metrics.sharpnessScore,
+      };
+    } catch {
+      return { dataUrl: rawDataUrl, sharpness: 75 };
+    }
+  }
+
+  function grabVideoFrame(): string | null {
+    return grabVideoFrameWithMetrics()?.dataUrl ?? null;
   }
 
   function takeSnapshot() {
@@ -451,7 +471,8 @@ export function LiveCameraModal({
 
     const totalTargets = slots && slots.length > 1 ? Math.min(slots.length, 3) : 3;
     const capturePercents = totalTargets === 1 ? [50] : totalTargets === 2 ? [30, 78] : [22, 56, 88];
-    const capturedFlags = capturePercents.map(() => false);
+    const bestSharpnessPerIdx = capturePercents.map(() => -1);
+    const framePosPerIdx = capturePercents.map(() => -1);
 
     const t0 = Date.now();
     recTimerRef.current = setInterval(() => {
@@ -462,14 +483,21 @@ export function LiveCameraModal({
       const step = pct < 35 ? 0 : pct < 70 ? Math.min(1, totalTargets - 1) : Math.min(2, totalTargets - 1);
       setRecordStepIdx(step);
 
+      // Sélection Best-of-Burst : dans la fenêtre [threshold - 2, threshold + 6],
+      // on conserve le cliché ayant la netteté Laplacienne la plus élevée
       capturePercents.forEach((threshold, idx) => {
-        if (!capturedFlags[idx] && pct >= threshold) {
-          capturedFlags[idx] = true;
-          const frame = grabVideoFrame();
-          if (frame) {
+        if (pct >= threshold - 2 && pct <= threshold + 6) {
+          const captured = grabVideoFrameWithMetrics();
+          if (captured && captured.sharpness > bestSharpnessPerIdx[idx]) {
+            bestSharpnessPerIdx[idx] = captured.sharpness;
             const targetSlotId = slots?.[idx]?.id ?? (idx === 0 ? currentSlotId : undefined);
-            recFramesRef.current.push({ dataUrl: frame, slotId: targetSlotId });
-            haptic(HAPTIC.light);
+            if (framePosPerIdx[idx] === -1) {
+              framePosPerIdx[idx] = recFramesRef.current.length;
+              recFramesRef.current.push({ dataUrl: captured.dataUrl, slotId: targetSlotId });
+              haptic(HAPTIC.light);
+            } else {
+              recFramesRef.current[framePosPerIdx[idx]] = { dataUrl: captured.dataUrl, slotId: targetSlotId };
+            }
           }
         }
       });

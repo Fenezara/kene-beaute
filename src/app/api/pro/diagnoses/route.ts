@@ -18,6 +18,7 @@ import {
   getQuestionsForZone,
   getQuestionsForZones,
   buildMultiZoneSynthesis,
+  summarizeQuestionnaireContextForVlm,
   QUESTIONS,
 } from "@/lib/kene/questionnaire";
 import type { QAnswers } from "@/lib/kene/questionnaire";
@@ -228,11 +229,25 @@ export async function POST(req: NextRequest) {
       const currPhotos = rawPhotosMap[currZone] || [];
       let vlm = null as Awaited<ReturnType<typeof runDiagnosis>> | null;
       if (currPhotos.length > 0) {
+        const clinicalContext = summarizeQuestionnaireContextForVlm(answers, qr, currZone);
+        const lastProDiag = await db.proDiagnosis
+          .findFirst({
+            where: { clientProfileId: client.id, zone: currZone },
+            orderBy: { createdAt: "desc" },
+            select: { scoreGlobal: true, createdAt: true },
+          })
+          .catch(() => null);
+        const previousSummary = lastProDiag
+          ? `Score précédent ${lastProDiag.scoreGlobal}/100 (${new Date(lastProDiag.createdAt).toLocaleDateString("fr-FR")})`
+          : undefined;
+
         vlm = await runDiagnosis({
           images: currPhotos,
           zone: currZone,
           fitzpatrick: fitzVal,
           allergies,
+          clinicalContext,
+          previousSummary,
         }).catch((err) => {
           console.warn(`[pro/diagnoses] VLM warning for zone ${currZone}:`, err);
           return null;

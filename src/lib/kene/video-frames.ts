@@ -1,6 +1,11 @@
 // Kènè — Extraction locale haute précision d'angles clés depuis une vidéo cutanée (.mp4, .mov, .webm)
 // Zéro upload lourd sur réseau mobile 3G/4G : la vidéo (15–60 Mo) est décodée localement sur l'appareil
-// en 3 vues nettes calibrées 820px (~80 Ko/vue) pour synthèse clinique 360° par le VLM.
+// en 3 vues nettes calibrées 1024px (~95 Ko/vue) avec sélection "Best-of-Burst" anti-flou et télémétrie CIE L*a*b*.
+
+import {
+  computeOpticalMetricsFromRgba,
+  injectOpticalTelemetryIntoJpegDataUrl,
+} from "@/lib/kene/optical-biometrics";
 
 const VIDEO_EXT_RE = /\.(mp4|mov|webm|m4v|3gp|mkv|avi)$/i;
 
@@ -23,7 +28,7 @@ export interface ExtractedVideoResult {
 export async function extractVideoKeyframes(
   file: File,
   maxFrames = 3,
-  maxSide = 820,
+  maxSide = 1024,
 ): Promise<ExtractedVideoResult> {
   if (typeof document === "undefined") {
     throw new Error("Extraction vidéo disponible uniquement dans le navigateur");
@@ -115,45 +120,67 @@ export async function extractVideoKeyframes(
 
     const frames: string[] = [];
 
-    // 3. Extraction séquentielle image par image sur Canvas haute définition
+    // 3. Extraction séquentielle image par image avec sélection Best-of-Burst (netteté Laplacien maximale)
     for (const targetTime of timestamps) {
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, 3000);
-        const onSeeked = () => {
-          clearTimeout(timer);
-          // Laisser 40ms au décodeur matériel mobile (iOS/Android) pour peindre la frame
-          setTimeout(resolve, 40);
-        };
-        video.addEventListener("seeked", onSeeked, { once: true });
+      const candidateTimes = [
+        targetTime,
+        Math.min(Math.max(0.15, duration - 0.1), targetTime + 0.14),
+      ];
+      let bestFrameUrl: string | null = null;
+      let bestSharpness = -1;
+
+      for (const candidateTime of candidateTimes) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, 2500);
+          const onSeeked = () => {
+            clearTimeout(timer);
+            setTimeout(resolve, 40);
+          };
+          video.addEventListener("seeked", onSeeked, { once: true });
+          try {
+            video.currentTime = candidateTime;
+          } catch {
+            clearTimeout(timer);
+            resolve();
+          }
+        });
+
+        const vw = video.videoWidth || 720;
+        const vh = video.videoHeight || 720;
+        if (vw === 0 || vh === 0) continue;
+
+        const minDim = Math.min(vw, vh);
+        const sx = Math.round((vw - minDim) / 2);
+        const sy = Math.round((vh - minDim) / 2);
+        const targetSide = Math.min(maxSide, minDim);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, targetSide);
+        canvas.height = Math.max(1, targetSide);
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) continue;
+
+        ctx.drawImage(video, sx, sy, minDim, minDim, 0, 0, canvas.width, canvas.height);
+        const rawUrl = canvas.toDataURL("image/jpeg", 0.88);
+        if (!rawUrl || !rawUrl.startsWith("data:image/")) continue;
+
         try {
-          video.currentTime = targetTime;
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const metrics = computeOpticalMetricsFromRgba(imgData.data, canvas.width, canvas.height);
+          const enrichedUrl = injectOpticalTelemetryIntoJpegDataUrl(rawUrl, metrics);
+          if (metrics.sharpnessScore > bestSharpness) {
+            bestSharpness = metrics.sharpnessScore;
+            bestFrameUrl = enrichedUrl;
+          }
+          // Si le premier cliché est déjà très net, inutile de tester le second candidat du burst
+          if (metrics.sharpnessScore >= 68) break;
         } catch {
-          clearTimeout(timer);
-          resolve();
+          if (!bestFrameUrl) bestFrameUrl = rawUrl;
         }
-      });
+      }
 
-      const vw = video.videoWidth || 720;
-      const vh = video.videoHeight || 720;
-      if (vw === 0 || vh === 0) continue;
-
-      // Découpe carrée centrée (idéale pour cadrage visage / zone cutanée) si portrait/paysage marqué,
-      // tout en conservant la résolution optimale 820px pour le VLM
-      const minDim = Math.min(vw, vh);
-      const sx = Math.round((vw - minDim) / 2);
-      const sy = Math.round((vh - minDim) / 2);
-      const targetSide = Math.min(maxSide, minDim);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, targetSide);
-      canvas.height = Math.max(1, targetSide);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) continue;
-
-      ctx.drawImage(video, sx, sy, minDim, minDim, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
-      if (dataUrl && dataUrl.startsWith("data:image/")) {
-        frames.push(dataUrl);
+      if (bestFrameUrl) {
+        frames.push(bestFrameUrl);
       }
     }
 
