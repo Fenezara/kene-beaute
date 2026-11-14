@@ -43,11 +43,9 @@ import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
 import { matchesSearch } from "@/lib/kene/search";
 import type { ProAppointment, ProCatalog, ProClient, ProLeave } from "./types";
 
-const OPEN = 9;
-const CLOSE = 20;
-const OPEN_MIN = OPEN * 60;
+const DEFAULT_OPEN = 9;
+const DEFAULT_CLOSE = 19;
 const ROW_H = 34;
-const ROWS = ((CLOSE - OPEN) * 60) / 30;
 
 const DAY_NAMES = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
@@ -75,9 +73,11 @@ function sameDay(a: string | Date, b: Date): boolean {
 function toLocalISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-function timeOptions(): string[] {
+function timeOptions(openHour = DEFAULT_OPEN, closeHour = DEFAULT_CLOSE): string[] {
   const out: string[] = [];
-  for (let m = OPEN_MIN; m < CLOSE * 60; m += 30) {
+  const startMin = Math.max(0, openHour * 60);
+  const endMin = Math.min(24 * 60, closeHour * 60);
+  for (let m = startMin; m < endMin; m += 30) {
     out.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
   }
   return out;
@@ -183,16 +183,91 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
     [tenantId, refreshKey]
   );
 
+  // Horaires d'ouverture de l'établissement + horaires personnalisés des employées
+  const tenantsApi = useApi<{ tenants: Array<{ id: string; openingHour?: number; closingHour?: number }> }>(
+    () => apiGet<{ tenants: Array<{ id: string; openingHour?: number; closingHour?: number }> }>("/api/pro/tenants"),
+    [tenantId, refreshKey]
+  );
+  const employeesApi = useApi<{ employees: Array<{ id: string; name: string; active: boolean; workStart?: string | null; workEnd?: string | null; workDays?: number[] | null }> }>(
+    () =>
+      tenantId
+        ? apiGet<{ employees: any[] }>(`/api/pro/employees?tenantId=${tenantId}`)
+        : Promise.resolve({ employees: [] }),
+    [tenantId, refreshKey]
+  );
+
+  const { openHour, closeHour, openMin, rowsCount, tenantOpenHour, tenantCloseHour } = useMemo(() => {
+    const myTenant = tenantsApi.data?.tenants?.find((t) => t.id === tenantId);
+    const tOpen = typeof myTenant?.openingHour === "number" ? myTenant.openingHour : DEFAULT_OPEN;
+    const tClose = typeof myTenant?.closingHour === "number" ? myTenant.closingHour : DEFAULT_CLOSE;
+
+    let minH = tOpen;
+    let maxH = Math.max(tOpen + 1, tClose);
+
+    // Étendre si une employée active a un horaire plus matinal ou plus tardif
+    for (const emp of employeesApi.data?.employees ?? []) {
+      if (!emp.active) continue;
+      if (emp.workStart && /^\d{2}:\d{2}$/.test(emp.workStart)) {
+        const h = parseInt(emp.workStart.split(":")[0], 10);
+        if (!Number.isNaN(h)) minH = Math.min(minH, h);
+      }
+      if (emp.workEnd && /^\d{2}:\d{2}$/.test(emp.workEnd)) {
+        const [h, m] = emp.workEnd.split(":").map(Number);
+        if (!Number.isNaN(h)) maxH = Math.max(maxH, m > 0 ? h + 1 : h);
+      }
+    }
+
+    // Étendre si un RDV de la semaine est hors de la plage
+    for (const a of list.data ?? []) {
+      if (a.status === "cancelled") continue;
+      const d = new Date(a.startAt);
+      if (Number.isNaN(d.getTime())) continue;
+      const startH = d.getHours();
+      const endMin = startH * 60 + d.getMinutes() + (a.durationMin || 60);
+      const endH = Math.ceil(endMin / 60);
+      minH = Math.min(minH, startH);
+      maxH = Math.max(maxH, endH);
+    }
+
+    minH = Math.max(5, Math.min(22, minH));
+    maxH = Math.max(minH + 2, Math.min(24, maxH));
+    return {
+      openHour: minH,
+      closeHour: maxH,
+      openMin: minH * 60,
+      rowsCount: ((maxH - minH) * 60) / 30,
+      tenantOpenHour: tOpen,
+      tenantCloseHour: tClose,
+    };
+  }, [tenantsApi.data, employeesApi.data, list.data, tenantId]);
+
   const resources = useMemo(() => {
+    const empList = employeesApi.data?.employees ?? [];
+    const findEmpSchedule = (resName: string) => {
+      const cleanRes = cleanPractitionerName(resName).toLowerCase();
+      const match = empList.find((e) => {
+        const cleanEmp = e.name.trim().toLowerCase();
+        return cleanEmp === cleanRes || cleanEmp.includes(cleanRes) || cleanRes.includes(cleanEmp);
+      });
+      if (!match) return undefined;
+      if (match.workStart || match.workEnd) {
+        const s = (match.workStart || `${String(tenantOpenHour).padStart(2, "0")}:00`).replace(":", "h");
+        const e = (match.workEnd || `${String(tenantCloseHour).padStart(2, "0")}:00`).replace(":", "h");
+        return `${s}–${e}`;
+      }
+      return undefined;
+    };
+
     const listFromApi = resourcesApi.data?.resources ?? [];
     if (listFromApi.length > 0) {
       return listFromApi.map((r) => ({
         value: r.id,
         name: cleanPractitionerName(r.name),
         color: r.color || "#C8951E",
+        scheduleHint: findEmpSchedule(r.name),
       }));
     }
-    const map = new Map<string, { value: string; name: string; color: string }>();
+    const map = new Map<string, { value: string; name: string; color: string; scheduleHint?: string }>();
     for (const a of [...(list.data ?? []), ...(resourcePool.data ?? [])]) {
       const value = a.resourceId ?? a.resource.id ?? a.resource.name;
       if (!map.has(value)) {
@@ -200,11 +275,12 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
           value,
           name: cleanPractitionerName(a.resource.name),
           color: a.resource.color,
+          scheduleHint: findEmpSchedule(a.resource.name),
         });
       }
     }
     return [...map.values()];
-  }, [resourcesApi.data, list.data, resourcePool.data]);
+  }, [resourcesApi.data, employeesApi.data, list.data, resourcePool.data, tenantOpenHour, tenantCloseHour]);
 
   const step = (dir: 1 | -1) => {
     if (view === "semaine") {
@@ -534,10 +610,10 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
               </div>
               {/* Grille */}
               <div className="grid max-h-[70vh] overflow-y-auto pretty-scroll" style={{ gridTemplateColumns: `56px repeat(${shownDays.length}, minmax(96px, 1fr))` }}>
-                <div className="relative" style={{ height: ROWS * ROW_H }}>
-                  {Array.from({ length: CLOSE - OPEN }).map((_, i) => (
+                <div className="relative" style={{ height: rowsCount * ROW_H }}>
+                  {Array.from({ length: closeHour - openHour }).map((_, i) => (
                     <div key={i} className="absolute right-1 -translate-y-1/2 font-mono text-[10px] text-muted-foreground tabular-nums" style={{ top: i * 2 * ROW_H + ROW_H }}>
-                      {String(OPEN + i).padStart(2, "0")}:00
+                      {String(openHour + i).padStart(2, "0")}:00
                     </div>
                   ))}
                 </div>
@@ -546,14 +622,14 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
                   return (
                     <div key={di} className={cn("relative border-l border-border/60", isToday(d) && "bg-gold/[0.04]")}>
                       {/* lignes 30 min */}
-                      {Array.from({ length: ROWS }).map((_, i) => (
+                      {Array.from({ length: rowsCount }).map((_, i) => (
                         <div key={i} className={cn("border-b border-border/40", i % 2 === 0 && "border-border/70")} style={{ height: ROW_H }} />
                       ))}
                       {/* RDV */}
                       {dayAppts.map((a) => {
                         const start = new Date(a.startAt);
                         const startMin = start.getHours() * 60 + start.getMinutes();
-                        const top = Math.max(0, ((startMin - OPEN_MIN) / 30) * ROW_H + 1);
+                        const top = Math.max(0, ((startMin - openMin) / 30) * ROW_H + 1);
                         const height = Math.max(ROW_H - 4, (a.durationMin / 30) * ROW_H - 4);
                         return (
                           <button
@@ -601,6 +677,8 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
           appt={selected}
           resources={resources}
           leaves={leaves}
+          openHour={openHour}
+          closeHour={closeHour}
           onClose={() => setSelected(null)}
           onAction={act}
         />
@@ -616,6 +694,8 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
         leaves={leaves}
         clients={clients.data ?? []}
         clientsLoading={clients.loading}
+        openHour={openHour}
+        closeHour={closeHour}
         defaultDate={toLocalISODate(new Date())}
         onCreated={async () => {
           setCreateOpen(false);
@@ -632,12 +712,16 @@ function ApptDetailDialog({
   appt,
   resources,
   leaves,
+  openHour = DEFAULT_OPEN,
+  closeHour = DEFAULT_CLOSE,
   onClose,
   onAction,
 }: {
   appt: ProAppointment;
-  resources: { value: string; name: string; color: string }[];
+  resources: { value: string; name: string; color: string; scheduleHint?: string }[];
   leaves: ProLeave[];
+  openHour?: number;
+  closeHour?: number;
   onClose: () => void;
   onAction: (a: ProAppointment, action: string, extra?: Record<string, unknown>) => Promise<unknown>;
 }) {
@@ -778,7 +862,7 @@ function ApptDetailDialog({
                 <Select value={time} onValueChange={setTime}>
                   <SelectTrigger aria-label="Heure"><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-64">
-                    {timeOptions().map((t) => (
+                    {timeOptions(openHour, closeHour).map((t) => (
                       <SelectItem key={t} value={t} className="font-mono">{t}</SelectItem>
                     ))}
                   </SelectContent>
@@ -851,6 +935,8 @@ function CreateApptDialog({
   leaves,
   clients,
   clientsLoading,
+  openHour = DEFAULT_OPEN,
+  closeHour = DEFAULT_CLOSE,
   defaultDate,
   onCreated,
 }: {
@@ -858,10 +944,12 @@ function CreateApptDialog({
   onOpenChange: (o: boolean) => void;
   tenantId: string;
   services: { id: string; name: string; durationMin: number; price: number }[];
-  resources: { value: string; name: string; color: string }[];
+  resources: { value: string; name: string; color: string; scheduleHint?: string }[];
   leaves: ProLeave[];
   clients: ProClient[];
   clientsLoading: boolean;
+  openHour?: number;
+  closeHour?: number;
   defaultDate: string;
   onCreated: () => Promise<void> | void;
 }) {
@@ -1103,7 +1191,7 @@ function CreateApptDialog({
                   return {
                     value: r.value,
                     label: cleanName,
-                    subLabel: lInfo.onLeave ? lInfo.reason : undefined,
+                    subLabel: lInfo.onLeave ? lInfo.reason : r.scheduleHint ? `🕒 ${r.scheduleHint}` : undefined,
                     disabled: lInfo.onLeave,
                     icon: (
                       <span
@@ -1146,7 +1234,7 @@ function CreateApptDialog({
               <Select value={time} onValueChange={setTime}>
                 <SelectTrigger aria-label="Heure"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-64">
-                  {timeOptions().map((t) => (
+                  {timeOptions(openHour, closeHour).map((t) => (
                     <SelectItem key={t} value={t} className="font-mono">{t}</SelectItem>
                   ))}
                 </SelectContent>

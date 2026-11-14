@@ -525,6 +525,8 @@ export async function GET(req: NextRequest) {
         country: t.country,
         plan: t.plan,
         phone: t.phone,
+        openingHour: t.openingHour ?? 9,
+        closingHour: t.closingHour ?? 19,
       })),
       kpis: {
         caToday,

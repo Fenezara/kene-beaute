@@ -9,6 +9,7 @@ import {
   Banknote,
   CalendarDays,
   Check,
+  Clock,
   LogIn,
   LogOut,
   Palmtree,
@@ -71,6 +72,9 @@ import {
   MODULABLE_MODULES,
   DEFAULT_ROLE_PERMISSIONS,
   getDefaultPermissionsForRole,
+  SHIFT_PRESETS,
+  WEEKDAYS_SHORT,
+  formatWorkScheduleLabel,
   type ModulableModule,
 } from "@/lib/kene/hr-constants";
 
@@ -441,6 +445,25 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                         )}
                       </>
                     )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Clock className="size-3 text-gold-text" aria-hidden="true" /> Horaires
+                      </span>
+                      <span
+                        className={cn(
+                          "font-mono text-[10.5px] px-2 py-0.5 rounded-full border",
+                          emp.workStart || emp.workEnd
+                            ? "bg-gold/15 text-gold-text border-gold/30 font-bold"
+                            : "bg-muted/60 text-muted-foreground border-border/60"
+                        )}
+                      >
+                        {formatWorkScheduleLabel(
+                          { workStart: emp.workStart, workEnd: emp.workEnd, workDays: emp.workDays },
+                          9,
+                          19
+                        )}
+                      </span>
+                    </div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-muted-foreground flex items-center gap-1">
                         <CalendarDays className="size-3" aria-hidden="true" /> Embauchée
@@ -1061,6 +1084,182 @@ function PermissionsSelector({
   );
 }
 
+/* ═════════════ Sélecteur d'Horaires & Jours de Travail Individuels ═════════════ */
+function WorkScheduleSelector({
+  workStart,
+  workEnd,
+  workDays,
+  onChange,
+}: {
+  workStart: string | null;
+  workEnd: string | null;
+  workDays: number[] | null;
+  onChange: (next: { workStart: string | null; workEnd: string | null; workDays: number[] | null }) => void;
+}) {
+  const activeDays = workDays && workDays.length > 0 ? workDays : [1, 2, 3, 4, 5, 6];
+  const isCustomHours = Boolean(workStart || workEnd);
+
+  const toggleDay = (d: number) => {
+    const exists = activeDays.includes(d);
+    const next = exists
+      ? activeDays.filter((x) => x !== d)
+      : [...activeDays, d].sort((a, b) => a - b);
+    if (next.length === 0) return; // au moins 1 jour
+    onChange({ workStart, workEnd, workDays: next });
+  };
+
+  return (
+    <div className="rounded-xl border border-gold/30 bg-gold/5 p-3 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5">
+            <Clock className="size-4 text-gold-text" />
+            <span className="text-xs font-semibold text-foreground">
+              Horaires de travail &amp; Jours de présence
+            </span>
+            <Badge
+              variant="outline"
+              className="text-[10px] bg-gold/15 text-gold-text border-gold/30 font-bold"
+            >
+              {formatWorkScheduleLabel({ workStart, workEnd, workDays: activeDays }, 9, 19)}
+            </Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Chaque collaboratrice peut avoir ses propres heures de début et de fin (ex: équipe matin, après-midi, temps partiel). Le pointage s&apos;adapte automatiquement à son horaire.
+          </p>
+        </div>
+      </div>
+
+      {/* Préréglages de roulements / équipes */}
+      <div className="flex flex-wrap gap-1.5">
+        {SHIFT_PRESETS.map((preset) => {
+          const isMatch =
+            (preset.workStart ?? null) === (workStart ?? null) &&
+            (preset.workEnd ?? null) === (workEnd ?? null) &&
+            (preset.workDays?.join(",") ?? "1,2,3,4,5,6") === activeDays.join(",");
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() =>
+                onChange({
+                  workStart: preset.workStart,
+                  workEnd: preset.workEnd,
+                  workDays: preset.workDays ? [...preset.workDays] : [1, 2, 3, 4, 5, 6],
+                })
+              }
+              title={preset.desc}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer border",
+                isMatch
+                  ? "bg-gold/20 text-gold-text border-gold/50 shadow-xs"
+                  : "bg-background/80 text-muted-foreground border-border/70 hover:text-foreground"
+              )}
+            >
+              {preset.shortLabel}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Heure de début et de fin sur-mesure */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <Label className="text-[11px] font-semibold">Heure de prise de poste (Début)</Label>
+            {workStart && (
+              <button
+                type="button"
+                onClick={() => onChange({ workStart: null, workEnd, workDays: activeDays })}
+                className="text-[10px] text-muted-foreground hover:text-foreground underline cursor-pointer"
+              >
+                Heure salon
+              </button>
+            )}
+          </div>
+          <Input
+            type="time"
+            value={workStart ?? "09:00"}
+            onChange={(e) =>
+              onChange({
+                workStart: e.target.value || null,
+                workEnd: workEnd ?? "19:00",
+                workDays: activeDays,
+              })
+            }
+            className="h-8 text-xs font-mono bg-card"
+          />
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <Label className="text-[11px] font-semibold">Heure de fin de service (Fermeture)</Label>
+            {workEnd && (
+              <button
+                type="button"
+                onClick={() => onChange({ workStart, workEnd: null, workDays: activeDays })}
+                className="text-[10px] text-muted-foreground hover:text-foreground underline cursor-pointer"
+              >
+                Heure salon
+              </button>
+            )}
+          </div>
+          <Input
+            type="time"
+            value={workEnd ?? "19:00"}
+            onChange={(e) =>
+              onChange({
+                workStart: workStart ?? "09:00",
+                workEnd: e.target.value || null,
+                workDays: activeDays,
+              })
+            }
+            className="h-8 text-xs font-mono bg-card"
+          />
+        </div>
+      </div>
+
+      {/* Jours de la semaine */}
+      <div className="space-y-1.5 pt-0.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Jours travaillés dans la semaine
+          </span>
+          {isCustomHours && (
+            <button
+              type="button"
+              onClick={() => onChange({ workStart: null, workEnd: null, workDays: [1, 2, 3, 4, 5, 6] })}
+              className="text-[10px] text-gold-text hover:underline font-semibold cursor-pointer"
+            >
+              Réinitialiser aux horaires de l&apos;entreprise
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {WEEKDAYS_SHORT.map((w) => {
+            const checked = activeDays.includes(w.day);
+            return (
+              <button
+                key={w.day}
+                type="button"
+                onClick={() => toggleDay(w.day)}
+                className={cn(
+                  "h-7 rounded-lg text-[10.5px] font-bold border transition-all cursor-pointer",
+                  checked
+                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                    : "bg-background/60 text-muted-foreground border-border/60 hover:text-foreground"
+                )}
+                title={w.label}
+              >
+                {w.short}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═════════════ Embauche (dialog) ═════════════ */
 function HireDialog({
   open,
@@ -1091,6 +1290,9 @@ function HireDialog({
   const [permissions, setPermissions] = useState<string[]>(() =>
     getDefaultPermissionsForRole("estheticienne")
   );
+  const [workStart, setWorkStart] = useState<string | null>(null);
+  const [workEnd, setWorkEnd] = useState<string | null>(null);
+  const [workDays, setWorkDays] = useState<number[] | null>([1, 2, 3, 4, 5, 6]);
 
   const finalRole = selectedRole === "custom" ? (customRole.trim() || "Collaboratrice") : selectedRole;
   const finalContract = selectedContract === "custom" ? (customContract.trim() || "Contrat") : selectedContract;
@@ -1136,6 +1338,9 @@ function HireDialog({
         housing: housing ? Number(housing) : 0,
         cadres,
         permissions,
+        workStart,
+        workEnd,
+        workDays,
         ...(phone.trim() ? { phone: phone.trim() } : {}),
         ...(pin.trim() ? { pin: pin.trim() } : {}),
       });
@@ -1149,6 +1354,7 @@ function HireDialog({
       setName(""); setSelectedRole("estheticienne"); setCustomRole(""); setSelectedContract("CDI"); setCustomContract("");
       setBaseSalary(""); setTransport(""); setHousing(""); setCadres(false); setPhone(""); setPin("");
       setPermissions(getDefaultPermissionsForRole("estheticienne"));
+      setWorkStart(null); setWorkEnd(null); setWorkDays([1, 2, 3, 4, 5, 6]);
       onOpenChange(false);
       await onCreated();
     } catch (e) {
@@ -1310,6 +1516,18 @@ function HireDialog({
             )}
           </div>
 
+          {/* Horaires de travail individuels */}
+          <WorkScheduleSelector
+            workStart={workStart}
+            workEnd={workEnd}
+            workDays={workDays}
+            onChange={(next) => {
+              setWorkStart(next.workStart);
+              setWorkEnd(next.workEnd);
+              setWorkDays(next.workDays);
+            }}
+          />
+
           {/* Sélecteur de droits & modules */}
           <PermissionsSelector
             permissions={permissions}
@@ -1362,6 +1580,11 @@ function EditDialog({
         ? employee.permissions
         : getDefaultPermissionsForRole(employee.role)
   );
+  const [workStart, setWorkStart] = useState<string | null>(employee.workStart ?? null);
+  const [workEnd, setWorkEnd] = useState<string | null>(employee.workEnd ?? null);
+  const [workDays, setWorkDays] = useState<number[] | null>(
+    employee.workDays && employee.workDays.length > 0 ? employee.workDays : [1, 2, 3, 4, 5, 6]
+  );
 
   const finalRole = selectedRole === "custom" ? (customRole.trim() || "Collaboratrice") : selectedRole;
   const finalContract = selectedContract === "custom" ? (customContract.trim() || "Contrat") : selectedContract;
@@ -1399,6 +1622,9 @@ function EditDialog({
         cnpsNumber: cnpsNumber.trim() || null,
         bankAccount: bankAccount.trim() || null,
         permissions,
+        workStart,
+        workEnd,
+        workDays,
         ...(phone.trim() ? { phone: phone.trim() } : { phone: null }),
         ...(newPin.trim() ? { pin: newPin.trim() } : {}),
       });
@@ -1586,6 +1812,18 @@ function EditDialog({
               </div>
             )}
           </div>
+
+          {/* Horaires de travail individuels */}
+          <WorkScheduleSelector
+            workStart={workStart}
+            workEnd={workEnd}
+            workDays={workDays}
+            onChange={(next) => {
+              setWorkStart(next.workStart);
+              setWorkEnd(next.workEnd);
+              setWorkDays(next.workDays);
+            }}
+          />
 
           {/* Sélecteur de droits & modules */}
           <PermissionsSelector

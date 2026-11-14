@@ -6,6 +6,11 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, dayStart, dayEnd, hhmm, resolveTenant } from "@/lib/kene/server";
 import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 import { getTenantCoords, haversineKm } from "@/app/api/institutes/route";
+import {
+  parseEmployeeScheduleFromRaw,
+  timeHHMMToMinutes,
+  isValidTimeHHMM,
+} from "@/lib/kene/hr-constants";
 
 const Body = z.object({
   employeeId: z.string().optional(),
@@ -51,6 +56,10 @@ export async function GET(req: NextRequest) {
       where: { employeeId: employee.id, date: { gte: dayStart(), lte: dayEnd() } },
     });
 
+    const sched = parseEmployeeScheduleFromRaw(employee.permissions);
+    const tenantOpen = authorizedTenant.openingHour ?? 9;
+    const tenantClose = authorizedTenant.closingHour ?? 19;
+
     return NextResponse.json({
       attendance,
       employee: {
@@ -58,6 +67,11 @@ export async function GET(req: NextRequest) {
         name: employee.name,
         role: employee.role,
         tenantId: employee.tenantId,
+        workStart: sched.workStart,
+        workEnd: sched.workEnd,
+        workDays: sched.workDays,
+        tenantOpeningHour: tenantOpen,
+        tenantClosingHour: tenantClose,
       },
     });
   } catch (err) {
@@ -145,10 +159,25 @@ export async function POST(req: NextRequest) {
       where: { employeeId: employee.id, date: { gte: dayStart(), lte: dayEnd() } },
     });
 
+    const sched = parseEmployeeScheduleFromRaw(employee.permissions);
+    const tenantOpenHour = employee.tenant.openingHour ?? 9;
+    const tenantCloseHour = employee.tenant.closingHour ?? 19;
+    const expectedStartMin = isValidTimeHHMM(sched.workStart)
+      ? timeHHMMToMinutes(sched.workStart, tenantOpenHour)
+      : tenantOpenHour * 60;
+    const expectedEndMin = isValidTimeHHMM(sched.workEnd)
+      ? timeHHMMToMinutes(sched.workEnd, tenantCloseHour)
+      : tenantCloseHour * 60;
+    const expectedDailyHours = Math.max(
+      1,
+      Math.round(((expectedEndMin - expectedStartMin) / 60) * 10) / 10
+    );
+
     if (parsed.data.action === "in") {
       const time = hhmm(now);
       const minutes = now.getHours() * 60 + now.getMinutes();
-      const status = minutes > 9 * 60 + 15 ? "late" : "present";
+      // Tolérance de 15 minutes après l'heure de prise de poste prévue (horaire individuel ou ouverture entreprise)
+      const status = minutes > expectedStartMin + 15 ? "late" : "present";
       const attendance = existing
         ? await db.attendance.update({ where: { id: existing.id }, data: { checkIn: time, status } })
         : await db.attendance.create({ data: { employeeId: employee.id, date: now, checkIn: time, status } });
@@ -159,7 +188,7 @@ export async function POST(req: NextRequest) {
     const time = hhmm(now);
     if (!existing) {
       const attendance = await db.attendance.create({
-        data: { employeeId: employee.id, date: now, checkOut: time, hours: 8 },
+        data: { employeeId: employee.id, date: now, checkOut: time, hours: expectedDailyHours },
       });
       return NextResponse.json({ attendance, employee });
     }

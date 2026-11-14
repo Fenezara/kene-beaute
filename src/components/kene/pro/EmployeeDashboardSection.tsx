@@ -29,6 +29,7 @@ import { CauriIcon, SankofaIcon, AbanIcon } from "@/components/kene/icons";
 import { KenteTop, Money, ApptStatusBadge } from "./ui-bits";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { formatTime, formatDate } from "@/lib/kene/format";
+import { formatWorkScheduleLabel } from "@/lib/kene/hr-constants";
 import { waLink } from "@/lib/kene/followups";
 import { useApi } from "./useApi";
 import { apiGet } from "@/lib/kene/api";
@@ -51,6 +52,13 @@ interface EmployeeDashboardProps {
     status: string;
     hours?: number | null;
   } | null;
+  employeeSchedule?: {
+    workStart: string | null;
+    workEnd: string | null;
+    workDays: number[] | null;
+    tenantOpeningHour: number;
+    tenantClosingHour: number;
+  } | null;
   onPointage: (action: "in" | "out") => void;
   pointageBusy: boolean;
   onNavigate: (section: ProSectionId) => void;
@@ -68,6 +76,7 @@ export function EmployeeDashboardSection({
   allowedSections,
   overview,
   attendance,
+  employeeSchedule,
   onPointage,
   pointageBusy,
   onNavigate,
@@ -194,9 +203,18 @@ export function EmployeeDashboardSection({
           <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="rounded-2xl border border-border/80 bg-background/80 backdrop-blur-sm p-3.5 px-4 shadow-sm flex items-center justify-between sm:justify-start gap-4">
               <div className="space-y-0.5">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1.5 flex-wrap">
                   <UserCheck className="size-3.5 text-gold-text" />
                   <span>Présence au poste</span>
+                  {employeeSchedule && (
+                    <span className="normal-case font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-gold/15 text-gold-text border border-gold/30 font-bold">
+                      {formatWorkScheduleLabel(
+                        employeeSchedule,
+                        employeeSchedule.tenantOpeningHour,
+                        employeeSchedule.tenantClosingHour
+                      )}
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   {attendance?.checkIn ? (

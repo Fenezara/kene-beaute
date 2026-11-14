@@ -208,3 +208,236 @@ export function getDefaultPermissionsForRole(role: string): string[] {
   return DEFAULT_ROLE_PERMISSIONS[role] ?? ["agenda", "diagnostic", "assistant"];
 }
 
+// ─── Horaires de travail & Plannings individuels des employés ───────────────
+
+export interface EmployeeSchedule {
+  /** Heure de début au format "HH:MM" (ex: "08:00", "13:00"). null = suit l'heure d'ouverture de l'entreprise */
+  workStart: string | null;
+  /** Heure de fin au format "HH:MM" (ex: "15:00", "20:00"). null = suit l'heure de fermeture de l'entreprise */
+  workEnd: string | null;
+  /** Jours travaillés (1=Lundi ... 7=Dimanche). null = tous les jours d'ouverture (Lun-Sam par défaut) */
+  workDays: number[] | null;
+}
+
+export interface ShiftPresetOption {
+  id: string;
+  label: string;
+  shortLabel: string;
+  desc: string;
+  workStart: string | null;
+  workEnd: string | null;
+  workDays: number[] | null;
+}
+
+export const SHIFT_PRESETS: ShiftPresetOption[] = [
+  {
+    id: "company_default",
+    label: "Horaires de l'entreprise (Standard)",
+    shortLabel: "Horaires entreprise",
+    desc: "Suit automatiquement l'ouverture et la fermeture de l'institut",
+    workStart: null,
+    workEnd: null,
+    workDays: [1, 2, 3, 4, 5, 6],
+  },
+  {
+    id: "morning",
+    label: "Équipe Matin (08h00 – 15h00)",
+    shortLabel: "Matin (08h–15h)",
+    desc: "Ouverture matinale et première moitié de journée",
+    workStart: "08:00",
+    workEnd: "15:00",
+    workDays: [1, 2, 3, 4, 5, 6],
+  },
+  {
+    id: "afternoon",
+    label: "Équipe Après-midi / Soir (13h00 – 20h00)",
+    shortLabel: "Après-midi (13h–20h)",
+    desc: "Relais d'après-midi, sortie de bureau et fermeture",
+    workStart: "13:00",
+    workEnd: "20:00",
+    workDays: [1, 2, 3, 4, 5, 6],
+  },
+  {
+    id: "day_standard",
+    label: "Journée Classique (09h00 – 18h00)",
+    shortLabel: "Journée (09h–18h)",
+    desc: "Journée continue standard du lundi au samedi",
+    workStart: "09:00",
+    workEnd: "18:00",
+    workDays: [1, 2, 3, 4, 5, 6],
+  },
+  {
+    id: "late_shift",
+    label: "Nocturne / Soirée (14h00 – 22h00)",
+    shortLabel: "Soirée (14h–22h)",
+    desc: "Créneaux tardifs et nocturnes",
+    workStart: "14:00",
+    workEnd: "22:00",
+    workDays: [2, 3, 4, 5, 6],
+  },
+  {
+    id: "weekend_parttime",
+    label: "Temps Partiel / Renfort Fin de Semaine (Jeu–Sam)",
+    shortLabel: "Temps partiel (Jeu–Sam)",
+    desc: "Présence ciblée sur les jours de forte affluence",
+    workStart: "09:30",
+    workEnd: "19:30",
+    workDays: [4, 5, 6],
+  },
+];
+
+export const WEEKDAYS_SHORT: { day: number; short: string; label: string }[] = [
+  { day: 1, short: "Lun", label: "Lundi" },
+  { day: 2, short: "Mar", label: "Mardi" },
+  { day: 3, short: "Mer", label: "Mercredi" },
+  { day: 4, short: "Jeu", label: "Jeudi" },
+  { day: 5, short: "Ven", label: "Vendredi" },
+  { day: 6, short: "Sam", label: "Samedi" },
+  { day: 7, short: "Dim", label: "Dimanche" },
+];
+
+const SCHED_START_PREFIX = "__sched_start:";
+const SCHED_END_PREFIX = "__sched_end:";
+const SCHED_DAYS_PREFIX = "__sched_days:";
+
+export function isValidTimeHHMM(val?: string | null): val is string {
+  if (!val || typeof val !== "string") return false;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(val.trim());
+}
+
+export function timeHHMMToMinutes(val?: string | null, fallbackHour = 9): number {
+  if (!isValidTimeHHMM(val)) return fallbackHour * 60;
+  const [h, m] = val.trim().split(":").map(Number);
+  return h * 60 + m;
+}
+
+export function hourIntToHHMM(hour?: number | null, fallback = 9): string {
+  const h = typeof hour === "number" && Number.isFinite(hour) ? Math.max(0, Math.min(23, Math.floor(hour))) : fallback;
+  return `${String(h).padStart(2, "0")}:00`;
+}
+
+/**
+ * Extrait les horaires personnalisés (`workStart`, `workEnd`, `workDays`)
+ * encodés dans le JSON `permissions` d'un employé.
+ */
+export function parseEmployeeScheduleFromRaw(raw?: string | null): EmployeeSchedule {
+  if (!raw) return { workStart: null, workEnd: null, workDays: null };
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return { workStart: null, workEnd: null, workDays: null };
+    let workStart: string | null = null;
+    let workEnd: string | null = null;
+    let workDays: number[] | null = null;
+    for (const item of arr) {
+      if (typeof item !== "string") continue;
+      if (item.startsWith(SCHED_START_PREFIX)) {
+        const candidate = item.slice(SCHED_START_PREFIX.length).trim();
+        if (isValidTimeHHMM(candidate)) workStart = candidate;
+      } else if (item.startsWith(SCHED_END_PREFIX)) {
+        const candidate = item.slice(SCHED_END_PREFIX.length).trim();
+        if (isValidTimeHHMM(candidate)) workEnd = candidate;
+      } else if (item.startsWith(SCHED_DAYS_PREFIX)) {
+        const rawDays = item
+          .slice(SCHED_DAYS_PREFIX.length)
+          .split(",")
+          .map((d) => Number(d.trim()))
+          .filter((d) => Number.isInteger(d) && d >= 1 && d <= 7);
+        if (rawDays.length > 0) {
+          workDays = Array.from(new Set(rawDays)).sort((a, b) => a - b);
+        }
+      }
+    }
+    return { workStart, workEnd, workDays };
+  } catch {
+    return { workStart: null, workEnd: null, workDays: null };
+  }
+}
+
+/**
+ * Sérialise les permissions de modules + les horaires de travail dans la colonne JSON `permissions`
+ * sans aucune perte ni besoin de migration SQL.
+ */
+export function serializePermissionsWithSchedule(
+  modulePermissions: string[] | null | undefined,
+  schedule?: {
+    workStart?: string | null;
+    workEnd?: string | null;
+    workDays?: number[] | null;
+  },
+  existingRaw?: string | null
+): string | null {
+  let baseModules: string[] = [];
+  if (Array.isArray(modulePermissions)) {
+    baseModules = modulePermissions.filter((x) => typeof x === "string" && !x.startsWith("__sched_"));
+  } else if (existingRaw) {
+    try {
+      const parsed = JSON.parse(existingRaw);
+      if (Array.isArray(parsed)) {
+        baseModules = parsed.filter((x): x is string => typeof x === "string" && !x.startsWith("__sched_"));
+      }
+    } catch {
+      baseModules = [];
+    }
+  }
+
+  const prevSched = parseEmployeeScheduleFromRaw(existingRaw);
+  const workStart = schedule && "workStart" in schedule ? schedule.workStart : prevSched.workStart;
+  const workEnd = schedule && "workEnd" in schedule ? schedule.workEnd : prevSched.workEnd;
+  const workDays = schedule && "workDays" in schedule ? schedule.workDays : prevSched.workDays;
+
+  const tokens: string[] = [...baseModules];
+  if (isValidTimeHHMM(workStart)) {
+    tokens.push(`${SCHED_START_PREFIX}${workStart.trim()}`);
+  }
+  if (isValidTimeHHMM(workEnd)) {
+    tokens.push(`${SCHED_END_PREFIX}${workEnd.trim()}`);
+  }
+  if (Array.isArray(workDays) && workDays.length > 0) {
+    const cleanDays = Array.from(
+      new Set(workDays.map(Number).filter((d) => Number.isInteger(d) && d >= 1 && d <= 7))
+    ).sort((a, b) => a - b);
+    if (cleanDays.length > 0) {
+      tokens.push(`${SCHED_DAYS_PREFIX}${cleanDays.join(",")}`);
+    }
+  }
+
+  if (tokens.length === 0) return null;
+  return JSON.stringify(tokens);
+}
+
+/**
+ * Formate de manière lisible les horaires d'un(e) employé(e) ou de l'entreprise.
+ */
+export function formatWorkScheduleLabel(
+  schedule?: { workStart?: string | null; workEnd?: string | null; workDays?: number[] | null } | null,
+  tenantOpeningHour = 9,
+  tenantClosingHour = 19
+): string {
+  const start = isValidTimeHHMM(schedule?.workStart) ? schedule!.workStart! : hourIntToHHMM(tenantOpeningHour, 9);
+  const end = isValidTimeHHMM(schedule?.workEnd) ? schedule!.workEnd! : hourIntToHHMM(tenantClosingHour, 19);
+  const isCustomHours = isValidTimeHHMM(schedule?.workStart) || isValidTimeHHMM(schedule?.workEnd);
+  const days = schedule?.workDays;
+  let daysLabel = "";
+  if (Array.isArray(days) && days.length > 0 && days.length < 7) {
+    if (days.join(",") === "1,2,3,4,5,6") {
+      daysLabel = "Lun–Sam";
+    } else if (days.join(",") === "1,2,3,4,5") {
+      daysLabel = "Lun–Ven";
+    } else {
+      daysLabel = days
+        .map((d) => WEEKDAYS_SHORT.find((w) => w.day === d)?.short ?? "")
+        .filter(Boolean)
+        .join(", ");
+    }
+  } else if (Array.isArray(days) && days.length === 7) {
+    daysLabel = "7j/7";
+  }
+
+  const timePart = `${start.replace(":", "h")} – ${end.replace(":", "h")}`;
+  if (!isCustomHours && (!daysLabel || daysLabel === "Lun–Sam")) {
+    return `${timePart} (Horaires salon)`;
+  }
+  return daysLabel ? `${timePart} · ${daysLabel}` : timePart;
+}
+
+

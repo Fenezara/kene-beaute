@@ -610,7 +610,16 @@ export function ProEnterpriseShell() {
     status: string;
     hours?: number | null;
   } | null>(null);
-  const [staffEmployee, setStaffEmployee] = useState<{ id: string; name: string; role: string } | null>(null);
+  const [staffEmployee, setStaffEmployee] = useState<{
+    id: string;
+    name: string;
+    role: string;
+    workStart?: string | null;
+    workEnd?: string | null;
+    workDays?: number[] | null;
+    tenantOpeningHour?: number;
+    tenantClosingHour?: number;
+  } | null>(null);
   const [attendanceBusy, setAttendanceBusy] = useState(false);
 
   const loadAttendance = useCallback(async () => {
@@ -621,7 +630,16 @@ export function ProEnterpriseShell() {
       if (uId) params.set("userId", uId);
       const res = await apiGet<{
         attendance: { id: string; checkIn?: string | null; checkOut?: string | null; status: string; hours?: number | null } | null;
-        employee: { id: string; name: string; role: string } | null;
+        employee: {
+          id: string;
+          name: string;
+          role: string;
+          workStart?: string | null;
+          workEnd?: string | null;
+          workDays?: number[] | null;
+          tenantOpeningHour?: number;
+          tenantClosingHour?: number;
+        } | null;
       }>(`/api/pro/employees/attendance?${params.toString()}`);
       if (res?.employee) {
         setStaffEmployee(res.employee);
@@ -2102,6 +2120,17 @@ export function ProEnterpriseShell() {
                   allowedSections={allowedIds ?? undefined}
                   overview={overview.data}
                   attendance={staffAttendance}
+                  employeeSchedule={
+                    staffEmployee
+                      ? {
+                          workStart: staffEmployee.workStart ?? null,
+                          workEnd: staffEmployee.workEnd ?? null,
+                          workDays: staffEmployee.workDays ?? null,
+                          tenantOpeningHour: staffEmployee.tenantOpeningHour ?? 9,
+                          tenantClosingHour: staffEmployee.tenantClosingHour ?? 19,
+                        }
+                      : null
+                  }
                   onPointage={handleSelfPointage}
                   pointageBusy={attendanceBusy}
                   onNavigate={openSection}

@@ -452,6 +452,9 @@ export interface ProEmployee {
   cnpsNumber?: string | null;
   bankAccount?: string | null;
   permissions?: string[] | null;
+  workStart?: string | null;
+  workEnd?: string | null;
+  workDays?: number[] | null;
   active: boolean;
   hireDate: string;
   endDate?: string | null;

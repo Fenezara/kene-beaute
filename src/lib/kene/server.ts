@@ -139,7 +139,11 @@ export function parseEmployeePermissionsJson(raw?: string | null): string[] | nu
   if (!raw) return null;
   try {
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string") : null;
+    if (!Array.isArray(arr)) return null;
+    const modules = arr.filter(
+      (x): x is string => typeof x === "string" && !x.startsWith("__sched_")
+    );
+    return modules.length > 0 ? modules : null;
   } catch {
     return null;
   }

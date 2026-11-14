@@ -5,6 +5,10 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, dayStart, dayEnd, genRef } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { hashPin, isValidPin } from "@/lib/kene/pin";
+import {
+  parseEmployeeScheduleFromRaw,
+  serializePermissionsWithSchedule,
+} from "@/lib/kene/hr-constants";
 
 const PRACTITIONER_ROLES = new Set([
   "estheticienne",
@@ -69,16 +73,30 @@ function parseEmployeePermissions(raw: string | null | undefined): string[] | nu
   if (!raw) return null;
   try {
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : null;
+    if (!Array.isArray(arr)) return null;
+    const modules = arr.filter(
+      (x): x is string => typeof x === "string" && !x.startsWith("__sched_")
+    );
+    return modules.length > 0 ? modules : null;
   } catch {
     return null;
   }
 }
 
-/** Enrichit chaque fiche du téléphone du compte app lié, statut code PIN et permissions. */
+/** Enrichit chaque fiche du téléphone du compte app lié, statut code PIN, permissions et horaires. */
 async function withAccountPhones<T extends { userId: string | null; permissions?: string | null }>(
   employees: T[],
-): Promise<(T & { accountPhone: string | null; hasPin: boolean; pinLocked: boolean; permissions: string[] | null })[]> {
+): Promise<
+  (T & {
+    accountPhone: string | null;
+    hasPin: boolean;
+    pinLocked: boolean;
+    permissions: string[] | null;
+    workStart: string | null;
+    workEnd: string | null;
+    workDays: number[] | null;
+  })[]
+> {
   const ids = [...new Set(employees.map((e) => e.userId).filter((u): u is string => !!u))];
   const users = ids.length
     ? await db.user.findMany({
@@ -89,12 +107,16 @@ async function withAccountPhones<T extends { userId: string | null; permissions?
   const byId = new Map(users.map((u) => [u.id, u]));
   return employees.map((e) => {
     const u = e.userId ? byId.get(e.userId) : null;
+    const sched = parseEmployeeScheduleFromRaw(e.permissions);
     return {
       ...e,
       accountPhone: u?.phone ?? null,
       hasPin: Boolean(u?.pinHash),
       pinLocked: Boolean(u?.pinLockedUntil && u.pinLockedUntil > new Date()),
       permissions: parseEmployeePermissions(e.permissions),
+      workStart: sched.workStart,
+      workEnd: sched.workEnd,
+      workDays: sched.workDays,
     };
   });
 }
@@ -159,6 +181,10 @@ const Body = z.object({
   pin: z.string().trim().min(4).max(6).optional(),
   // — permissions granulaires personnalisées de l'employée (modules autorisés sur mesure)
   permissions: z.array(z.string()).nullable().optional(),
+  // — horaires de travail personnalisés de l'employée (ex: "08:00" à "15:00" ou "13:00" à "20:00")
+  workStart: z.string().trim().max(10).nullable().optional(),
+  workEnd: z.string().trim().max(10).nullable().optional(),
+  workDays: z.array(z.number().int().min(1).max(7)).nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -174,7 +200,7 @@ export async function POST(req: NextRequest) {
     const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const { name, role, contractType, baseSalary, transport, housing, cadres, phone, pin, permissions } = parsed.data;
+    const { name, role, contractType, baseSalary, transport, housing, cadres, phone, pin, permissions, workStart, workEnd, workDays } = parsed.data;
     const tenantId = tenant.id;
 
     if (pin && !isValidPin(pin)) {
@@ -231,6 +257,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const serializedPermissions = serializePermissionsWithSchedule(
+      permissions,
+      { workStart, workEnd, workDays },
+      null
+    );
+
     const employee = await db.employee.create({
       data: {
         tenantId,
@@ -243,7 +275,7 @@ export async function POST(req: NextRequest) {
         transport: transport ?? 0,
         housing: housing ?? 0,
         cadres: cadres ?? false,
-        permissions: permissions && permissions.length > 0 ? JSON.stringify(permissions) : null,
+        permissions: serializedPermissions,
       },
     });
 
@@ -254,12 +286,16 @@ export async function POST(req: NextRequest) {
       active: employee.active,
     });
 
+    const createdSched = parseEmployeeScheduleFromRaw(employee.permissions);
     return NextResponse.json(
       {
         employee: {
           ...employee,
           accountPhone: phone ?? null,
           permissions: parseEmployeePermissions(employee.permissions),
+          workStart: createdSched.workStart,
+          workEnd: createdSched.workEnd,
+          workDays: createdSched.workDays,
         },
         account: accountUserId ? { created: true, phone: phone } : null,
       },
@@ -290,6 +326,10 @@ const PatchBody = z.object({
   pin: z.string().trim().min(4).max(6).optional(),
   // — permissions granulaires personnalisées de l'employée (modules autorisés sur mesure)
   permissions: z.array(z.string()).nullable().optional(),
+  // — horaires de travail personnalisés de l'employée
+  workStart: z.string().trim().max(10).nullable().optional(),
+  workEnd: z.string().trim().max(10).nullable().optional(),
+  workDays: z.array(z.number().int().min(1).max(7)).nullable().optional(),
   active: z.boolean().optional(),
   endDate: z.string().datetime().optional(),
 });
@@ -301,7 +341,7 @@ export async function PATCH(req: NextRequest) {
 
     const parsed = PatchBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, id, phone, pin, active, endDate, cnpsNumber, bankAccount, permissions, ...fields } = parsed.data;
+    const { tenantId, id, phone, pin, active, endDate, cnpsNumber, bankAccount, permissions, workStart, workEnd, workDays, ...fields } = parsed.data;
 
     if (pin && !isValidPin(pin)) {
       return jsonError("Le code PIN doit comporter 4 chiffres", 400);
@@ -365,6 +405,24 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
+    const shouldUpdatePermsOrSchedule =
+      permissions !== undefined ||
+      workStart !== undefined ||
+      workEnd !== undefined ||
+      workDays !== undefined;
+
+    const nextPermissionsRaw = shouldUpdatePermsOrSchedule
+      ? serializePermissionsWithSchedule(
+          permissions,
+          {
+            ...(workStart !== undefined ? { workStart } : {}),
+            ...(workEnd !== undefined ? { workEnd } : {}),
+            ...(workDays !== undefined ? { workDays } : {}),
+          },
+          employee.permissions
+        )
+      : undefined;
+
     const updated = await db.employee.update({
       where: { id },
       data: {
@@ -372,9 +430,7 @@ export async function PATCH(req: NextRequest) {
         cnpsNumber,
         bankAccount,
         userId: accountUserId,
-        ...(permissions !== undefined
-          ? { permissions: permissions && permissions.length > 0 ? JSON.stringify(permissions) : null }
-          : {}),
+        ...(nextPermissionsRaw !== undefined ? { permissions: nextPermissionsRaw } : {}),
         ...(active !== undefined
           ? { active, endDate: active ? null : endDate ? new Date(endDate) : new Date() }
           : {}),
@@ -392,11 +448,15 @@ export async function PATCH(req: NextRequest) {
     const account = accountUserId
       ? await db.user.findUnique({ where: { id: accountUserId }, select: { phone: true } })
       : null;
+    const updatedSched = parseEmployeeScheduleFromRaw(updated.permissions);
     return NextResponse.json({
       employee: {
         ...updated,
         accountPhone: account?.phone ?? null,
         permissions: parseEmployeePermissions(updated.permissions),
+        workStart: updatedSched.workStart,
+        workEnd: updatedSched.workEnd,
+        workDays: updatedSched.workDays,
       },
     });
   } catch (err) {

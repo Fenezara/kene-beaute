@@ -26,7 +26,7 @@ import { InitialAvatar, SectionHeader } from "./ui-bits";
 import type { ProSectionId } from "./ProApp";
 import { Switch } from "@/components/ui/switch";
 import { getTenantPosSettings, saveTenantPosSettings, type TenantPosSettings } from "@/lib/kene/tenant-settings";
-import { formatRole } from "@/lib/kene/hr-constants";
+import { formatRole, formatWorkScheduleLabel } from "@/lib/kene/hr-constants";
 import { CommercialKitModal } from "./CommercialKitModal";
 import { TierThemeSelector } from "@/components/kene/TierThemeSelector";
 import { ContactKeneModal } from "@/components/kene/client/ContactKeneModal";
@@ -111,6 +111,17 @@ export function SettingsSection({
   const [salonAddress, setSalonAddress] = useState("");
   const [coordsBusy, setCoordsBusy] = useState(false);
 
+  const [openingHour, setOpeningHour] = useState<number>(9);
+  const [closingHour, setClosingHour] = useState<number>(19);
+  const [hoursBusy, setHoursBusy] = useState(false);
+  const [employeeSchedule, setEmployeeSchedule] = useState<{
+    workStart: string | null;
+    workEnd: string | null;
+    workDays: number[] | null;
+    tenantOpeningHour: number;
+    tenantClosingHour: number;
+  } | null>(null);
+
   useEffect(() => {
     let alive = true;
     apiGet<{ institutes: { id: string; image: string; hasPhoto?: boolean; description?: string }[] }>("/api/institutes")
@@ -127,7 +138,16 @@ export function SettingsSection({
       })
       .catch(() => {}); // non bloquant: la carte affiche l'état vide
 
-    apiGet<{ tenants: Array<{ id: string; phone?: string | null; address?: string | null; description?: string | null }> }>("/api/pro/tenants")
+    apiGet<{
+      tenants: Array<{
+        id: string;
+        phone?: string | null;
+        address?: string | null;
+        description?: string | null;
+        openingHour?: number;
+        closingHour?: number;
+      }>;
+    }>("/api/pro/tenants")
       .then((r) => {
         if (!alive) return;
         const mine = r.tenants?.find((t) => t.id === tenantId);
@@ -135,14 +155,68 @@ export function SettingsSection({
           if (mine.phone) setSalonPhone(mine.phone);
           if (mine.address) setSalonAddress(mine.address);
           if (mine.description && !description) setDescription(mine.description);
+          if (typeof mine.openingHour === "number") setOpeningHour(mine.openingHour);
+          if (typeof mine.closingHour === "number") setClosingHour(mine.closingHour);
         }
       })
       .catch(() => {});
 
+    if (!isOwner && sessionUser?.id) {
+      apiGet<{
+        employee: {
+          workStart?: string | null;
+          workEnd?: string | null;
+          workDays?: number[] | null;
+          tenantOpeningHour?: number;
+          tenantClosingHour?: number;
+        } | null;
+      }>(`/api/pro/employees/attendance?tenantId=${encodeURIComponent(tenantId)}&userId=${encodeURIComponent(sessionUser.id)}`)
+        .then((res) => {
+          if (!alive || !res.employee) return;
+          setEmployeeSchedule({
+            workStart: res.employee.workStart ?? null,
+            workEnd: res.employee.workEnd ?? null,
+            workDays: res.employee.workDays ?? null,
+            tenantOpeningHour: res.employee.tenantOpeningHour ?? 9,
+            tenantClosingHour: res.employee.tenantClosingHour ?? 19,
+          });
+        })
+        .catch(() => {});
+    }
+
     return () => {
       alive = false;
     };
-  }, [tenantId]);
+  }, [tenantId, isOwner, sessionUser?.id]);
+
+  async function handleSaveHours() {
+    if (!tenantId) return;
+    if (closingHour <= openingHour) {
+      toast.error("L'heure de fermeture doit être postérieure à l'heure d'ouverture");
+      return;
+    }
+    setHoursBusy(true);
+    try {
+      await apiPatch("/api/pro/tenants", {
+        tenantId,
+        openingHour,
+        closingHour,
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("kene:refresh-overview"));
+      }
+      toast.success(
+        `Horaires de l'établissement enregistrés : ${String(openingHour).padStart(2, "0")}h00 – ${String(closingHour).padStart(2, "0")}h00 ⏰`,
+        {
+          description: "L'agenda, les réservations et le pointage standard utilisent désormais ces horaires.",
+        }
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible d'enregistrer les horaires");
+    } finally {
+      setHoursBusy(false);
+    }
+  }
 
   async function handleSaveCoords() {
     if (!tenantId) return;
@@ -380,13 +454,20 @@ export function SettingsSection({
       {/* Pointage du jour & Présence (visible pour les collaboratrices / non-gérante) */}
       {!isOwner && (
         <div className="k-card rounded-[20px] p-4 space-y-3.5 border border-primary/20 bg-gradient-to-br from-card via-background to-primary/5">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <IconBadge icon={<Clock size={18} />} tone="gold" />
               <div>
-                <p className="text-xs font-bold text-foreground">Mon pointage de présence du jour</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-bold text-foreground">Mon pointage de présence du jour</p>
+                  {employeeSchedule && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 text-gold-text border border-gold/30 px-2.5 py-0.5 text-[10px] font-bold">
+                      🕒 {formatWorkScheduleLabel(employeeSchedule, employeeSchedule.tenantOpeningHour, employeeSchedule.tenantClosingHour)}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Enregistre votre heure d&apos;arrivée et de départ pour la fiche d&apos;heures.
+                  Enregistre votre heure d&apos;arrivée et de départ selon vos horaires de poste.
                 </p>
               </div>
             </div>
@@ -585,6 +666,107 @@ export function SettingsSection({
                   {coordsBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
                   Enregistrer les coordonnées
                 </button>
+              </div>
+
+              {/* Horaires d'ouverture & de fermeture de l'entreprise */}
+              <div className="border-t border-border/60 pt-4 mt-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Clock size={15} className="text-gold-text shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-foreground">
+                        Horaires d&apos;ouverture &amp; de fermeture de l&apos;établissement
+                      </p>
+                      <p className="text-[10.5px] text-muted-foreground">
+                        Chaque entreprise a ses propres horaires : adapte l&apos;Agenda et le pointage par défaut.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-gold/15 border border-gold/30 px-2.5 py-0.5 text-[10.5px] font-extrabold text-gold-text tabular-nums shrink-0">
+                    {String(openingHour).padStart(2, "0")}h00 – {String(closingHour).padStart(2, "0")}h00
+                  </span>
+                </div>
+
+                {/* Préréglages rapides d'entreprise */}
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: "Matinal (07h – 18h)", open: 7, close: 18 },
+                    { label: "Classique (08h – 18h)", open: 8, close: 18 },
+                    { label: "Standard (09h – 19h)", open: 9, close: 19 },
+                    { label: "Étendu (09h – 20h)", open: 9, close: 20 },
+                    { label: "Galerie / Tardif (10h – 21h)", open: 10, close: 21 },
+                    { label: "Nocturne (10h – 22h)", open: 10, close: 22 },
+                  ].map((preset) => {
+                    const active = openingHour === preset.open && closingHour === preset.close;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          setOpeningHour(preset.open);
+                          setClosingHour(preset.close);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer border ${
+                          active
+                            ? "bg-primary/15 text-primary border-primary/40 shadow-xs"
+                            : "bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground"
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10.5px] font-bold text-foreground block mb-1">
+                      Heure de début / ouverture
+                    </label>
+                    <select
+                      value={openingHour}
+                      onChange={(e) => setOpeningHour(Number(e.target.value))}
+                      className="w-full h-9 rounded-xl border border-border bg-background px-2.5 text-xs font-bold tabular-nums text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                    >
+                      {Array.from({ length: 15 }, (_, i) => i + 5).map((h) => (
+                        <option key={h} value={h}>
+                          {String(h).padStart(2, "0")}h00
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10.5px] font-bold text-foreground block mb-1">
+                      Heure de fin / fermeture
+                    </label>
+                    <select
+                      value={closingHour}
+                      onChange={(e) => setClosingHour(Number(e.target.value))}
+                      className="w-full h-9 rounded-xl border border-border bg-background px-2.5 text-xs font-bold tabular-nums text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                    >
+                      {Array.from({ length: 13 }, (_, i) => i + 12).map((h) => (
+                        <option key={h} value={h}>
+                          {String(h).padStart(2, "0")}h00
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <p className="text-[10px] text-muted-foreground">
+                    💡 Les employées ayant des horaires décalés (matin, après-midi, temps partiel) se configurent individuellement dans <strong>Équipe &amp; RH</strong>.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSaveHours}
+                    disabled={hoursBusy}
+                    className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm shrink-0"
+                  >
+                    {hoursBusy ? <Loader2 size={13} className="animate-spin" /> : <Clock size={13} />}
+                    Enregistrer les horaires
+                  </button>
+                </div>
               </div>
             </div>
           </div>

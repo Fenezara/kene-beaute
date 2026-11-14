@@ -148,6 +148,8 @@ export async function GET(req: NextRequest) {
         rating: t.rating,
         reviewCount: t.reviewCount,
         themeTier: t.themeTier,
+        openingHour: t.openingHour ?? 9,
+        closingHour: t.closingHour ?? 19,
         active: t.active,
       })),
     });
@@ -252,6 +254,8 @@ const UpdateTenantBody = z.object({
   address: z.string().trim().max(200).optional().nullable(),
   phone: z.string().trim().min(8).max(30).optional().nullable(),
   themeTier: z.string().trim().max(80).optional().nullable(),
+  openingHour: z.number().int().min(0).max(23).optional(),
+  closingHour: z.number().int().min(1).max(24).optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -266,7 +270,7 @@ export async function PATCH(req: NextRequest) {
       return jsonError(issue?.message ?? "Données invalides", 400);
     }
 
-    const { tenantId, description, address, phone, themeTier } = parsed.data;
+    const { tenantId, description, address, phone, themeTier, openingHour, closingHour } = parsed.data;
 
     // Vérification des droits d'accès à l'établissement pour la session
     const tenants = await resolveProTenants(req);
@@ -275,11 +279,26 @@ export async function PATCH(req: NextRequest) {
       return jsonError("Établissement non autorisé pour cette session", 403);
     }
 
-    const dataToUpdate: { description?: string | null; address?: string | null; phone?: string; themeTier?: string | null } = {};
+    const nextOpen = openingHour !== undefined ? openingHour : (target.openingHour ?? 9);
+    const nextClose = closingHour !== undefined ? closingHour : (target.closingHour ?? 19);
+    if (nextClose <= nextOpen) {
+      return jsonError("L'heure de fermeture doit être postérieure à l'heure d'ouverture", 400);
+    }
+
+    const dataToUpdate: {
+      description?: string | null;
+      address?: string | null;
+      phone?: string;
+      themeTier?: string | null;
+      openingHour?: number;
+      closingHour?: number;
+    } = {};
     if (description !== undefined) dataToUpdate.description = description ? description.trim() : null;
     if (address !== undefined) dataToUpdate.address = address ? address.trim() : null;
     if (phone !== undefined && phone) dataToUpdate.phone = phone.trim();
     if (themeTier !== undefined) dataToUpdate.themeTier = themeTier ? themeTier.trim() : null;
+    if (openingHour !== undefined) dataToUpdate.openingHour = openingHour;
+    if (closingHour !== undefined) dataToUpdate.closingHour = closingHour;
 
     const updated = await db.tenant.update({
       where: { id: target.id },
@@ -298,6 +317,8 @@ export async function PATCH(req: NextRequest) {
         phone: updated.phone,
         description: updated.description,
         themeTier: updated.themeTier,
+        openingHour: updated.openingHour ?? 9,
+        closingHour: updated.closingHour ?? 19,
         rating: updated.rating,
         reviewCount: updated.reviewCount,
       },
